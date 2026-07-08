@@ -1,0 +1,285 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  username      String   @unique @db.VarChar(50)
+  password_hash String   @db.VarChar(255)
+  full_name     String   @db.VarChar(100)
+  employee_id   String   @unique @db.VarChar(100)
+  department    String?  @db.VarChar(100)
+  email         String   @unique @db.VarChar(100)
+  is_active     Boolean  @default(true)
+  last_logout_at DateTime?
+  remember_token String?  @db.VarChar(255)
+  reset_password_token String? @db.VarChar(255)
+  reset_password_expires DateTime?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  roles         UserRole[]
+  notifications Notification[]
+  faiRequestsAsRequestor  FaiRequest[] @relation("FaiRequestor")
+  faiRequestsAsInspector  FaiRequest[] @relation("FaiInspector")
+  labRequestsAsRequestor  LabRequest[] @relation("LabRequestor")
+  labWorkOrdersAsTechnician LabWorkOrder[] @relation("LabTechnician")
+  labRequestsAsApprover   LabRequest[] @relation("LabApprover")
+  faiLabReports FaiLabReport[]
+  approvalLogs  ApprovalLog[]
+
+  @@map("users")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(50)
+  description String?  @db.Text
+  badge_color String   @default("#63e079") @db.VarChar(20)
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  role_id       Int
+  permission_id Int
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  role          Role       @relation(fields: [role_id], references: [id])
+  permission    Permission @relation(fields: [permission_id], references: [id])
+
+  @@id([role_id, permission_id])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  user_id       Int
+  role_id       Int
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  user          User     @relation(fields: [user_id], references: [id])
+  role          Role     @relation(fields: [role_id], references: [id])
+
+  @@id([user_id, role_id])
+  @@map("user_roles")
+}
+
+model FaiRequest {
+  id                    Int      @id @default(autoincrement())
+  requestor_id          Int
+  project_name          String   @db.VarChar(255)
+  part_no               String   @db.VarChar(100)
+  revision              String?  @db.VarChar(50)
+  part_name             String?  @db.VarChar(255)
+  tracking_no           String?  @db.VarChar(100)
+  commodity_part        Int?
+  supplier_name         String?  @db.VarChar(255)
+  part_type             String?  @db.VarChar(100)
+  reason_for_submission String?  @db.VarChar(255)
+  receive_date          DateTime? @db.Date
+  sample_qty            Int      @default(1)
+  submission_time       Int      @default(1)
+  priority              String?  @db.VarChar(50)
+  week_no               Int?
+  complete_date         DateTime? @db.Date
+  failure_details       String?  @db.Text
+  improvement_plan      String?  @db.Text
+  inspector_id          Int?
+  fai_failure_mode      Int?
+  remark                String?  @db.Text
+  estimated_date        DateTime? @db.Date
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+  status                String   @default("Draft") @db.VarChar(50)
+  result                String?  @db.VarChar(50)
+  person_in_charge      String?  @db.VarChar(255)
+  address               String?  @db.VarChar(255)
+  idempotency_key       String?  @unique @db.VarChar(255)
+  is_active             Boolean  @default(true)
+  submission_contents   Json?
+  form_data             Json
+
+  requestor        User     @relation("FaiRequestor", fields: [requestor_id], references: [id])
+  inspector        User?    @relation("FaiInspector", fields: [inspector_id], references: [id])
+  faiFailureModeRel FaiFailureMode? @relation(fields: [fai_failure_mode], references: [id])
+  commodityPartRel  CommodityPart?  @relation(fields: [commodity_part], references: [id])
+
+  @@map("fai_requests")
+}
+
+model LabRequest {
+  id                Int      @id @default(autoincrement())
+  test_no           String?  @unique @db.VarChar(50)
+  model_no          String   @db.VarChar(100)
+  model_description String?  @db.VarChar(255)
+  quantity          Int      @default(1)
+  product_sn        String?  @db.VarChar(255)
+  project_name      String?  @db.VarChar(255)
+  revision          String?  @db.VarChar(50)
+  stage             String?  @db.VarChar(100)
+  priority          String   @default("Mid") @db.VarChar(50)
+  priority_reason   String?  @db.Text
+  request_date      DateTime @db.Date
+  estimated_date    DateTime? @db.Date
+  status            String   @default("Draft") @db.VarChar(50)
+  requestor_id      Int
+  approved_by       Int?
+  sample_received_date DateTime? @db.Date
+  sample_return_date   DateTime? @db.Date
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  is_active         Boolean  @default(true)
+  idempotency_key   String?  @unique @db.VarChar(255)
+
+  requestor         User     @relation("LabRequestor", fields: [requestor_id], references: [id])
+  approver          User?    @relation("LabApprover", fields: [approved_by], references: [id])
+  workOrders        LabWorkOrder[]
+  images            LabRequestImage[]
+
+  @@map("lab_requests")
+}
+
+model LabWorkOrder {
+  id                  Int      @id @default(autoincrement())
+  work_order_no       String   @unique @db.VarChar(50)
+  lab_request_id      Int
+  quantity            Int      @default(1)
+  product_sn          String?  @db.VarChar(255)
+  item_test           String   @db.VarChar(255)
+  procedure_condition String?  @db.Text
+  test_specification  String?  @db.Text
+  remark              String?  @db.Text
+  status              String   @default("Backlog") @db.VarChar(50)
+  test_result         String?  @db.VarChar(50)
+  failure_details     String?  @db.Text
+  improvement_plan    String?  @db.Text
+  technician_id       Int?
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+  is_active           Boolean  @default(true)
+
+  labRequest          LabRequest @relation(fields: [lab_request_id], references: [id])
+  technician          User?      @relation("LabTechnician", fields: [technician_id], references: [id])
+
+  @@map("lab_work_orders")
+}
+
+model LabRequestImage {
+  id             Int      @id @default(autoincrement())
+  lab_request_id Int
+  image_url      String   @db.Text
+  image_type     String   @db.VarChar(50)
+  is_active      Boolean  @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  labRequest     LabRequest @relation(fields: [lab_request_id], references: [id])
+
+  @@map("lab_request_images")
+}
+
+model RequestAttachment {
+  id           Int      @id @default(autoincrement())
+  request_id   Int
+  request_type String   @db.VarChar(20)
+  file_name    String   @db.VarChar(255)
+  file_url     String   @db.Text
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@map("request_attachments")
+}
+
+model FaiLabReport {
+  id           Int      @id @default(autoincrement())
+  request_id   Int
+  request_type String   @db.VarChar(20)
+  report_data  Json
+  pdf_url      String?  @db.Text
+  created_by   Int?
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  author       User?    @relation(fields: [created_by], references: [id])
+
+  @@map("fai_lab_reports")
+}
+
+model ApprovalLog {
+  id           Int      @id @default(autoincrement())
+  request_id   Int
+  request_type String   @db.VarChar(20)
+  approver_id  Int
+  action       String   @db.VarChar(50)
+  comment      String?  @db.Text
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  approver     User     @relation(fields: [approver_id], references: [id])
+
+  @@map("approval_logs")
+}
+
+model Notification {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  title      String   @db.VarChar(255)
+  message    String   @db.Text
+  is_read    Boolean  @default(false)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user       User     @relation(fields: [user_id], references: [id])
+
+  @@map("notifications")
+}
+
+model FaiFailureMode {
+  id    Int    @id @default(autoincrement())
+  issue String @unique
+
+  faiRequests FaiRequest[]
+
+  @@map("fai_failure_modes")
+}
+
+model CommodityPart {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  faiRequests FaiRequest[]
+
+  @@map("commodity_parts")
+}
+
