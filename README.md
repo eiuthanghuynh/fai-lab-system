@@ -1,5 +1,8 @@
-# Hướng dẫn Triển khai Local
+<p align="center">
+   <img width="50%" alt="logo" src="https://www.virtualpbx.com/wp-content/uploads/2024/04/Screenshot-2024-04-11-at-1.55.42%E2%80%AFPM-1024x500.png" />
+</p>
 
+# Hướng dẫn Triển khai Local
 
 ## ⚠️ Yêu cầu (Prerequisites)
 Để deploy trên localhost, **BẮT BUỘC** phải cài đặt:
@@ -13,7 +16,11 @@
    git clone https://github.com/eiuthanghuynh/fai-lab-system
    ```
 2. Mở Terminal và trỏ (`cd`) vào thư mục gốc của dự án hoặc chuột phải vào trong thư mục và chọn `Open in Terminal`.
-   <img width="50%" alt="image" src="https://github.com/user-attachments/assets/e656615d-0340-46a4-886b-a378253b154e" />
+
+   **Lưu ý**: Chắc chắn thư mục gốc được trỏ đã có file `docker-compose.yml`
+   <p align="center">
+      <img width="50%" alt="image" src="https://github.com/user-attachments/assets/e656615d-0340-46a4-886b-a378253b154e" />
+   </p>
 3. Chạy lệnh sau để tải và khởi động toàn bộ các dịch vụ:
    ```bash
    docker-compose up -d --build
