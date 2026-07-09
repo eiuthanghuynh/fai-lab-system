@@ -9,6 +9,7 @@ const faiRoutes = require('./src/routes/faiRoutes');
 const faiFailureModeRoutes = require('./src/routes/faiFailureModeRoutes');
 const commodityPartRoutes = require('./src/routes/commodityPartRoutes');
 const labRoutes = require('./src/routes/labRoutes');
+const dashboardRoutes = require('./src/routes/dashboardRoutes');
 
 const path = require('path');
 const http = require('http');
@@ -80,6 +81,7 @@ app.use('/api/fai', faiRoutes);
 app.use('/api/fai-failure-modes', faiFailureModeRoutes);
 app.use('/api/commodity-parts', commodityPartRoutes);
 app.use('/api/lab', labRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Base route for health check
 app.get('/', (req, res) => {

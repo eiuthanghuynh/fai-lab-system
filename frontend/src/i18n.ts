@@ -33,7 +33,18 @@ const messages = {
       fai_status: 'FAI Status Overview',
       fai_result: 'FAI Result',
       fai_commodity: 'FAI by Commodity',
-      fai_pareto: 'Failure Pareto Analysis'
+      fai_pareto: 'Failure Pareto Analysis',
+      year_all: 'Year (All)',
+      week_all: 'Week (All)',
+      week_number: 'Week {n}',
+      select_current: 'Select Current Week & Year',
+      reset: 'Reset',
+      refresh: 'Refresh',
+      new_data: 'New data is available on the system.',
+      reload_data: 'Reload Data',
+      recent_requests: 'Recent FAI Requests',
+      view_all: 'View All',
+      no_recent_requests: 'No recent requests found.'
     },
     fai: {
       form_title: 'FAI Request Form',
@@ -348,7 +359,18 @@ const messages = {
       fai_status: 'Tổng quan trạng thái',
       fai_result: 'Kết quả FAI',
       fai_commodity: 'FAI theo Nhóm',
-      fai_pareto: 'Phân tích Pareto Lỗi'
+      fai_pareto: 'Phân tích Pareto Lỗi',
+      year_all: 'Năm (Tất cả)',
+      week_all: 'Tuần (Tất cả)',
+      week_number: 'Tuần {n}',
+      select_current: 'Chọn Tuần & Năm hiện tại',
+      reset: 'Đặt lại',
+      refresh: 'Làm mới',
+      new_data: 'Có dữ liệu mới cập nhật trên hệ thống.',
+      reload_data: 'Tải lại dữ liệu',
+      recent_requests: 'Yêu cầu FAI gần đây',
+      view_all: 'Xem tất cả',
+      no_recent_requests: 'Không tìm thấy yêu cầu nào gần đây.'
     },
     fai: {
       form_title: 'FAI Request',

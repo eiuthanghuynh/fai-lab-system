@@ -1,4 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-primary: #3b8949;
+}
 
 :root {
   --color-primary: #3b8949;
@@ -57,11 +63,7 @@ html.dark {
 
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  transition: background-color var(--transition-speed) ease, 
-              color var(--transition-speed) ease, 
-              border-color var(--transition-speed) ease;
+  @apply transition-colors duration-300;
 }
 
 body {

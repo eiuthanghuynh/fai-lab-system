@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useFaiStore } from '@/stores/faiStore'
+import api from '@/services/api'
+import { socketService } from '@/services/socket'
+import { useAuthStore } from '@/stores/auth'
 import {
   Chart as ChartJS,
   Title,
@@ -14,8 +16,31 @@ import {
   PointElement,
   LineElement
 } from 'chart.js'
+import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { Bar, Doughnut, Line } from 'vue-chartjs'
 import { useDark } from '@vueuse/core'
+import { toast } from 'vue-sonner'
+import StatusBadge from '@/components/common/StatusBadge.vue'
+import MultiSelectDropdown from '@/components/common/MultiSelectDropdown.vue'
+import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue'
+import ChartCard from '@/components/common/ChartCard.vue'
+import DataTable, { type DataTableColumn } from '@/components/common/DataTable.vue'
+import Pagination from '@/components/Pagination.vue'
+import { useDataTable } from '@/composables/useDataTable'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+const getStatusVariant = (status: string) => {
+  switch (status) {
+    case 'Draft': return 'secondary';
+    case 'Backlog': return 'danger';
+    case 'Ongoing': return 'warning';
+    case 'Approved': return 'success';
+    case 'Rejected': return 'danger';
+    default: return 'info';
+  }
+}
 
 ChartJS.register(
   CategoryScale,
@@ -26,356 +51,577 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  ChartDataLabels
 )
 
 const { t } = useI18n()
-const faiStore = useFaiStore()
+const authStore = useAuthStore()
 const isDark = useDark()
 
+// KPI List for rendering
+const kpiList = computed(() => [
+  { label: t('dashboard.total_fai'), value: stats.value.kpi.total, color: 'bg-blue-500' },
+  { label: t('dashboard.closed'), value: stats.value.kpi.closed, color: 'bg-emerald-500' },
+  { label: t('dashboard.ongoing'), value: stats.value.kpi.ongoing, color: 'bg-amber-500' },
+  { label: t('dashboard.backlog'), value: stats.value.kpi.backlogAssigned, color: 'bg-red-500' },
+  { label: t('dashboard.pass_rate'), value: `${stats.value.kpi.passRate}%`, color: 'bg-purple-500' }
+])
+
+const getStatusText = (status: string) => {
+  switch (status) {
+    case 'Draft': return t('fai.status_draft')
+    case 'Backlog': return t('fai.status_backlog')
+    case 'Ongoing': return t('fai.status_ongoing')
+    case 'Approved': return t('fai.status_approved')
+    case 'Rejected': return t('fai.status_rejected')
+    default: return status
+  }
+}
+
+const formatOrdinal = (n: number) => {
+  if (!n) return '-'
+  const s = ["th", "st", "nd", "rd"]
+  const v = n % 100
+  return n + (s[(v - 20) % 10] || s[v] || s[0])
+}
+
+const formatDate = (dateString: string) => {
+  if (!dateString) return '-'
+  const d = new Date(dateString)
+  return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+const formatDateOnly = (dateString: string) => {
+  if (!dateString) return '-'
+  const d = new Date(dateString)
+  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+// Global states
+const systemFilter = ref<'FAI' | 'LAB'>('FAI')
+const yearFilter = ref<string[]>([])
+const weekFilter = ref<string[]>([])
+const showNewDataToast = ref(false)
+
+const getCurrentWeek = () => {
+  const d = new Date(Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()))
+  const dayNum = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+}
+const currentWeek = getCurrentWeek()
+
+const setToCurrentWeek = () => {
+  const yearStr = new Date().getFullYear().toString()
+  if (!yearFilter.value.includes(yearStr)) {
+    yearFilter.value = [...yearFilter.value, yearStr]
+  }
+  
+  const weekStr = currentWeek.toString()
+  if (!weekFilter.value.includes(weekStr)) {
+    weekFilter.value = [...weekFilter.value, weekStr]
+  }
+}
+
+// Dashboard data
+const isLoading = ref(false)
+const stats = ref<any>({
+  kpi: { total: 0, closed: 0, ongoing: 0, backlogAssigned: 0, passRate: 0 },
+  charts: {
+    status: { closed: 0, ongoing: 0, backlog: 0 },
+    result: { pass: 0, fail: 0, tbd: 0 },
+    commodity: [],
+    pareto: []
+  }
+})
+const recentRequests = ref<any[]>([])
+const totalRecentRequests = ref(0)
+const isRecentLoading = ref(false)
+
+const { page, limit, sortBy, sortDesc, toggleSort } = useDataTable('created_at', true)
+limit.value = 25 // Default rows per page
+
+const recentColumns = computed<DataTableColumn[]>(() => [
+  { key: 'id', label: 'ID', sortable: true, sticky: 'left', width: '60px' },
+  { key: 'requestor_id', label: 'Requestor Name', sortable: true, minWidth: '150px' },
+  { key: 'project_name', label: 'Project Name', sortable: true, minWidth: '160px' },
+  { key: 'part_no', label: 'Part Number', sortable: true, minWidth: '150px' },
+  { key: 'revision', label: 'Revision', sortable: true, minWidth: '120px' },
+  { key: 'part_name', label: 'Part Name', sortable: true, minWidth: '200px' },
+  { key: 'tracking_no', label: 'Tracking No.', sortable: true, minWidth: '200px' },
+  { key: 'commodity_part', label: 'Commodity Part', sortable: true, minWidth: '160px' },
+  { key: 'supplier_name', label: 'Supplier Name', sortable: true, minWidth: '180px' },
+  { key: 'part_type', label: 'Part Type', sortable: true, minWidth: '150px' },
+  { key: 'reason_for_submission', label: 'Reason for Submission', sortable: true, minWidth: '250px' },
+  { key: 'receive_date', label: 'Receive Date', sortable: true, minWidth: '150px' },
+  { key: 'sample_qty', label: 'Sample Qty', sortable: true, minWidth: '120px' },
+  { key: 'submission_time', label: 'Submission Time', sortable: true, minWidth: '150px' },
+  { key: 'priority', label: 'Priority', sortable: true, minWidth: '120px' },
+  { key: 'week_no', label: 'Week', sortable: true, minWidth: '100px' },
+  { key: 'complete_date', label: 'Complete Date', sortable: true, minWidth: '150px' },
+  { key: 'failure_details', label: 'Failure Details', sortable: false, minWidth: '200px' },
+  { key: 'improvement_plan', label: 'Improvement Plan', sortable: false, minWidth: '200px' },
+  { key: 'inspector_id', label: 'Inspector Name', sortable: true, minWidth: '150px' },
+  { key: 'fai_failure_mode', label: 'FAI Failure Mode', sortable: true, minWidth: '180px' },
+  { key: 'remark', label: 'Remark', sortable: true, minWidth: '200px' },
+  { key: 'estimated_date', label: 'Estimated Date', sortable: true, minWidth: '150px' },
+  { key: 'created_at', label: t('fai.columns.created_at'), sortable: true, minWidth: '180px' },
+  { key: 'updated_at', label: t('fai.columns.updated_at'), sortable: true, minWidth: '180px' },
+  { key: 'result', label: t('fai.columns.result'), sortable: true, sticky: 'right', minWidth: '120px' },
+  { key: 'status', label: t('fai.columns.status'), sortable: true, sticky: 'right', minWidth: '160px', width: '160px' },
+  { key: 'actions', label: t('fai.columns.actions'), sticky: 'right', minWidth: '120px', width: '120px' }
+])
+
+// Generate years and weeks for dropdown
+const currentYear = new Date().getFullYear()
+const yearsOptions = Array.from({ length: 5 }, (_, i) => {
+  const y = (currentYear - i).toString()
+  return { label: y, value: y }
+})
+const weeksOptions = computed(() => Array.from({ length: 53 }, (_, i) => {
+  const w = (i + 1).toString()
+  return { label: t('dashboard.week_number', { n: w }), value: w }
+}))
+
+const systemOptions = [
+  { label: 'FAI', value: 'FAI' },
+  { label: 'LAB', value: 'LAB' }
+]
+
+const fetchDashboardStats = async (refresh = false) => {
+  isLoading.value = true
+  try {
+    const query = new URLSearchParams()
+    query.append('system', systemFilter.value)
+    if (yearFilter.value.length > 0) query.append('year', yearFilter.value.join(','))
+    if (weekFilter.value.length > 0) query.append('week', weekFilter.value.join(','))
+    if (refresh) query.append('refresh', 'true')
+
+    const res = await api.get(`/dashboard/stats?${query.toString()}`)
+    stats.value = res.data
+
+    showNewDataToast.value = false
+  } catch (error) {
+    console.error('Failed to fetch dashboard stats', error)
+    toast.error('Failed to fetch dashboard statistics')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const fetchRecentRequests = async () => {
+  if (!authStore.hasPermission('MANAGE_REQUEST_LIST')) return
+  isRecentLoading.value = true
+  try {
+    const endpoint = systemFilter.value === 'FAI' ? '/fai' : '/lab'
+    const res = await api.get(`${endpoint}?page=${page.value}&limit=${limit.value}&sort_by=${sortBy.value}&sort_desc=${sortDesc.value}`)
+    recentRequests.value = res.data.data
+    totalRecentRequests.value = res.data.total
+  } catch (error) {
+    console.error('Failed to fetch recent requests', error)
+  } finally {
+    isRecentLoading.value = false
+  }
+}
+
+watch([page, limit, sortBy, sortDesc, systemFilter], () => {
+  fetchRecentRequests()
+})
+
+watch([systemFilter, yearFilter, weekFilter], () => {
+  fetchDashboardStats(false)
+})
+
+const handleRefresh = () => {
+  fetchDashboardStats(true)
+}
+
+const handleReset = () => {
+  systemFilter.value = 'FAI'
+  yearFilter.value = []
+  weekFilter.value = []
+  // watcher will trigger fetch
+}
+
+// Socket Listeners
+const initSocket = () => {
+  const socket = socketService.getSocket()
+  if (!socket) return
+
+  socket.on('fai_dashboard_updated', () => {
+    if (!showNewDataToast.value) {
+      showNewDataToast.value = true
+      toast.info('Có dữ liệu mới. Nhấn Làm mới (Refresh) để xem!', {
+        action: {
+          label: 'Làm mới',
+          onClick: () => handleRefresh()
+        },
+        duration: 10000
+      })
+    }
+  })
+}
+
 onMounted(() => {
-  faiStore.fetchAllRequests()
+  fetchDashboardStats()
+  fetchRecentRequests()
+  initSocket()
 })
 
-const stats = computed(() => faiStore.dashboardStats)
-
-// Chart options to adapt to Dark Mode dynamically
-const chartOptions = computed(() => {
-  const textColor = isDark.value ? '#e5e7eb' : '#374151'; // Tailwind gray-200 : gray-700
-  const gridColor = isDark.value ? '#374151' : '#e5e7eb'; // Tailwind gray-700 : gray-200
-
-  return {
-    responsive: true,
-    maintainAspectRatio: false,
-    color: textColor,
-    plugins: {
-      legend: {
-        labels: { color: textColor }
-      },
-      title: {
-        display: false
-      }
-    },
-    scales: {
-      x: {
-        ticks: { color: textColor },
-        grid: { color: gridColor }
-      },
-      y: {
-        ticks: { color: textColor },
-        grid: { color: gridColor }
-      }
-    }
+onUnmounted(() => {
+  const socket = socketService.getSocket()
+  if (socket) {
+    socket.off('fai_dashboard_updated')
   }
 })
 
-const doughnutOptions = computed(() => {
-  const textColor = isDark.value ? '#e5e7eb' : '#374151';
-  return {
-    responsive: true,
-    maintainAspectRatio: false,
-    color: textColor,
-    plugins: {
-      legend: {
-        position: 'right' as const,
-        labels: { color: textColor }
-      }
-    }
-  }
+// --- CHART CONFIGURATIONS ---
+
+const chartDark = ref(isDark.value)
+watch(isDark, (val) => {
+  setTimeout(() => {
+    chartDark.value = val
+  }, 300) // Tăng delay lên 300ms để đảm bảo mượt mà trên mọi cấu hình
 })
 
-// Data for Status Chart
+const textColor = computed(() => chartDark.value ? '#e5e7eb' : '#374151')
+const gridColor = computed(() => chartDark.value ? '#374151' : '#e5e7eb')
+
+// 1. Status Chart (Horizontal Bar)
 const statusData = computed(() => ({
-  labels: [t('dashboard.closed'), t('dashboard.ongoing'), t('dashboard.backlog'), t('fai.status_rejected')],
+  labels: [t('dashboard.closed'), t('dashboard.ongoing'), t('dashboard.backlog')],
   datasets: [
     {
       label: 'Requests',
-      backgroundColor: ['#63e079', '#f2c94c', '#ef4444', '#6b7280'],
-      data: [stats.value.closed, stats.value.ongoing, stats.value.backlog, stats.value.rejected]
+      backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+      data: [
+        stats.value.charts.status.closed,
+        stats.value.charts.status.ongoing,
+        stats.value.charts.status.backlog
+      ]
     }
   ]
 }))
+const statusOptions = computed(() => ({
+  indexAxis: 'y' as const,
+  responsive: true,
+  maintainAspectRatio: false,
+  layout: { padding: { right: 50 } }, // ponytail: layout padding avoids right-aligned labels clipping
+  color: textColor.value,
+  plugins: {
+    legend: { display: false },
+    datalabels: {
+      color: textColor.value,
+      anchor: 'end' as const,
+      align: 'right' as const,
+      font: { weight: 'bold' }
+    }
+  },
+  scales: {
+    x: { ticks: { color: textColor.value }, grid: { color: gridColor.value } },
+    y: { ticks: { color: textColor.value }, grid: { display: false } }
+  }
+}))
 
-// Data for Result Chart
+// 2. Result Chart (Doughnut)
 const resultData = computed(() => ({
-  labels: ['PASS', 'FAIL', 'TBD (Blank)'],
+  labels: ['Pass', 'Fail', 'TBD'],
   datasets: [
     {
-      backgroundColor: ['#63e079', '#ef4444', '#9ca3af'],
-      data: [stats.value.pass, stats.value.fail, stats.value.blank]
+      backgroundColor: ['#10b981', '#ef4444', '#6b7280'],
+      data: [
+        stats.value.charts.result.pass,
+        stats.value.charts.result.fail,
+        stats.value.charts.result.tbd
+      ]
     }
   ]
 }))
+const doughnutOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  layout: { padding: 20 }, // ponytail: safe margin for doughnut labels
+  color: textColor.value,
+  plugins: {
+    legend: { position: 'right' as const, labels: { color: textColor.value } },
+    datalabels: {
+      color: '#fff',
+      font: { weight: 'bold' },
+      formatter: (value: number, ctx: any) => {
+        if (value === 0) return '';
+        let sum = 0;
+        let dataArr = ctx.chart.data.datasets[0].data;
+        dataArr.map((data: number) => { sum += data; });
+        let percentage = (value * 100 / sum).toFixed(1) + "%";
+        return percentage;
+      }
+    }
+  }
+}))
 
-// Data for Commodity Chart
+// 3. Commodity Chart (Pie)
 const commodityData = computed(() => {
-  const labels = Object.keys(stats.value.commodityTotalCounts)
-  const data = Object.values(stats.value.commodityTotalCounts)
-  
-  // Generating some colors based on index
-  const colors = ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#f43f5e']
-  
+  const cData = stats.value.charts.commodity
   return {
-    labels,
+    labels: cData.map((c: any) => c.name),
     datasets: [
       {
-        backgroundColor: labels.map((_, i) => colors[i % colors.length]),
-        data
+        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'],
+        data: cData.map((c: any) => c.count)
       }
     ]
   }
 })
 
-// Data for Pareto Chart (Failures by Commodity)
+// 4. Pareto Chart (Bar + Line for Commodity Fails)
 const paretoData = computed(() => {
-  const fails = stats.value.commodityFailCounts;
-  const sortedCommodities = Object.keys(fails).sort((a, b) => fails[b] - fails[a]);
-  const barData = sortedCommodities.map(c => fails[c]);
+  const pData = stats.value.charts.pareto
+  const totalFails = pData.reduce((sum: number, item: any) => sum + item.count, 0)
   
-  const totalFails = barData.reduce((sum, val) => sum + val, 0);
-  let cumulative = 0;
-  const lineData = barData.map(val => {
-    cumulative += val;
-    return totalFails > 0 ? (cumulative / totalFails) * 100 : 0;
-  });
+  let cumulative = 0
+  const cumulativePercents = pData.map((item: any) => {
+    cumulative += item.count
+    return totalFails > 0 ? (cumulative / totalFails) * 100 : 0
+  })
 
   return {
-    labels: sortedCommodities,
+    labels: pData.map((c: any) => c.name),
     datasets: [
       {
         type: 'line' as const,
         label: 'Cumulative %',
-        borderColor: '#f59e0b',
-        backgroundColor: '#f59e0b',
-        borderWidth: 2,
-        fill: false,
-        data: lineData,
+        data: cumulativePercents,
+        borderColor: '#ef4444',
+        backgroundColor: '#ef4444',
         yAxisID: 'y1',
+        datalabels: {
+          display: true,
+          align: 'top' as const,
+          formatter: (value: number) => value.toFixed(0) + '%'
+        }
       },
       {
         type: 'bar' as const,
-        label: 'Failures',
-        backgroundColor: '#ef4444',
-        data: barData,
+        label: 'Fails',
+        data: pData.map((c: any) => c.count),
+        backgroundColor: '#3b82f6',
         yAxisID: 'y',
+        datalabels: {
+          display: true,
+          align: 'center' as const,
+          color: '#fff'
+        }
       }
     ]
   }
 })
 
-const paretoOptions = computed(() => {
-  const base = chartOptions.value;
-  return {
-    ...base,
-    scales: {
-      x: base.scales.x,
-      y: {
-        ...base.scales.y,
-        type: 'linear' as const,
-        display: true,
-        position: 'left' as const,
-      },
-      y1: {
-        type: 'linear' as const,
-        display: true,
-        position: 'right' as const,
-        grid: {
-          drawOnChartArea: false, // only want the grid lines for one axis to show up
-        },
-        ticks: {
-          color: base.scales.y.ticks.color,
-          callback: function(value: any) {
-            return value + '%';
-          }
-        },
-        max: 100,
-        min: 0
-      },
+const paretoOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  layout: { padding: { top: 30 } }, // ponytail: top padding avoids line chart datalabels clipping
+  color: textColor.value,
+  plugins: {
+    legend: { position: 'bottom' as const, labels: { color: textColor.value } }
+  },
+  scales: {
+    x: {
+      ticks: { color: textColor.value },
+      grid: { display: false }
+    },
+    y: {
+      type: 'linear' as const,
+      display: true,
+      position: 'left' as const,
+      ticks: { color: textColor.value },
+      grid: { color: gridColor.value }
+    },
+    y1: {
+      type: 'linear' as const,
+      display: true,
+      position: 'right' as const,
+      ticks: { color: textColor.value, callback: (v: number) => v + '%' },
+      grid: { display: false },
+      min: 0,
+      max: 100
     }
   }
-})
-
-const passRate = computed(() => {
-  const totalDone = stats.value.pass + stats.value.fail;
-  if (totalDone === 0) return 0;
-  return Math.round((stats.value.pass / totalDone) * 100);
-});
-
+}))
 </script>
 
 <template>
-  <div class="dashboard-container">
-    <div class="header">
-      <h2>{{ t('dashboard.title') }}</h2>
-      <div class="actions">
-        <!-- Placeholder for filters (Year/Week) -->
-        <button class="btn-secondary">{{ t('common.reset') || 'Reset' }}</button>
+  <div class="dashboard-container flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 h-full transition-colors duration-300">
+    
+    <!-- Sticky Header -->
+    <div class="sticky top-0 z-1000 bg-white dark:bg-gray-800 shadow-md px-4 md:px-6 lg:px-8 py-4 mb-6 flex flex-col md:flex-row items-center justify-between gap-4 transition-colors duration-300">
+      <div class="flex items-center gap-4 w-full md:w-auto">
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">FAI Dashboard</h1>
+        <span class="text-sm text-gray-500 dark:text-gray-400 font-medium flex items-center">
+          <i class="bi bi-calendar3 mr-2"></i>
+          {{ new Date().toLocaleDateString() }} - {{ t('dashboard.week_number', { n: currentWeek }) }}
+        </span>
+      </div>
+
+      <div class="flex flex-wrap items-start gap-3 w-full md:w-auto mt-2 md:mt-0">
+        <SingleSelectDropdown
+          v-model="systemFilter"
+          :options="systemOptions"
+          class="w-full sm:w-28"
+        />
+
+        <div class="flex flex-col gap-1 items-end w-full sm:w-auto">
+          <div class="flex items-center gap-3 w-full sm:w-auto">
+            <MultiSelectDropdown
+              v-model="yearFilter"
+              :options="yearsOptions"
+              :placeholder="t('dashboard.year_all')"
+              class="flex-1 sm:flex-none sm:w-32"
+            />
+
+            <MultiSelectDropdown
+              v-model="weekFilter"
+              :options="weeksOptions"
+              :placeholder="t('dashboard.week_all')"
+              class="flex-1 sm:flex-none sm:w-36"
+            />
+          </div>
+          <button @click="setToCurrentWeek" class="text-[11px] text-primary hover:text-primary-dark dark:text-green-400 dark:hover:text-green-300 underline cursor-pointer mt-0.5">
+            {{ t('dashboard.select_current') }}
+          </button>
+        </div>
+
+        <button @click="handleReset" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md shadow-sm transition-colors w-full sm:w-auto">
+          {{ t('dashboard.reset') }}
+        </button>
+
+        <button @click="handleRefresh" class="px-4 py-2 bg-primary hover:bg-blue-600 text-white font-medium rounded-md shadow-sm transition-colors flex items-center justify-center gap-2 w-full sm:w-auto">
+          <i class="bi bi-arrow-clockwise" :class="{ 'animate-spin': isLoading }"></i>
+          {{ t('dashboard.refresh') }}
+        </button>
       </div>
     </div>
 
-    <!-- KPI Cards -->
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <h3>{{ t('dashboard.total_fai') }}</h3>
-        <div class="kpi-value">{{ stats.total }}</div>
+    <!-- Main Content Container -->
+    <div class="px-4 md:px-6 lg:px-8 pb-8">
+      <div v-if="showNewDataToast" class="bg-amber-100 border-l-4 border-amber-500 text-amber-700 p-4 mb-6 rounded shadow-sm flex justify-between items-center dark:bg-amber-900/30 dark:text-amber-300">
+      <div class="flex items-center">
+        <i class="bi bi-info-circle-fill mr-3 text-xl"></i>
+        <p>{{ t('dashboard.new_data') }}</p>
       </div>
-      <div class="kpi-card">
-        <h3>{{ t('dashboard.closed') }}</h3>
-        <div class="kpi-value text-success">{{ stats.closed }}</div>
-      </div>
-      <div class="kpi-card">
-        <h3>{{ t('dashboard.backlog') }}</h3>
-        <div class="kpi-value text-danger">{{ stats.backlog }}</div>
-      </div>
-      <div class="kpi-card">
-        <h3>{{ t('dashboard.pass_rate') }}</h3>
-        <div class="kpi-value text-primary">{{ passRate }}%</div>
+      <button @click="handleRefresh" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded shadow transition-colors text-sm font-bold">
+        {{ t('dashboard.reload_data') }}
+      </button>
+    </div>
+
+    <!-- KPIs Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
+      <div v-for="kpi in kpiList" :key="kpi.label" class="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-6 border border-gray-100 dark:border-gray-700 flex flex-col justify-between hover:shadow-md transition-all duration-300 relative overflow-hidden min-h-[120px]">
+        <div class="absolute left-0 top-0 bottom-0 w-1.5" :class="kpi.color"></div>
+        <span class="text-sm text-gray-500 dark:text-gray-400 font-medium pl-2">{{ kpi.label }}</span>
+        <span class="text-4xl font-bold text-gray-800 dark:text-white mt-2 pl-2">{{ kpi.value }}</span>
       </div>
     </div>
 
     <!-- Charts Grid -->
-    <div class="charts-grid">
-      <!-- Status Chart -->
-      <div class="chart-card">
-        <h3>{{ t('dashboard.fai_status') }}</h3>
-        <div class="chart-wrapper">
-          <Bar :data="statusData" :options="chartOptions" />
-        </div>
-      </div>
+    <div class="grid grid-cols-1 lg:grid-cols-10 gap-6 mb-8">
+      
+      <ChartCard class="lg:col-span-3" title="Commodity Request Distribution">
+        <Doughnut :data="commodityData" :options="doughnutOptions" />
+      </ChartCard>
 
-      <!-- Result Doughnut -->
-      <div class="chart-card">
-        <h3>{{ t('dashboard.fai_result') }}</h3>
-        <div class="chart-wrapper">
-          <Doughnut :data="resultData" :options="doughnutOptions" />
-        </div>
-      </div>
+      <ChartCard class="lg:col-span-7" title="FAI Status Overview">
+        <Bar :data="statusData" :options="statusOptions" />
+      </ChartCard>
 
-      <!-- Commodity Doughnut -->
-      <div class="chart-card">
-        <h3>{{ t('dashboard.fai_commodity') }}</h3>
-        <div class="chart-wrapper">
-          <Doughnut :data="commodityData" :options="doughnutOptions" />
-        </div>
-      </div>
+      <ChartCard class="lg:col-span-3" title="FAI Result Overview">
+        <Doughnut :data="resultData" :options="doughnutOptions" />
+      </ChartCard>
 
-      <!-- Pareto Chart -->
-      <div class="chart-card pareto-card">
-        <h3>{{ t('dashboard.fai_pareto') }}</h3>
-        <div class="chart-wrapper pareto-wrapper">
-          <!-- We use Bar but with mixed dataset type in paretoData -->
-          <Bar :data="paretoData" :options="paretoOptions" />
-        </div>
+      <ChartCard class="lg:col-span-7" title="Commodity Pareto (Failure Mode)">
+        <Bar :data="paretoData" :options="paretoOptions" />
+      </ChartCard>
+
+    </div>
+
+    <!-- Request List Section (Conditional) -->
+    <div v-if="authStore.hasPermission('MANAGE_REQUEST_LIST')" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden mb-8 transition-colors duration-300">
+      <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center transition-colors duration-300">
+        <h2 class="text-lg font-semibold text-gray-800 dark:text-white m-0">{{ t('dashboard.recent_requests') }}</h2>
+        <button 
+          @click="router.push(`/${systemFilter.toLowerCase()}/request/list`)"
+          class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded text-sm font-medium shadow-sm transition-colors"
+        >
+          {{ t('dashboard.view_all') }} &rarr;
+        </button>
+      </div>
+      
+      <div class="p-4" style="height: 600px; display: flex; flex-direction: column;">
+        <DataTable 
+          :columns="recentColumns" 
+          :data="recentRequests" 
+          :isLoading="isRecentLoading"
+          rowKey="id"
+          :sortBy="sortBy"
+          :sortDesc="sortDesc"
+          @sort="toggleSort"
+          class="flex-1 min-h-0"
+        >
+          <template #cell-requestor_id="{ item }">{{ item.requestor?.full_name || item.requestor_id || '-' }}</template>
+          <template #cell-inspector_id="{ item }">{{ item.inspector?.full_name || item.inspector_id || '-' }}</template>
+          <template #cell-tracking_no="{ item }">{{ item.tracking_no || '-' }}</template>
+          <template #cell-revision="{ item }">{{ item.revision || '-' }}</template>
+          <template #cell-address="{ item }">{{ item.address || '-' }}</template>
+          
+          <template #cell-priority="{ item }">
+            <span v-if="item.priority" :class="[
+              'badge', 
+              item.priority === 'High' ? 'badge-danger' : 
+              (item.priority === 'Medium' ? 'badge-warning' : 'badge-success')
+            ]">
+              {{ item.priority }}
+            </span>
+            <span v-else class="text-muted">-</span>
+          </template>
+
+          <template #cell-commodity_part="{ item }">{{ item.commodityPartRel?.name || item.commodity_part || '-' }}</template>
+          <template #cell-part_type="{ item }">{{ item.part_type || '-' }}</template>
+          <template #cell-reason_for_submission="{ item }">{{ item.reason_for_submission || '-' }}</template>
+          <template #cell-submission_time="{ item }">{{ formatOrdinal(item.submission_time) }}</template>
+          <template #cell-complete_date="{ item }">{{ formatDateOnly(item.complete_date) }}</template>
+          <template #cell-updated_at="{ item }">{{ formatDate(item.updated_at) }}</template>
+          <template #cell-estimated_date="{ item }">{{ formatDateOnly(item.estimated_date) }}</template>
+          <template #cell-receive_date="{ item }">{{ formatDateOnly(item.receive_date) }}</template>
+          <template #cell-result="{ item }">{{ item.result || '-' }}</template>
+          <template #cell-fai_failure_mode="{ item }">{{ item.fai_failure_mode || '-' }}</template>
+          <template #cell-remark="{ item }">{{ item.remark || '-' }}</template>
+          <template #cell-created_at="{ item }">{{ formatDate(item.created_at) }}</template>
+          
+          <template #cell-status="{ item }">
+            <StatusBadge 
+              :isActive="item.status !== 'Draft'" 
+              :activeText="getStatusText(item.status)" 
+              :inactiveText="t('fai.status_draft')" 
+              :variant="getStatusVariant(item.status)"
+            />
+          </template>
+
+          <template #cell-actions="{ item }">
+            <div class="flex items-center justify-center">
+              <button 
+                class="px-3 py-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded text-xs font-medium shadow-sm transition-colors"
+                @click="router.push(`/${systemFilter.toLowerCase()}/request/${item.id}`)"
+              >
+                {{ t('fai.details') }}
+              </button>
+            </div>
+          </template>
+        </DataTable>
+
+        <Pagination :total="totalRecentRequests" v-model="page" v-model:rowsPerPage="limit" class="mt-4" />
       </div>
     </div>
   </div>
+</div>
 </template>
-
-<style scoped>
-.dashboard-container {
-  padding: 1.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.header h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.kpi-card {
-  background-color: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.kpi-card h3 {
-  font-size: 1rem;
-  color: var(--color-text-muted);
-  margin-top: 0;
-  margin-bottom: 0.5rem;
-}
-
-.kpi-value {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-.text-success { color: #10b981; }
-.text-danger { color: #ef4444; }
-.text-primary { color: #3b82f6; }
-
-.charts-grid {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 1.5rem;
-}
-
-.chart-card {
-  background-color: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  grid-column: span 4;
-}
-
-.pareto-card {
-  grid-column: span 12;
-}
-
-.chart-card h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--color-text);
-  margin-top: 0;
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-
-.chart-wrapper {
-  position: relative;
-  height: 300px;
-  width: 100%;
-}
-
-.pareto-wrapper {
-  height: 400px;
-}
-
-/* Responsiveness */
-@media (max-width: 1024px) {
-  .chart-card {
-    grid-column: span 6;
-  }
-}
-
-@media (max-width: 768px) {
-  .chart-card {
-    grid-column: span 12;
-  }
-}
-</style>

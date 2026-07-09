@@ -388,7 +388,8 @@ const toggleDark = useToggle(isDark);
   flex: 1;
   background-color: var(--color-bg);
   height: 100vh;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
 }

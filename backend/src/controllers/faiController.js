@@ -433,6 +433,7 @@ const submitRequest = async (req, res) => {
 
     if (global.io) {
       global.io.emit('fai-request-created', request);
+      global.io.emit('fai_dashboard_updated');
     }
 
     res.json({ success: true, data: request });
@@ -546,6 +547,7 @@ const deleteDraft = async (req, res) => {
 
     if (global.io) {
       global.io.emit('fai-request-deleted', parseInt(id));
+      global.io.emit('fai_dashboard_updated');
     }
 
     res.json({ success: true, message: 'Draft deleted successfully.' });
@@ -614,6 +616,7 @@ const assignRequest = async (req, res) => {
 
     if (global.io) {
       global.io.emit('fai-request-updated', updatedRequest);
+      global.io.emit('fai_dashboard_updated');
     }
 
     res.json({ success: true, data: updatedRequest });
