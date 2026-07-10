@@ -7,7 +7,7 @@ const rateLimiter = require('../middlewares/rateLimitMiddleware');
 // Rate limit: 5 attempts per 2 minutes for login
 const loginLimiter = rateLimiter('login', 5, 2 * 60 * 1000, { incrementOnRequest: false });
 // Rate limit: 3 attempts per hour for forgot password
-const forgotPasswordLimiter = rateLimiter('forgot', 3, 60 * 60 * 1000);
+const forgotPasswordLimiter = rateLimiter('forgot', 3, 2 * 60 * 1000);
 
 router.post('/register', authController.register);
 router.post('/login', loginLimiter, authController.login);

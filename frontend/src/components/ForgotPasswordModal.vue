@@ -2,6 +2,8 @@
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import api from '../services/api';
+import Button from './ui/Button.vue';
+import Input from './ui/Input.vue';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -54,38 +56,38 @@ const handleSubmit = async () => {
 
 <template>
   <Transition name="modal">
-    <div v-if="isOpen" class="modal-backdrop" @mousedown.self="handleClose">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>{{ t('login.forgot_password_title') }}</h3>
-          <button type="button" @click="handleClose" class="close-btn">&times;</button>
+    <div v-if="isOpen" class="fixed inset-0 w-screen h-screen bg-black/60 backdrop-blur-[4px] flex justify-center items-center z-[1000]" @mousedown.self="handleClose">
+      <div class="bg-bg-surface rounded-xl w-[90%] max-w-[450px] shadow-[0_10px_25px_rgba(0,0,0,0.15)] forgot-modal-content">
+        <div class="px-6 py-4 border-b border-border flex justify-between items-center">
+          <h3 class="m-0 text-text text-[1.2rem] font-semibold">{{ t('login.forgot_password_title') }}</h3>
+          <button type="button" @click="handleClose" class="bg-transparent border-none text-[1.5rem] cursor-pointer text-text-muted hover:text-text transition-colors">&times;</button>
         </div>
         
-        <div class="modal-body">
-          <p class="desc">{{ t('login.forgot_password_desc') }}</p>
+        <div class="p-6">
+          <p class="text-text-muted text-[0.95rem] mb-6">{{ t('login.forgot_password_desc') }}</p>
           
           <form @submit.prevent="handleSubmit">
-            <div class="form-group">
-              <label>{{ t('form.email') }}</label>
-              <input type="email" v-model="email" class="input-field" required />
+            <div class="mb-4">
+              <label class="block mb-2 text-text font-medium">{{ t('form.email') }}</label>
+              <Input type="email" v-model="email" required />
             </div>
             
-            <div class="form-group">
-              <label>{{ t('form.employee_id') }}</label>
-              <input type="text" v-model="employeeId" class="input-field" required />
+            <div class="mb-4">
+              <label class="block mb-2 text-text font-medium">{{ t('form.employee_id') }}</label>
+              <Input type="text" v-model="employeeId" required />
             </div>
             
-            <div v-if="message" :class="['alert', isError ? 'alert-error' : 'alert-success']">
+            <div v-if="message" :class="['p-3 rounded mb-4 text-sm', isError ? 'bg-[#fee2e2] text-[#b91c1c] dark:bg-red-900/30 dark:text-red-400' : 'bg-[#dcfce7] text-[#15803d] dark:bg-green-900/30 dark:text-green-400']">
               {{ message }}
             </div>
             
-            <div class="modal-actions">
-              <button type="button" @click="handleClose" class="btn-secondary">
+            <div class="flex justify-end gap-4 mt-6">
+              <Button type="button" variant="secondary" @click="handleClose">
                 {{ t('action.cancel') }}
-              </button>
-              <button type="submit" class="btn-primary" :disabled="isLoading">
+              </Button>
+              <Button type="submit" variant="primary" :disabled="isLoading">
                 {{ isLoading ? '...' : t('common.submit_request') }}
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -95,36 +97,14 @@ const handleSubmit = async () => {
 </template>
 
 <style scoped>
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: var(--color-bg-surface);
-  border-radius: 12px;
-  width: 90%;
-  max-width: 450px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-}
-
 /* Vue Transition Classes */
 .modal-enter-active,
 .modal-leave-active {
   transition: opacity 0.3s ease;
 }
 
-.modal-enter-active .modal-content,
-.modal-leave-active .modal-content {
+.modal-enter-active .forgot-modal-content,
+.modal-leave-active .forgot-modal-content {
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
 }
 
@@ -133,108 +113,9 @@ const handleSubmit = async () => {
   opacity: 0;
 }
 
-.modal-enter-from .modal-content,
-.modal-leave-to .modal-content {
+.modal-enter-from .forgot-modal-content,
+.modal-leave-to .forgot-modal-content {
   transform: translateY(-20px) scale(0.95);
   opacity: 0;
-}
-
-.modal-header {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--color-border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-header h3 {
-  margin: 0;
-  color: var(--color-text);
-  font-size: 1.2rem;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--color-text-muted);
-}
-
-.modal-body {
-  padding: 1.5rem;
-}
-
-.desc {
-  color: var(--color-text-muted);
-  font-size: 0.95rem;
-  margin-bottom: 1.5rem;
-}
-
-.form-group {
-  margin-bottom: 1rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: var(--color-text);
-  font-weight: 500;
-}
-
-.input-field {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-
-.alert {
-  padding: 0.75rem;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-}
-
-.alert-error {
-  background-color: #fee2e2;
-  color: #b91c1c;
-}
-
-.alert-success {
-  background-color: #dcfce7;
-  color: #15803d;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1.5rem;
-}
-
-.btn-secondary {
-  padding: 0.6rem 1.2rem;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  color: var(--color-text);
-  cursor: pointer;
-}
-
-.btn-primary {
-  padding: 0.6rem 1.2rem;
-  background: var(--color-primary);
-  border: none;
-  border-radius: 6px;
-  color: var(--color-primary-text);
-  cursor: pointer;
-}
-
-.btn-primary:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
 }
 </style>

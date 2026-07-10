@@ -275,7 +275,7 @@ const forgotPassword = async (req, res) => {
     }
 
     // Luôn trả về 200 để chống dò quét email
-    res.json({ message: 'Nếu thông tin chính xác, email đã được gửi đi.' });
+    res.json({ message: 'If the information is correct, an email has been sent.' });
   } catch (error) {
     console.error('Forgot password error:', error);
     res.status(500).json({ error: 'Internal server error.' });

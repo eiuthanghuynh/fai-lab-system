@@ -6,6 +6,9 @@ import { useI18n } from 'vue-i18n';
 import XpLogo from '../assets/XP-logo-white.svg';
 import LanguageSwitcher from '../components/LanguageSwitcher.vue';
 import ForgotPasswordModal from '../components/ForgotPasswordModal.vue';
+import Button from '@/components/ui/Button.vue';
+import Input from '@/components/ui/Input.vue';
+import Checkbox from '@/components/ui/Checkbox.vue';
 
 const username = ref('');
 const password = ref('');
@@ -61,235 +64,54 @@ const handleLogin = async () => {
 </script>
 
 <template>
-  <div class="login-wrapper">
-    <div class="login-left">
-      <div class="logo-wrapper">
-        <img :src="XpLogo" alt="XP Power Logo" class="xp-logo" />
+  <div class="flex flex-col md:flex-row min-h-screen w-full bg-bg transition-colors duration-300 ease-in-out">
+    <div class="flex-1 flex flex-col items-center justify-center relative p-8">
+      <div class="bg-black rounded-lg py-[15px] px-[20px] mb-12 flex justify-center items-center shadow-[0_4px_12px_rgba(0,0,0,0.2)]">
+        <img :src="XpLogo" alt="XP Power Logo" class="max-w-[200px]" />
       </div>
       
-      <div class="login-card">
-        <div class="logo">FAI/LAB System</div>
-        <h1 class="title">{{ t('login.title') }}</h1>
+      <div class="bg-bg-surface p-12 max-sm:p-8 rounded-lg w-full max-w-[520px] shadow-[0_10px_30px_rgba(0,0,0,0.15)] text-text border border-border">
+        <div class="text-primary font-bold text-[29px] mb-2 text-center tracking-[1px]">FAI/LAB System</div>
+        <h1 class="text-center mb-8 text-[19px] text-text font-semibold">{{ t('login.title') }}</h1>
         
-        <form @submit.prevent="handleLogin" class="login-form">
-          <div class="form-group">
-            <label>{{ t('login.username') }}</label>
-            <input type="text" v-model="username" class="input-field" required />
+        <form @submit.prevent="handleLogin">
+          <div class="mb-6">
+            <label class="block mb-2 text-text font-medium text-[0.95rem]">{{ t('login.username') }}</label>
+            <Input type="text" v-model="username" required />
           </div>
           
-          <div class="form-group">
-            <label>{{ t('login.password') }}</label>
-            <input type="password" v-model="password" class="input-field" required />
+          <div class="mb-6">
+            <label class="block mb-2 text-text font-medium text-[0.95rem]">{{ t('login.password') }}</label>
+            <Input type="password" v-model="password" required />
           </div>
 
-          <div class="form-group checkbox-group flex-between">
-            <label class="checkbox-label">
-              <input type="checkbox" v-model="keepLoggedIn" />
+          <div class="mt-[-0.5rem] mb-6 flex justify-between items-center">
+            <label class="flex items-center gap-2 cursor-pointer font-normal text-text-muted">
+              <Checkbox v-model="keepLoggedIn" />
               <span>{{ t('login.keep_logged_in') }}</span>
             </label>
-            <a href="#" @click.prevent="showForgotModal = true" class="forgot-link">
+            <a href="#" @click.prevent="showForgotModal = true" class="text-primary no-underline text-[0.9rem] font-medium transition-opacity duration-200 hover:opacity-80 hover:underline">
               {{ t('login.forgot_password') }}
             </a>
           </div>
           
-          <div v-if="error" class="error-msg">{{ t(error) }}</div>
+          <div v-if="error" class="text-[#e53e3e] mb-4 text-[0.875rem] text-center">{{ t(error) }}</div>
           
-          <button type="submit" class="btn-primary w-full" :disabled="isLoading">
+          <Button type="submit" class="w-full" :disabled="isLoading">
             {{ isLoading ? '...' : t('login.submit') }}
-          </button>
+          </Button>
         </form>
       </div>
       
-      <div class="lang-switcher-wrapper">
-        <LanguageSwitcher class="login-lang-switcher" showText />
+      <div class="mt-8 w-full max-w-[520px] flex justify-center">
+        <LanguageSwitcher class="login-lang-switcher !justify-center !gap-4" showText />
       </div>
     </div>
 
-    <div class="login-right">
-      <div class="login-hero-image"></div>
+    <div class="flex-1 p-8 hidden md:flex">
+      <div class="flex-1 bg-[url('../assets/login_bg.jpg')] bg-cover bg-right bg-no-repeat rounded-[36px] shadow-[0_10px_40px_rgba(0,0,0,0.2)]"></div>
     </div>
     
     <ForgotPasswordModal :is-open="showForgotModal" @close="showForgotModal = false" />
   </div>
 </template>
-
-<style scoped>
-.login-wrapper {
-  display: flex;
-  min-height: 100vh;
-  width: 100%;
-  background-color: var(--color-bg);
-  transition: background-color var(--transition-speed) ease;
-}
-
-.login-left {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  padding: 2rem;
-}
-
-.login-right {
-  flex: 1;
-  padding: 2rem;
-  display: flex;
-}
-
-.login-hero-image {
-  flex: 1;
-  background-image: url('../assets/login_bg.jpg');
-  background-size: cover;
-  background-position: right center;
-  background-repeat: no-repeat;
-  border-radius: 36px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-}
-
-.logo-wrapper {
-  background-color: #000;
-  border-radius: 8px;
-  padding: 15px 20px;
-  margin-bottom: 3rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-}
-
-.xp-logo {
-  max-width: 200px;
-}
-
-.login-card {
-  background-color: var(--color-bg-surface);
-  padding: 3rem;
-  border-radius: 8px;
-  width: 100%;
-  max-width: 520px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-}
-
-.lang-switcher-wrapper {
-  margin-top: 2rem;
-  width: 100%;
-  max-width: 520px;
-}
-
-:deep(.login-lang-switcher) {
-  justify-content: center !important;
-  gap: 1rem !important;
-}
-
-.logo {
-  color: var(--color-primary);
-  font-weight: 700;
-  font-size: 29px;
-  margin-bottom: 0.5rem;
-  text-align: center;
-  letter-spacing: 1px;
-}
-
-.title {
-  text-align: center;
-  margin-bottom: 2rem;
-  font-size: 19px;
-  color: var(--color-text);
-  font-weight: 600;
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: var(--color-text);
-  font-weight: 500;
-  font-size: 0.95rem;
-}
-
-.checkbox-group {
-  margin-top: -0.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.form-group label.checkbox-label {
-  display: flex;
-  align-items: center;
-  margin-bottom: 0;
-  gap: 0.5rem;
-  cursor: pointer;
-  font-weight: normal;
-  color: var(--color-text-muted);
-}
-
-.flex-between {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.forgot-link {
-  color: var(--color-primary);
-  text-decoration: none;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: opacity 0.2s;
-}
-
-.forgot-link:hover {
-  opacity: 0.8;
-  text-decoration: underline;
-}
-
-.checkbox-label input[type="checkbox"] {
-  margin: 0;
-  width: 1rem;
-  height: 1rem;
-  accent-color: var(--color-primary);
-  cursor: pointer;
-}
-
-.input-field {
-  width: 100%;
-  padding: 0.75rem;
-  background-color: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  color: var(--color-text);
-  font-family: inherit;
-  transition: border-color 0.3s ease, background-color 0.3s ease;
-}
-
-.input-field:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  background-color: var(--color-bg-surface);
-}
-
-.w-full {
-  width: 100%;
-}
-
-.error-msg {
-  color: #e53e3e;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-  text-align: center;
-}
-
-@media (max-width: 768px) {
-  .login-wrapper {
-    flex-direction: column;
-  }
-  .login-right {
-    display: none;
-  }
-}
-</style>

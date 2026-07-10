@@ -14,8 +14,8 @@ defineEmits<{
 </script>
 
 <template>
-  <div class="toolbar">
-    <div class="toolbar-left">
+  <div class="flex justify-between items-center gap-4 flex-wrap">
+    <div class="flex items-center gap-3 flex-wrap">
       <SearchInput 
         v-if="!hideSearch"
         :modelValue="searchQuery" 
@@ -25,26 +25,9 @@ defineEmits<{
       <slot name="left"></slot>
     </div>
     
-    <div class="toolbar-right">
+    <div class="flex items-center gap-3 flex-wrap">
       <slot name="filters"></slot>
       <slot name="actions"></slot>
     </div>
   </div>
 </template>
-
-<style scoped>
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.toolbar-left, .toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-</style>

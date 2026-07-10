@@ -5,6 +5,8 @@ import { useI18n } from 'vue-i18n';
 import api from '../services/api';
 import XpLogo from '../assets/XP-logo-white.svg';
 import LanguageSwitcher from '../components/LanguageSwitcher.vue';
+import Button from '@/components/ui/Button.vue';
+import Input from '@/components/ui/Input.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -99,165 +101,50 @@ const goToLogin = () => {
 </script>
 
 <template>
-  <div class="reset-wrapper">
-    <div class="reset-card">
-      <div class="logo-wrapper">
-        <img :src="XpLogo" alt="XP Power Logo" class="xp-logo" />
+  <div class="flex justify-center items-center min-h-screen bg-bg p-4">
+    <div class="bg-bg-surface px-8 py-10 rounded-xl w-full max-w-[420px] shadow-[0_10px_30px_rgba(0,0,0,0.1)]">
+      <div class="bg-black rounded-lg py-[15px] px-[20px] mb-8 flex justify-center items-center">
+        <img :src="XpLogo" alt="XP Power Logo" class="max-w-[150px]" />
       </div>
       
-      <h2 class="title">{{ t('login.reset_password_title') }}</h2>
+      <h2 class="text-center mb-6 text-text text-2xl font-semibold">{{ t('login.reset_password_title') }}</h2>
       
-      <div v-if="success" class="success-box">
+      <div v-if="success" class="bg-[#dcfce7] text-[#15803d] p-4 rounded-lg text-center mb-4">
         <p>{{ t(message) }}</p>
-        <button @click="goToLogin" class="btn-primary w-full mt-1">{{ t('login.title') }}</button>
+        <Button @click="goToLogin" class="w-full mt-4">{{ t('login.title') }}</Button>
       </div>
       
-      <div v-else-if="isVerifying" class="text-center mt-2" style="color: var(--color-text-muted);">
+      <div v-else-if="isVerifying" class="text-center mt-8 text-text-muted">
         <p>Verifying link...</p>
       </div>
       
       <form v-else-if="!isError || (isError && !isInvalidLink)" @submit.prevent="handleReset">
-        <div class="form-group">
-          <label>{{ t('login.new_password') }}</label>
-          <input type="password" v-model="newPassword" class="input-field" required />
-          <small class="hint">{{ t('error.password_format') }}</small>
+        <div class="mb-6">
+          <label class="block mb-2 text-text font-medium">{{ t('login.new_password') }}</label>
+          <Input type="password" v-model="newPassword" required />
+          <small class="block mt-2 text-sm text-text-muted">{{ t('error.password_format') }}</small>
         </div>
         
-        <div class="form-group">
-          <label>{{ t('login.confirm_password') }}</label>
-          <input type="password" v-model="confirmPassword" class="input-field" required />
+        <div class="mb-6">
+          <label class="block mb-2 text-text font-medium">{{ t('login.confirm_password') }}</label>
+          <Input type="password" v-model="confirmPassword" required />
         </div>
         
-        <div v-if="message && isError && !isInvalidLink" class="error-msg">{{ t(message) }}</div>
+        <div v-if="message && isError && !isInvalidLink" class="text-[#e53e3e] mb-4 text-[0.9rem]">{{ t(message) }}</div>
         
-        <button type="submit" class="btn-primary w-full" :disabled="isLoading">
+        <Button type="submit" class="w-full" :disabled="isLoading">
           {{ isLoading ? '...' : t('action.save') }}
-        </button>
+        </Button>
       </form>
       
-      <div v-else class="error-msg text-center mt-2">
+      <div v-else class="text-[#e53e3e] mb-4 text-[0.9rem] text-center mt-8">
         {{ isInvalidLink ? t('login.invalid_link') : t(message) }}
-        <button @click="goToLogin" class="btn-secondary w-full mt-1">{{ t('login.back_to_login') }}</button>
+        <Button @click="goToLogin" variant="secondary" class="w-full mt-4">{{ t('login.back_to_login') }}</Button>
       </div>
       
-      <div class="lang-switcher-wrapper mt-2">
+      <div class="flex justify-center mt-8">
         <LanguageSwitcher />
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.reset-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background-color: var(--color-bg);
-  padding: 1rem;
-}
-
-.reset-card {
-  background: var(--color-bg-surface);
-  padding: 2.5rem 2rem;
-  border-radius: 12px;
-  width: 100%;
-  max-width: 420px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-}
-
-.logo-wrapper {
-  background-color: #000;
-  border-radius: 8px;
-  padding: 15px 20px;
-  margin-bottom: 2rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.xp-logo {
-  max-width: 150px;
-}
-
-.title {
-  text-align: center;
-  margin-bottom: 1.5rem;
-  color: var(--color-text);
-  font-size: 1.5rem;
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: var(--color-text);
-  font-weight: 500;
-}
-
-.input-field {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-
-.hint {
-  display: block;
-  margin-top: 0.5rem;
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
-}
-
-.error-msg {
-  color: #e53e3e;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-}
-
-.success-box {
-  background-color: #dcfce7;
-  color: #15803d;
-  padding: 1rem;
-  border-radius: 8px;
-  text-align: center;
-  margin-bottom: 1rem;
-}
-
-.btn-primary {
-  padding: 0.75rem 1.5rem;
-  background: var(--color-primary);
-  border: none;
-  border-radius: 6px;
-  color: white;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.btn-secondary {
-  padding: 0.75rem 1.5rem;
-  background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  color: var(--color-text);
-  cursor: pointer;
-}
-
-.w-full {
-  width: 100%;
-}
-
-.mt-1 { margin-top: 1rem; }
-.mt-2 { margin-top: 2rem; }
-.text-center { text-align: center; }
-
-.lang-switcher-wrapper {
-  display: flex;
-  justify-content: center;
-}
-</style>

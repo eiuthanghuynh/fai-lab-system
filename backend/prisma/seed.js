@@ -50,7 +50,9 @@ async function main() {
     { name: 'INSPECT_FAI', description: 'Inspect FAI requests and make reports' },
     { name: 'SUBMIT_LAB_REQUEST', description: 'Create and submit LAB requests' },
     { name: 'ASSIGN_LAB', description: 'Assign inspector to LAB Request' },
-    { name: 'INSPECT_LAB', description: 'Create LAB Work Orders and make reports to each order' }
+    { name: 'INSPECT_LAB', description: 'Create LAB Work Orders and make reports to each order' },
+    { name: 'VIEW_DASHBOARD_FAI', description: 'View dashboard and aggregated statistics for FAI' },
+    { name: 'VIEW_DASHBOARD_LAB', description: 'View dashboard and aggregated statistics for LAB' }
   ];
 
   const seededPermissions = {};

@@ -145,21 +145,30 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="custom-dropdown-container" :class="[`variant-${variant}`]" ref="containerRef" @click="toggleDropdown">
-    <div class="dropdown-trigger" :class="{ open: isOpen }">
+  <div class="relative inline-block select-none font-sans z-50 custom-dropdown-container" :class="{ 'block w-full': variant === 'form' }" ref="containerRef" @click="toggleDropdown">
+    <div :class="[
+      'flex items-center gap-2 cursor-pointer transition-all text-text text-base border',
+      variant === 'pill' ? 'bg-bg-surface rounded-[20px] px-4 py-1 h-[44px] border-border' : '',
+      variant === 'form' ? 'bg-bg rounded p-3 w-full border-border' : '',
+      isOpen ? '!border-primary shadow-[0_0_0_2px_rgba(99,224,121,0.2)]' : 'hover:bg-black/5 dark:hover:bg-white/5'
+    ]">
       <slot name="icon"></slot>
-      <span class="selected-text">
+      <span class="whitespace-nowrap">
         {{ getSelectedText() }}
       </span>
-      <span class="arrow" :class="{ open: isOpen }">▼</span>
+      <span class="text-[0.6rem] text-text-muted transition-transform ml-1" :class="{ 'rotate-180': isOpen }">▼</span>
     </div>
     
     <Teleport to="body">
       <transition name="dropdown">
         <ul 
           v-if="isOpen" 
-          class="options-list teleported-options-list" 
-          :class="[{ 'options-up': isUpwards, 'grid-mode': rows > 0 }, `variant-${variant}`]"
+          class="fixed bg-bg-surface border border-border list-none py-2 m-0 shadow-[0_10px_25px_rgba(0,0,0,0.5)] max-h-[250px] overflow-y-auto z-[9999] rounded-xl" 
+          :class="[
+            isUpwards ? 'origin-bottom' : 'origin-top',
+            rows > 0 ? 'grid grid-flow-col max-w-[90vw] overflow-x-auto p-2 gap-0 !grid-cols-[minmax(180px,1fr)]' : '',
+            variant === 'form' ? '!rounded' : ''
+          ]"
           ref="optionsRef"
           :style="[dropdownStyle, rows > 0 ? { gridTemplateRows: `repeat(${rows}, auto)` } : {}]"
         >
@@ -167,7 +176,11 @@ onUnmounted(() => {
             v-for="opt in options" 
             :key="String(opt.value)" 
             @click.stop="selectOption(opt.value)"
-            :class="{ active: isSelected(opt.value) }"
+            :class="[
+              'px-4 py-2 cursor-pointer transition-colors',
+              rows > 0 ? 'px-3 py-2 rounded-md m-[2px]' : '',
+              isSelected(opt.value) ? 'bg-primary/10 font-semibold text-primary' : 'hover:bg-black/5 dark:hover:bg-white/5'
+            ]"
           >
             <div style="display: flex; align-items: center; gap: 8px;">
               <input v-if="multiple" type="checkbox" :checked="isSelected(opt.value)" style="pointer-events: none; flex-shrink: 0;" />
@@ -181,121 +194,8 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.custom-dropdown-container {
-  position: relative;
-  display: inline-block;
-  user-select: none;
-  font-family: 'Inter', sans-serif;
-  z-index: 100;
-}
-
-.custom-dropdown-container.variant-form {
-  display: block;
-  width: 100%;
-}
-
-.dropdown-trigger {
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--color-border);
-  gap: 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  color: var(--color-text);
-  font-size: 1rem;
-}
-
-.variant-pill .dropdown-trigger {
-  background: var(--color-bg-surface);
-  border-radius: 20px;
-  padding: 0.25rem 1rem;
-  height: 44px;
-}
-
-.variant-form .dropdown-trigger {
-  background: var(--color-bg);
-  border-radius: 4px;
-  padding: 0.75rem;
-  width: 100%;
-}
-
-.dropdown-trigger:hover {
-  background: rgba(128, 128, 128, 0.05);
-}
-
-.dropdown-trigger.open {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(99, 224, 121, 0.2);
-}
-
-::v-deep(svg) {
+:deep(svg) {
   color: var(--color-text-muted);
-}
-
-.selected-text {
-  white-space: nowrap;
-}
-
-.arrow {
-  font-size: 0.6rem;
-  color: var(--color-text-muted);
-  transition: transform 0.3s;
-  margin-left: 0.25rem;
-}
-
-.arrow.open {
-  transform: rotate(180deg);
-}
-
-.teleported-options-list {
-  position: fixed;
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  list-style: none;
-  padding: 0.5rem 0;
-  margin: 0;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-  max-height: 250px;
-  overflow-y: auto;
-  z-index: 9999;
-  border-radius: 12px;
-  transform-origin: top center;
-}
-
-.teleported-options-list.grid-mode {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(180px, 1fr);
-  gap: 0;
-  max-width: 90vw;
-  overflow-x: auto;
-  padding: 0.5rem;
-}
-
-.teleported-options-list.options-up {
-  transform-origin: bottom center;
-}
-
-.teleported-options-list.variant-form {
-  border-radius: 4px;
-}
-
-.teleported-options-list li {
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.teleported-options-list.grid-mode li {
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  margin: 2px;
-}
-
-.options-list li.active {
-  background: rgba(99, 224, 121, 0.1);
-  font-weight: 600;
-  color: var(--color-primary);
 }
 
 .dropdown-enter-active,

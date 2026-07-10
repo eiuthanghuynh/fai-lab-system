@@ -24,7 +24,7 @@ const messages = {
       back_to_login: 'Back to Login'
     },
     dashboard: {
-      title: 'FAI Dashboard',
+      title: 'First Article Inspection (FAI) Dashboard',
       total_fai: 'Total FAI',
       closed: 'Closed',
       ongoing: 'Ongoing',
@@ -350,7 +350,7 @@ const messages = {
       back_to_login: 'Trở lại Đăng nhập'
     },
     dashboard: {
-      title: 'Báo cáo Tổng quan',
+      title: 'Tổng quan First Article Inspection (FAI)',
       total_fai: 'Tổng số FAI',
       closed: 'Đã đóng',
       ongoing: 'Đang xử lý',

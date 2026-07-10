@@ -46,25 +46,29 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="lang-switcher-container">
-    <span class="lang-label">{{ t('common.choose_language') }}</span>
-    <div class="custom-select" :class="{ open: isOpen, 'has-text': props.showText }" @click="toggleDropdown">
-      <div class="select-trigger">
-        <span class="flag-text">
-          <img :src="languages.find(l => l.code === locale)?.flag" class="flag-icon" alt="flag" />
+  <div class="flex justify-between items-center px-1 py-2 w-full font-sans relative z-50 lang-switcher-container">
+    <span class="text-sm text-text font-medium">{{ t('common.choose_language') }}</span>
+    <div :class="['relative bg-transparent border border-border rounded cursor-pointer select-none', props.showText ? 'min-w-[150px]' : 'min-w-[60px]']" @click="toggleDropdown">
+      <div class="flex justify-between items-center px-3 py-2 text-text text-sm font-medium">
+        <span class="flex items-center gap-2">
+          <img :src="languages.find(l => l.code === locale)?.flag" class="w-5 h-auto rounded-sm shadow-[0_0_2px_rgba(0,0,0,0.2)]" alt="flag" />
           <span v-if="props.showText" class="name">{{ languages.find(l => l.code === locale)?.name }}</span>
         </span>
-        <span class="arrow">▼</span>
+        <span class="text-[0.6rem] text-text-muted transition-transform duration-300" :class="{ 'rotate-180': isOpen }">▼</span>
       </div>
       <transition name="dropdown">
-        <ul v-if="isOpen" class="options-list">
+        <ul v-if="isOpen" class="absolute top-full left-0 right-0 mt-1 p-0 m-0 list-none bg-bg-surface border border-border rounded shadow-[0_4px_12px_rgba(0,0,0,0.15)] overflow-hidden z-[101] origin-top">
           <li 
             v-for="lang in languages" 
             :key="lang.code" 
             @click.stop="selectLanguage(lang.code)"
-            :class="{ active: locale === lang.code }"
+            :class="[
+              'p-2 flex items-center gap-2 text-text text-sm transition-colors cursor-pointer hover:bg-black/10 dark:hover:bg-white/10',
+              !props.showText ? 'justify-center' : '',
+              locale === lang.code ? 'bg-primary/10 font-semibold' : ''
+            ]"
           >
-            <img :src="lang.flag" class="flag-icon" alt="flag" />
+            <img :src="lang.flag" class="w-5 h-auto rounded-sm shadow-[0_0_2px_rgba(0,0,0,0.2)]" alt="flag" />
             <span v-if="props.showText" class="name">{{ lang.name }}</span>
           </li>
         </ul>
@@ -74,109 +78,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.lang-switcher-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0.25rem;
-  width: 100%;
-  font-family: 'Inter', sans-serif;
-  position: relative;
-  z-index: 100;
-}
-
-.lang-label {
-  font-size: 0.875rem;
-  color: var(--color-text);
-  font-weight: 500;
-}
-
-.custom-select {
-  position: relative;
-  min-width: 60px;
-  background: transparent;
-  border: 1px solid var(--color-border, #ccc);
-  border-radius: 4px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.custom-select.has-text {
-  min-width: 150px;
-}
-
-.select-trigger {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0.75rem;
-  color: var(--color-text, #333);
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.flag-text {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.flag-icon {
-  width: 20px;
-  height: auto;
-  border-radius: 2px;
-  box-shadow: 0 0 2px rgba(0,0,0,0.2);
-}
-
-.arrow {
-  font-size: 0.6rem;
-  color: var(--color-text-muted, #888);
-  transition: transform 0.3s;
-}
-
-.custom-select.open .arrow {
-  transform: rotate(180deg);
-}
-
-.options-list {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin: 4px 0 0 0;
-  padding: 0;
-  list-style: none;
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #ccc);
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  overflow: hidden;
-  z-index: 101;
-}
-
-.options-list li {
-  padding: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--color-text, #333);
-  font-size: 0.875rem;
-  transition: background 0.2s;
-}
-
-.options-list li:not(:has(.name)) {
-  justify-content: center;
-}
-
-.options-list li:hover {
-  background: rgba(128, 128, 128, 0.1);
-}
-
-.options-list li.active {
-  background: rgba(99, 224, 121, 0.1);
-  font-weight: 600;
-}
-
 .dropdown-enter-active,
 .dropdown-leave-active {
   transition: opacity 0.2s, transform 0.2s;

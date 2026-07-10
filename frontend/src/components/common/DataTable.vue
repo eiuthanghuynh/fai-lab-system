@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue';
+import Checkbox from '@/components/ui/Checkbox.vue';
 
 export interface DataTableColumn {
   key: string;
@@ -58,8 +59,7 @@ const isSomeSelected = computed(() => {
   return props.selectedRows && props.selectedRows.length > 0 && props.selectedRows.length < props.data.length;
 });
 
-const toggleSelectAll = (e: Event) => {
-  const isChecked = (e.target as HTMLInputElement).checked;
+const toggleSelectAll = (isChecked: boolean) => {
   if (!isChecked) {
     emit('update:selectedRows', []);
   } else {
@@ -156,27 +156,30 @@ const getSortIcon = (columnKey: string) => {
 </script>
 
 <template>
-  <div class="data-table-root">
-    <div class="table-container is-scrollbar-idle" ref="tableContainerRef" @scroll="wakeScrollbar" @mousemove="wakeScrollbar">
+  <div class="flex flex-col h-full overflow-hidden">
+    <div class="overflow-x-auto overflow-y-auto flex-1 border border-border rounded-lg bg-bg-surface relative min-h-[200px]" ref="tableContainerRef" @scroll="wakeScrollbar" @mousemove="wakeScrollbar">
       
       <!-- Loading Overlay -->
-      <transition name="fade">
-        <div v-if="isLoading" class="loading-overlay">
-          <svg class="spinner" viewBox="0 0 50 50">
-            <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="4"></circle>
-          </svg>
+      <transition 
+        enter-active-class="transition-opacity duration-300"
+        leave-active-class="transition-opacity duration-300"
+        enter-from-class="opacity-0"
+        leave-to-class="opacity-0"
+      >
+        <div v-if="isLoading" class="absolute inset-0 flex items-center justify-center bg-bg-surface/30 z-[50] backdrop-blur-[1px]">
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-primary animate-spin z-[2]"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
         </div>
       </transition>
 
-      <table class="data-table" :class="{ 'is-loading-content': isLoading }" ref="tableRef">
+      <table class="w-full border-collapse border-spacing-0 text-left transition-opacity duration-300" :class="{ 'opacity-40 pointer-events-none': isLoading }" ref="tableRef">
         <thead>
           <tr>
-            <th v-if="selectable" class="sticky-left nowrap col-checkbox" :style="{ minWidth: '50px', width: '50px', left: stickyOffsets['left-0'] }">
-              <input 
-                type="checkbox" 
+            <th v-if="selectable" class="sticky-left sticky top-0 z-[11] p-4 border-b border-border font-semibold text-bg bg-primary whitespace-nowrap text-center pr-2" :style="{ minWidth: '50px', width: '50px', left: stickyOffsets['left-0'] }">
+              <Checkbox 
                 ref="selectAllCheckbox"
-                :checked="isAllSelected" 
-                @change="toggleSelectAll" 
+                :model-value="isAllSelected" 
+                @update:model-value="toggleSelectAll" 
+                class="flex justify-center"
               />
             </th>
             <th 
@@ -185,8 +188,9 @@ const getSortIcon = (columnKey: string) => {
               :class="[
                 col.sticky === 'left' ? 'sticky-left' : '',
                 col.sticky === 'right' ? 'sticky-right' : '',
-                col.sortable ? 'sortable-header' : '',
-                'nowrap'
+                col.sticky === 'left' || col.sticky === 'right' ? 'sticky z-[11]' : 'sticky z-[10]',
+                col.sortable ? 'cursor-pointer select-none transition-all duration-200 hover:brightness-90' : '',
+                'p-4 border-b border-border font-semibold text-bg bg-primary whitespace-nowrap top-0'
               ]"
               :style="{ 
                 width: col.width, minWidth: col.minWidth || col.width, maxWidth: col.width,
@@ -196,30 +200,30 @@ const getSortIcon = (columnKey: string) => {
               @click="col.sortable ? $emit('sort', col.key) : null"
             >
               {{ col.label }}
-              <span v-if="col.sortable" class="sort-icon">{{ getSortIcon(col.key) }}</span>
+              <span v-if="col.sortable" class="inline-block ml-2 text-bg opacity-80">{{ getSortIcon(col.key) }}</span>
             </th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="data.length === 0">
-            <td :colspan="selectable ? columns.length + 1 : columns.length" class="text-center py-4">
+            <td :colspan="selectable ? columns.length + 1 : columns.length" class="text-center py-4 p-4 border-b border-border bg-bg-surface z-[1] text-text-muted">
               {{ $t ? $t('table.no_data') : 'No data available' }}
             </td>
           </tr>
-          <tr v-for="(item, index) in data" :key="item[rowKeyProp]" :class="rowClass ? rowClass(item) : ''">
-            <td v-if="selectable" class="sticky-left col-checkbox" :style="{ left: stickyOffsets['left-0'] }">
-              <input 
-                type="checkbox" 
-                :checked="selectedRows?.includes(item[rowKeyProp])" 
-                @change="toggleSelectRow(item[rowKeyProp])" 
+          <tr v-for="(item, index) in data" :key="item[rowKeyProp]" class="hover:brightness-[0.97] transition-all" :class="rowClass ? rowClass(item) : ''">
+            <td v-if="selectable" class="sticky z-[2] p-4 border-b border-border bg-bg-surface text-center pr-2" :style="{ left: stickyOffsets['left-0'] }">
+              <Checkbox 
+                :model-value="selectedRows?.includes(item[rowKeyProp])" 
+                @update:model-value="toggleSelectRow(item[rowKeyProp])" 
+                class="flex justify-center"
               />
             </td>
             <td 
               v-for="(col, colIndex) in columns" 
               :key="col.key"
               :class="[
-                col.sticky === 'left' ? 'sticky-left' : '',
-                col.sticky === 'right' ? 'sticky-right' : '',
+                col.sticky === 'left' || col.sticky === 'right' ? 'sticky z-[2]' : 'z-[1]',
+                'p-4 border-b border-border bg-bg-surface text-text'
               ]"
               :style="{ 
                 left: col.sticky === 'left' ? stickyOffsets[`left-${selectable ? colIndex + 1 : colIndex}`] : undefined,
@@ -236,166 +240,3 @@ const getSortIcon = (columnKey: string) => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.data-table-root {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-
-.table-container {
-  overflow-x: auto;
-  overflow-y: auto;
-  flex: 1;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background-color: var(--color-bg-surface);
-  position: relative;
-  min-height: 200px;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  text-align: left;
-  transition: opacity 0.3s ease;
-}
-
-.data-table.is-loading-content {
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-.loading-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: rgba(var(--color-bg-surface-rgb, 255, 255, 255), 0.3);
-  z-index: 50;
-  backdrop-filter: blur(1px);
-}
-
-.spinner {
-  animation: rotate 2s linear infinite;
-  z-index: 2;
-  width: 40px;
-  height: 40px;
-}
-  
-.spinner .path {
-  stroke: var(--color-primary);
-  stroke-linecap: round;
-  animation: dash 1.5s ease-in-out infinite;
-}
-
-@keyframes rotate {
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes dash {
-  0% {
-    stroke-dasharray: 1, 150;
-    stroke-dashoffset: 0;
-  }
-  50% {
-    stroke-dasharray: 90, 150;
-    stroke-dashoffset: -35;
-  }
-  100% {
-    stroke-dasharray: 90, 150;
-    stroke-dashoffset: -124;
-  }
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-.data-table th, .data-table td {
-  padding: 1rem;
-  border-bottom: 1px solid var(--color-border);
-  background-color: var(--color-bg-surface);
-  z-index: 1;
-}
-
-.data-table th {
-  font-weight: 600;
-  color: var(--color-bg);
-  background-color: var(--color-primary);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.sticky-left, .sticky-right {
-  position: sticky;
-}
-
-.data-table tbody .sticky-left, 
-.data-table tbody .sticky-right {
-  z-index: 2;
-}
-
-.data-table thead .sticky-left, 
-.data-table thead .sticky-right {
-  z-index: 11;
-}
-
-.nowrap {
-  white-space: nowrap;
-}
-
-.sortable-header {
-  cursor: pointer;
-  user-select: none;
-  transition: background-color 0.2s, filter 0.2s;
-}
-
-.sortable-header:hover {
-  filter: brightness(0.85);
-}
-
-.sort-icon {
-  display: inline-block;
-  margin-left: 0.5rem;
-  color: var(--color-bg);
-  opacity: 0.8;
-}
-
-.loading {
-  text-align: center;
-  padding: 2rem;
-  color: var(--color-text-muted);
-}
-
-.text-center {
-  text-align: center;
-}
-
-.py-4 {
-  padding-top: 1rem;
-  padding-bottom: 1rem;
-}
-
-.col-checkbox {
-  text-align: center;
-  padding-right: 0.5rem !important;
-}
-
-.data-table tbody tr:hover td {
-  filter: brightness(0.97);
-}
-</style>

@@ -5,14 +5,12 @@ import { getContrastColor } from '../../utils/color';
 import api from '@/services/api';
 import ConfirmModal from '@/components/ConfirmModal.vue';
 import Pagination from '@/components/Pagination.vue';
-import CustomDropdown from '@/components/CustomDropdown.vue';
-
-// Refactored Common Components
-import BaseModal from '@/components/common/BaseModal.vue';
-import DataTableToolbar from '@/components/common/DataTableToolbar.vue';
-import DataTable, { type DataTableColumn } from '@/components/common/DataTable.vue';
 import StatusBadge from '@/components/common/StatusBadge.vue';
 import RoleBadgeList from '@/components/common/RoleBadgeList.vue';
+import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
+import MultiSelectDropdown from '@/components/common/MultiSelectDropdown.vue';
+import Button from '@/components/ui/Button.vue';
+import Input from '@/components/ui/Input.vue';
 import { useDataTable } from '@/composables/useDataTable';
 import { useAuthStore } from '@/stores/auth';
 import { toast } from 'vue-sonner';
@@ -249,9 +247,9 @@ const toggleActive = async (user: any) => {
 </script>
 
 <template>
-  <div class="admin-page">
-    <div class="page-header">
-      <h1 class="page-title">{{ t('admin.users') }}</h1>
+  <div class="flex flex-col gap-6 h-full p-8 overflow-hidden">
+    <div class="flex justify-between items-center">
+      <h1 class="m-0 text-2xl font-semibold text-text">{{ t('admin.users') }}</h1>
     </div>
 
     <DataTableToolbar 
@@ -259,43 +257,42 @@ const toggleActive = async (user: any) => {
       :searchPlaceholder="t('action.search_users')"
     >
       <template #filters>
-        <CustomDropdown multiple :rows="5" v-model="filterRoleIds" :options="roleOptions" :placeholder="t('filter.role_all')">
-          <template #icon>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pill-icon"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-          </template>
-        </CustomDropdown>
-
-        <CustomDropdown v-model="filterStatus" :options="statusOptions" :placeholder="t('filter.status_all')">
-          <template #icon>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pill-icon"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
-          </template>
-        </CustomDropdown>
-
-        <div class="pill-select-wrapper date-filter-wrapper">
-          <CustomDropdown v-model="filterDateType" :options="dateTypeOptions" :placeholder="t('filter.created_date')">
-            <template #icon>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pill-icon"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-            </template>
-          </CustomDropdown>
-          <input type="date" v-model="filterStartDate" class="pill-date" title="Start Date" />
-          <span style="color: var(--color-text-muted); font-size: 1rem;">-</span>
-          <input type="date" v-model="filterEndDate" class="pill-date" title="End Date" />
+        <div class="w-56">
+          <MultiSelectDropdown v-model="filterRoleIds" :options="roleOptions" :placeholder="t('filter.role_all')" />
         </div>
-        <button class="pill-btn btn-secondary" @click="resetFilters" style="padding: 0.5rem 0.75rem;" :title="t('action.reset')">
+
+        <div class="w-48">
+          <SingleSelectDropdown v-model="filterStatus" :options="statusOptions" :placeholder="t('filter.status_all')" />
+        </div>
+
+        <div class="flex items-center gap-2">
+          <div class="w-48">
+            <SingleSelectDropdown v-model="filterDateType" :options="dateTypeOptions" :placeholder="t('filter.created_date')" />
+          </div>
+          <div class="w-40">
+            <Input type="date" v-model="filterStartDate" class="[&_input::-webkit-calendar-picker-indicator]:invert-[0.5] [&_input::-webkit-calendar-picker-indicator]:cursor-pointer" title="Start Date" />
+          </div>
+          <span class="text-text-muted">-</span>
+          <div class="w-40">
+            <Input type="date" v-model="filterEndDate" class="[&_input::-webkit-calendar-picker-indicator]:invert-[0.5] [&_input::-webkit-calendar-picker-indicator]:cursor-pointer" title="End Date" />
+          </div>
+        </div>
+        
+        <Button variant="secondary" @click="resetFilters" class="px-3" :title="t('action.reset')">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
           {{ t('action.reset') }}
-        </button>
+        </Button>
       </template>
 
       <template #actions>
-        <button class="pill-btn btn-primary" @click="openModal(null)">
+        <Button class="gap-2" @click="openModal(null)">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
           {{ t('admin.create_user') }}
-        </button>
+        </Button>
       </template>
     </DataTableToolbar>
 
-    <div class="table-wrapper">
+    <div class="flex-1 overflow-hidden flex flex-col">
       <DataTable 
         :columns="columns" 
         :data="users" 
@@ -306,15 +303,15 @@ const toggleActive = async (user: any) => {
         @sort="toggleSort"
       >
         <template #cell-username="{ item }">
-          <div class="wrap-text">{{ item.username }}</div>
+          <div class="whitespace-normal break-words min-w-[150px]">{{ item.username }}</div>
         </template>
         <template #cell-full_name="{ item }">
-          <div class="wrap-text">{{ item.full_name }}</div>
+          <div class="whitespace-normal break-words min-w-[150px]">{{ item.full_name }}</div>
         </template>
         <template #cell-role="{ item }">
-          <div style="display: flex; align-items: center; width: 100%; max-width: 180px;">
+          <div class="flex items-center w-full max-w-[180px]">
             <RoleBadgeList v-if="item.roles && item.roles.length > 0" :roles="item.roles" />
-            <span v-else class="badge" style="background-color: #666; color: #fff;">
+            <span v-else class="inline-block whitespace-nowrap px-2 py-1 rounded-full text-xs font-bold bg-[#666] text-white">
               No Role
             </span>
           </div>
@@ -332,11 +329,11 @@ const toggleActive = async (user: any) => {
           <StatusBadge :isActive="item.is_active" :activeText="t('status.active')" :inactiveText="t('status.inactive')" />
         </template>
         <template #cell-actions="{ item }">
-          <div class="action-buttons">
-            <button class="btn-sm btn-edit" @click="openModal(item)">{{ t('admin.edit_user') }}</button>
-            <button class="btn-sm" :class="item.is_active ? 'btn-danger' : 'btn-success'" @click="toggleActive(item)">
+          <div class="flex gap-2">
+            <Button variant="secondary" size="sm" @click="openModal(item)">{{ t('admin.edit_user') }}</Button>
+            <Button :variant="item.is_active ? 'danger' : 'secondary'" size="sm" @click="toggleActive(item)">
               {{ item.is_active ? t('admin.delete_user') : t('admin.restore_user') }}
-            </button>
+            </Button>
           </div>
         </template>
       </DataTable>
@@ -345,105 +342,103 @@ const toggleActive = async (user: any) => {
     <Pagination :total="totalUsers" v-model="page" v-model:rowsPerPage="limit" />
 
     <BaseModal :isOpen="isModalOpen" :title="isEditing ? t('admin.edit_user') : t('admin.create_user')" maxWidth="690px" @close="closeModal">
-      <form id="userForm" @submit.prevent="saveUser" class="form-layout-5050">
-        <div class="form-row">
-          <div class="form-col-left">
-            <div class="label-header">
-              <label>{{ t('form.username') }}</label>
-              <span class="tag-required">{{ t('form.required') }}</span>
+      <form id="userForm" @submit.prevent="saveUser" class="flex flex-col">
+        <div class="grid grid-cols-[1fr_1.5fr] gap-8 items-center py-5 border-b border-border">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text m-0">{{ t('form.username') }}</label>
+              <span class="text-[0.7rem] bg-primary/15 text-primary px-1.5 py-0.5 rounded font-bold leading-none">{{ t('form.required') }}</span>
             </div>
-            <p class="field-desc">{{ t('form.username_desc') }}</p>
+            <p class="text-[0.8rem] text-text-muted m-0 leading-snug">{{ t('form.username_desc') }}</p>
           </div>
-          <div class="form-col-right">
-            <input type="text" v-model="formData.username" required />
+          <div class="flex flex-col">
+            <Input v-model="formData.username" required />
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-col-left">
-            <div class="label-header">
-              <label>{{ t('form.password') }}</label>
-              <span v-if="!isEditing" class="tag-required">{{ t('form.required') }}</span>
+        <div class="grid grid-cols-[1fr_1.5fr] gap-8 items-center py-5 border-b border-border">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text m-0">{{ t('form.password') }}</label>
+              <span v-if="!isEditing" class="text-[0.7rem] bg-primary/15 text-primary px-1.5 py-0.5 rounded font-bold leading-none">{{ t('form.required') }}</span>
             </div>
-            <p class="field-desc">
+            <p class="text-[0.8rem] text-text-muted m-0 leading-snug">
               {{ t('form.password_desc') }}
               <span v-if="isEditing"><br/>{{ t('form.password_hint') }}</span>
             </p>
           </div>
-          <div class="form-col-right">
-            <input 
+          <div class="flex flex-col">
+            <Input 
               type="password" 
               v-model="formData.password" 
               :required="!isEditing" 
-              :class="{ 'input-error': passwordError }"
+              :class="{ 'border-danger focus:border-danger focus:ring-danger/20': passwordError }"
             />
-            <p v-if="passwordError" class="field-desc error-text mt-1">{{ t('error.password_format') }}</p>
+            <p v-if="passwordError" class="text-[0.8rem] text-danger mt-1 m-0 leading-snug">{{ t('error.password_format') }}</p>
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-col-left">
-            <div class="label-header">
-              <label>{{ t('form.full_name') }}</label>
-              <span class="tag-required">{{ t('form.required') }}</span>
+        <div class="grid grid-cols-[1fr_1.5fr] gap-8 items-center py-5 border-b border-border">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text m-0">{{ t('form.full_name') }}</label>
+              <span class="text-[0.7rem] bg-primary/15 text-primary px-1.5 py-0.5 rounded font-bold leading-none">{{ t('form.required') }}</span>
             </div>
-            <p class="field-desc">{{ t('form.full_name_desc') }}</p>
+            <p class="text-[0.8rem] text-text-muted m-0 leading-snug">{{ t('form.full_name_desc') }}</p>
           </div>
-          <div class="form-col-right">
-            <input type="text" v-model="formData.full_name" :placeholder="t('form.full_name_placeholder')" required />
+          <div class="flex flex-col">
+            <Input v-model="formData.full_name" :placeholder="t('form.full_name_placeholder')" required />
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-col-left">
-            <div class="label-header">
-              <label>{{ t('form.employee_id') }}</label>
-              <span class="tag-required">{{ t('form.required') }}</span>
+        <div class="grid grid-cols-[1fr_1.5fr] gap-8 items-center py-5 border-b border-border">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text m-0">{{ t('form.employee_id') }}</label>
+              <span class="text-[0.7rem] bg-primary/15 text-primary px-1.5 py-0.5 rounded font-bold leading-none">{{ t('form.required') }}</span>
             </div>
-            <p class="field-desc">{{ t('form.employee_id_desc') }}</p>
+            <p class="text-[0.8rem] text-text-muted m-0 leading-snug">{{ t('form.employee_id_desc') }}</p>
           </div>
-          <div class="form-col-right">
-            <input type="text" v-model="formData.employee_id" :placeholder="t('form.employee_id_placeholder')" required />
+          <div class="flex flex-col">
+            <Input v-model="formData.employee_id" :placeholder="t('form.employee_id_placeholder')" required />
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-col-left">
-            <div class="label-header">
-              <label>{{ t('form.email') }}</label>
-              <span class="tag-required">{{ t('form.required') }}</span>
+        <div class="grid grid-cols-[1fr_1.5fr] gap-8 items-center py-5 border-b border-border">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text m-0">{{ t('form.email') }}</label>
+              <span class="text-[0.7rem] bg-primary/15 text-primary px-1.5 py-0.5 rounded font-bold leading-none">{{ t('form.required') }}</span>
             </div>
-            <p class="field-desc">{{ t('form.email_desc') }}</p>
+            <p class="text-[0.8rem] text-text-muted m-0 leading-snug">{{ t('form.email_desc') }}</p>
           </div>
-          <div class="form-col-right">
-            <input type="email" v-model="formData.email" required />
+          <div class="flex flex-col">
+            <Input type="email" v-model="formData.email" required />
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-col-left">
-            <div class="label-header">
-              <label>{{ t('form.department') }}</label>
+        <div class="grid grid-cols-[1fr_1.5fr] gap-8 items-center py-5 border-b border-border">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text m-0">{{ t('form.department') }}</label>
             </div>
-            <p class="field-desc">{{ t('form.department_desc') }}</p>
+            <p class="text-[0.8rem] text-text-muted m-0 leading-snug">{{ t('form.department_desc') }}</p>
           </div>
-          <div class="form-col-right">
-            <input type="text" v-model="formData.department" :placeholder="t('form.department_placeholder')" />
+          <div class="flex flex-col">
+            <Input v-model="formData.department" :placeholder="t('form.department_placeholder')" />
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-col-left">
-            <div class="label-header">
-              <label>{{ t('form.role') }}</label>
-              <span class="tag-required">{{ t('form.required') }}</span>
+        <div class="grid grid-cols-[1fr_1.5fr] gap-8 items-center py-5">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text m-0">{{ t('form.role') }}</label>
+              <span class="text-[0.7rem] bg-primary/15 text-primary px-1.5 py-0.5 rounded font-bold leading-none">{{ t('form.required') }}</span>
             </div>
-            <p class="field-desc">{{ t('form.role_desc') }}</p>
+            <p class="text-[0.8rem] text-text-muted m-0 leading-snug">{{ t('form.role_desc') }}</p>
           </div>
-          <div class="form-col-right">
-            <CustomDropdown 
-              multiple
-              :rows="5"
+          <div class="flex flex-col">
+            <MultiSelectDropdown 
               v-model="formData.role_ids" 
               :options="roles.map((r: any) => ({ value: r.id, label: r.name }))" 
               variant="form" 
@@ -452,8 +447,8 @@ const toggleActive = async (user: any) => {
         </div>
       </form>
       <template #footer>
-        <button type="button" class="btn-cancel" @click="closeModal">{{ t('action.cancel') }}</button>
-        <button type="submit" form="userForm" class="btn-primary">{{ t('action.save') }}</button>
+        <Button variant="secondary" @click="closeModal">{{ t('action.cancel') }}</Button>
+        <Button type="submit" form="userForm">{{ t('action.save') }}</Button>
       </template>
     </BaseModal>
 
@@ -461,225 +456,4 @@ const toggleActive = async (user: any) => {
   </div>
 </template>
 
-<style scoped>
-.admin-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  height: 100%;
-  padding: 2rem;
-  overflow: hidden;
-}
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.table-wrapper {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Specific styling for the buttons/badges remaining */
-.wrap-text {
-  white-space: normal;
-  word-break: break-word;
-  min-width: 150px;
-}
-
-.badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #000;
-  display: inline-block;
-  white-space: nowrap;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn-sm {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8rem;
-  border-radius: 4px;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn-edit {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--color-text);
-  border-color: var(--color-border);
-}
-
-.btn-danger {
-  background: rgba(255, 85, 85, 0.1);
-  color: #ff5555;
-  border-color: #ff5555;
-}
-
-.btn-success {
-  background: rgba(99, 224, 121, 0.1);
-  color: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
-.pill-select-wrapper {
-  display: flex;
-  align-items: center;
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 20px;
-  padding: 0.25rem 0.5rem 0.25rem 1rem;
-  gap: 0.5rem;
-  height: 44px;
-}
-
-.pill-icon {
-  color: var(--color-text-muted);
-}
-
-.date-filter-wrapper {
-  gap: 0.5rem;
-  padding-left: 0;
-  border: none;
-  background: transparent;
-}
-
-.pill-date {
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 20px;
-  outline: none;
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: 1rem;
-  cursor: pointer;
-  height: 44px;
-  padding: 0 1rem;
-}
-.pill-date::-webkit-calendar-picker-indicator {
-  filter: invert(0.5);
-  cursor: pointer;
-}
-
-.form-layout-5050 {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1.5fr;
-  gap: 2rem;
-  padding: 1.25rem 0;
-  border-bottom: 1px solid var(--color-border);
-  align-items: center;
-}
-
-.form-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.form-row:first-child {
-  padding-top: 0;
-}
-
-.form-col-left {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.form-col-right {
-  display: flex;
-  flex-direction: column;
-}
-
-.label-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.label-header label {
-  font-weight: 600;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.tag-required {
-  font-size: 0.7rem;
-  padding: 0.15rem 0.4rem;
-  background-color: rgba(99, 224, 121, 0.15);
-  color: var(--color-primary);
-  border-radius: 4px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.field-desc {
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
-  margin: 0;
-  line-height: 1.4;
-}
-
-.form-col-right input {
-  width: 100%;
-  padding: 0.75rem;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  border-radius: 4px;
-  transition: border-color 0.2s;
-  outline: none;
-}
-
-.form-col-right input:focus {
-  border-color: var(--color-primary);
-}
-
-.form-col-right input.input-error {
-  border-color: #ef4444;
-}
-
-.form-col-right input.input-error:focus {
-  border-color: #ef4444;
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
-}
-
-.error-text {
-  color: #ef4444;
-}
-
-.mt-1 {
-  margin-top: 0.25rem;
-}
-
-.btn-cancel {
-  background: transparent;
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-</style>

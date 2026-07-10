@@ -4,8 +4,11 @@ import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import { toast } from 'vue-sonner';
-import CustomDropdown from '@/components/CustomDropdown.vue';
-
+import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
+import Input from '@/components/ui/Input.vue';
+import Button from '@/components/ui/Button.vue';
+import Radio from '@/components/ui/Radio.vue';
+import Checkbox from '@/components/ui/Checkbox.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -275,105 +278,92 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="create-request-page">
-    <div class="fai-form-container">
-      <div class="header-section">
-        <div class="header-left">
-          <button type="button" class="btn-back" @click="router.push({ name: 'fai-request-list' })">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-back">
+  <div class="h-full overflow-y-auto p-6 box-border">
+    <div class="w-full max-w-[1550px] min-h-full p-6 bg-bg-surface rounded-lg border border-border shadow-sm mx-auto box-border flex flex-col">
+      <div class="py-4 flex justify-between items-center border-b-2 border-border mb-6">
+        <div class="flex items-center gap-4">
+          <Button type="button" variant="secondary" class="gap-2" @click="router.push({ name: 'fai-request-list' })">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
             {{ t('fai.back_to_list') }}
-          </button>
-          <h1>{{ t('fai.form_title') }}</h1>
+          </Button>
+          <h1 class="text-2xl m-0">{{ t('fai.form_title') }}</h1>
         </div>
-        <span class="status-indicator" :class="saveStatus">
+        <span class="text-[0.85rem] font-medium" :class="{'text-[#f59e0b]': saveStatus === 'saving', 'text-primary': saveStatus === 'saved', 'text-[#ef4444]': saveStatus === 'error'}">
           <template v-if="saveStatus === 'saving'">{{ t('fai.saving_draft') }}</template>
         </span>
       </div>
 
-      <form @submit.prevent="submitForm" class="fai-form">
-        <div class="form-layout-grid">
+      <form @submit.prevent="submitForm" class="flex flex-col grow m-0">
+        <div class="grid grid-cols-1 xl:grid-cols-[1.1fr_1fr] gap-6 xl:gap-8 mb-5">
           
           <!-- Left Column (Core Inputs + Types + Reasons) -->
-          <div class="form-left-col">
+          <div class="flex flex-col gap-5">
             <!-- 3-Column Grid for Core Form Fields -->
-            <div class="inputs-grid">
-              <div class="form-group">
-                <label>Project Name: <span class="required">*</span></label>
-                <input type="text" v-model="projectName" :placeholder="t('fai.placeholder.project_name')" required />
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="flex flex-col gap-1.5">
+                <label class="font-semibold text-base text-text">Project Name: <span class="text-[#ef4444]">*</span></label>
+                <Input type="text" v-model="projectName" :placeholder="t('fai.placeholder.project_name')" required />
               </div>
-              <div class="form-group">
-                <label>Part Number: <span class="required">*</span></label>
-                <input type="text" v-model="partNo" :placeholder="t('fai.placeholder.part_no')" required />
+              <div class="flex flex-col gap-1.5">
+                <label class="font-semibold text-base text-text">Part Number: <span class="text-[#ef4444]">*</span></label>
+                <Input type="text" v-model="partNo" :placeholder="t('fai.placeholder.part_no')" required />
               </div>
-              <div class="form-group">
-                <label>Part Name: <span class="required">*</span></label>
-                <input type="text" v-model="partName" :placeholder="t('fai.placeholder.part_name')" required />
+              <div class="flex flex-col gap-1.5">
+                <label class="font-semibold text-base text-text">Part Name: <span class="text-[#ef4444]">*</span></label>
+                <Input type="text" v-model="partName" :placeholder="t('fai.placeholder.part_name')" required />
               </div>
-              <div class="form-group">
-                <label>Part Rev: <span class="required">*</span></label>
-                <input type="text" v-model="revision" :placeholder="t('fai.placeholder.revision')" required />
+              <div class="flex flex-col gap-1.5">
+                <label class="font-semibold text-base text-text">Part Rev: <span class="text-[#ef4444]">*</span></label>
+                <Input type="text" v-model="revision" :placeholder="t('fai.placeholder.revision')" required />
               </div>
-              <div class="form-group">
-                <label>Supplier Name: <span class="required">*</span></label>
-                <input type="text" v-model="supplierName" :placeholder="t('fai.placeholder.supplier_name')" required />
+              <div class="flex flex-col gap-1.5">
+                <label class="font-semibold text-base text-text">Supplier Name: <span class="text-[#ef4444]">*</span></label>
+                <Input type="text" v-model="supplierName" :placeholder="t('fai.placeholder.supplier_name')" required />
               </div>
-              <div class="form-group">
-                <label>Supplier Address: <span class="required">*</span></label>
-                <input type="text" v-model="address" :placeholder="t('fai.placeholder.address')" required />
+              <div class="flex flex-col gap-1.5">
+                <label class="font-semibold text-base text-text">Supplier Address: <span class="text-[#ef4444]">*</span></label>
+                <Input type="text" v-model="address" :placeholder="t('fai.placeholder.address')" required />
               </div>
-              <div class="form-group">
-                <label>Commodity Part: <span class="required">*</span></label>
-                <CustomDropdown 
+              <div class="flex flex-col gap-1.5">
+                <label class="font-semibold text-base text-text">Commodity Part: <span class="text-[#ef4444]">*</span></label>
+                <SingleSelectDropdown 
                   v-model="commodityPart" 
                   :options="commodityPartOptions" 
                   :placeholder="t('fai.placeholder.commodity_part')" 
                 />
               </div>
-              <div class="form-group">
-                <label>R&D Person In Charge: <span class="required">*</span></label>
-                <input type="text" v-model="personInCharge" :placeholder="t('fai.placeholder.person_in_charge')" required />
+              <div class="flex flex-col gap-1.5">
+                <label class="font-semibold text-base text-text">R&D Person In Charge: <span class="text-[#ef4444]">*</span></label>
+                <Input type="text" v-model="personInCharge" :placeholder="t('fai.placeholder.person_in_charge')" required />
               </div>
-              <div class="form-group">
-                <label>Shipment Tracking No.:</label>
-                <input type="text" v-model="trackingNo" :placeholder="t('fai.placeholder.tracking_no')" />
+              <div class="flex flex-col gap-1.5">
+                <label class="font-semibold text-base text-text">Shipment Tracking No.:</label>
+                <Input type="text" v-model="trackingNo" :placeholder="t('fai.placeholder.tracking_no')" />
               </div>
-              <div class="form-group">
-                <label>Sample Quantity: <span class="required">*</span></label>
-                <input type="number" v-model="sampleQty" min="1" max="20" required placeholder="1-20" />
+              <div class="flex flex-col gap-1.5">
+                <label class="font-semibold text-base text-text">Sample Quantity: <span class="text-[#ef4444]">*</span></label>
+                <Input type="number" v-model="sampleQty" min="1" max="20" required placeholder="1-20" />
                 <input type="hidden" v-model="submissionTime" />
               </div>
             </div>
 
             <!-- Part Type Section -->
-            <div class="checkbox-section">
-              <h3>{{ t('fai.part_type') }}:</h3>
-              <div class="checkbox-row">
-                <label class="custom-checkbox">
-                  <input type="radio" value="Tooling Sample" v-model="partType" />
-                  <span>Tooling Sample</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="radio" value="CNC Sample" v-model="partType" />
-                  <span>CNC Sample</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="radio" value="Mags" v-model="partType" />
-                  <span>Mags</span>
-                </label>
-                <div style="display: flex; align-items: center;">
-                  <label class="custom-checkbox align-center" style="margin: 0;">
-                    <input type="radio" value="Others" v-model="partType" />
-                    <span>Others:</span>
-                  </label>
-                  <input 
+            <div class="pb-5 border-b border-border">
+              <h3 class="text-base font-semibold mt-0 mb-3 text-text">{{ t('fai.part_type') }}:</h3>
+              <div class="flex flex-wrap items-center gap-x-6 gap-y-4">
+                <Radio value="Tooling Sample" v-model="partType">Tooling Sample</Radio>
+                <Radio value="CNC Sample" v-model="partType">CNC Sample</Radio>
+                <Radio value="Mags" v-model="partType">Mags</Radio>
+                <div class="flex items-center gap-2">
+                  <Radio value="Others" v-model="partType">Others:</Radio>
+                  <Input 
                     v-if="partType === 'Others'" 
                     type="text" 
                     :value="partTypeOthersText"
                     @input="partTypeOthersText = ($event.target as HTMLInputElement).value.toUpperCase()"
-                    class="inline-input" 
                     :placeholder="t('fai.placeholder.specify')" 
                     required
                   />
@@ -382,132 +372,66 @@ onMounted(async () => {
             </div>
 
             <!-- Reason for Submission Section -->
-            <div class="checkbox-section no-border">
-              <h3>{{ t('fai.reason') }}:</h3>
-              <div class="checkbox-row">
-                <label class="custom-checkbox">
-                  <input type="radio" value="Initial Submission" v-model="reasonForSubmission" />
-                  <span>Initial Submission for This Part Number</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="radio" value="ECO" v-model="reasonForSubmission" />
-                  <span>ECO</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="radio" value="Process" v-model="reasonForSubmission" />
-                  <span>Process: Transfer, replacement, refurbishment etc.</span>
-                </label>
-                <div style="display: flex; align-items: center;">
-                  <label class="custom-checkbox align-center" style="margin: 0;">
-                    <input type="radio" value="Others" v-model="reasonForSubmission" />
-                    <span>Others:</span>
-                  </label>
-                  <input v-if="reasonForSubmission === 'Others'" type="text" v-model="reasonOthersText" class="inline-input" :placeholder="t('fai.placeholder.specify')" required />
+            <div class="pb-0 border-b-0">
+              <h3 class="text-base font-semibold mt-0 mb-3 text-text">{{ t('fai.reason') }}:</h3>
+              <div class="flex flex-wrap items-center gap-x-6 gap-y-4">
+                <Radio value="Initial Submission" v-model="reasonForSubmission">Initial Submission for This Part Number</Radio>
+                <Radio value="ECO" v-model="reasonForSubmission">ECO</Radio>
+                <Radio value="Process" v-model="reasonForSubmission">Process: Transfer, replacement, refurbishment etc.</Radio>
+                <div class="flex items-center gap-2">
+                  <Radio value="Others" v-model="reasonForSubmission">Others:</Radio>
+                  <Input v-if="reasonForSubmission === 'Others'" type="text" v-model="reasonOthersText" :placeholder="t('fai.placeholder.specify')" required />
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Right Column (Checklist + Attach Files) -->
-          <div class="form-right-col">
+          <div class="flex flex-col gap-5">
             <!-- Submission Contents Checklist -->
-            <div class="checklist-section">
-              <h3>{{ t('fai.contents') }}:</h3>
-              <div class="checklist-grid-compact">
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.psw" />
-                  <span>Part Submission Warrant (PSW)</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.drawing" />
-                  <span>Drawing</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.dfm" />
-                  <span>Design for Manufacturability</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.samples" />
-                  <span>Part Samples</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.specification" />
-                  <span>Specification Conformance Report</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.reliability" />
-                  <span>Reliability Test Report</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.material_cert" />
-                  <span>Material Certification</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.sample_cert" />
-                  <span>Sample Certificate of Conformance</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.msds" />
-                  <span>Material Safety Data Sheet</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.rohs" />
-                  <span>RoHS Test Report</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.declaration" />
-                  <span>Declaration of Environmental Compliance</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.safety" />
-                  <span>Safety Certification Data</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.packaging" />
-                  <span>Packaging and Delivery Methods</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.flow_diagram" />
-                  <span>Process Flow Diagram</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.control_plan" />
-                  <span>Process Control Plan</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.cpk" />
-                  <span>The CPK of Key Dimension</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.deviation" />
-                  <span>Deviation List</span>
-                </label>
-                <label class="custom-checkbox">
-                  <input type="checkbox" v-model="submissionContents.validate_report" />
-                  <span>Process Validate Report</span>
-                </label>
+            <div class="pb-5 border-b border-border">
+              <h3 class="text-base font-semibold mt-0 mb-3 text-text">{{ t('fai.contents') }}:</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
+                <Checkbox v-model="submissionContents.psw">Part Submission Warrant (PSW)</Checkbox>
+                <Checkbox v-model="submissionContents.drawing">Drawing</Checkbox>
+                <Checkbox v-model="submissionContents.dfm">Design for Manufacturability</Checkbox>
+                <Checkbox v-model="submissionContents.samples">Part Samples</Checkbox>
+                <Checkbox v-model="submissionContents.specification">Specification Conformance Report</Checkbox>
+                <Checkbox v-model="submissionContents.reliability">Reliability Test Report</Checkbox>
+                <Checkbox v-model="submissionContents.material_cert">Material Certification</Checkbox>
+                <Checkbox v-model="submissionContents.sample_cert">Sample Certificate of Conformance</Checkbox>
+                <Checkbox v-model="submissionContents.msds">Material Safety Data Sheet</Checkbox>
+                <Checkbox v-model="submissionContents.rohs">RoHS Test Report</Checkbox>
+                <Checkbox v-model="submissionContents.declaration">Declaration of Environmental Compliance</Checkbox>
+                <Checkbox v-model="submissionContents.safety">Safety Certification Data</Checkbox>
+                <Checkbox v-model="submissionContents.packaging">Packaging and Delivery Methods</Checkbox>
+                <Checkbox v-model="submissionContents.flow_diagram">Process Flow Diagram</Checkbox>
+                <Checkbox v-model="submissionContents.control_plan">Process Control Plan</Checkbox>
+                <Checkbox v-model="submissionContents.cpk">The CPK of Key Dimension</Checkbox>
+                <Checkbox v-model="submissionContents.deviation">Deviation List</Checkbox>
+                <Checkbox v-model="submissionContents.validate_report">Process Validate Report</Checkbox>
               </div>
             </div>
 
             <!-- File Attachment Section -->
-            <div class="file-section no-border">
-              <h3>{{ t('fai.attach_files') }}:</h3>
-              <div class="file-upload-box">
-                <input type="file" multiple @change="handleFileUpload" id="file-input" class="hidden-file-input" />
-                <label for="file-input" class="file-upload-btn">{{ t('fai.choose_files') }}</label>
-                <span class="file-info" v-if="uploadedFiles.length === 0">{{ t('fai.no_file') }}</span>
-                <div v-else class="uploaded-list">
-                  <div v-for="(file, idx) in uploadedFiles" :key="idx" class="uploaded-item">
-                    <span class="file-name">{{ file.file_name }}</span>
-                    <button type="button" @click="removeFile(idx)" class="remove-btn">✕</button>
+            <div class="pb-0 border-b-0">
+              <h3 class="text-base font-semibold mt-0 mb-3 text-text">{{ t('fai.attach_files') }}:</h3>
+              <div class="flex items-center gap-3 border border-border py-2 px-3 rounded bg-bg">
+                <input type="file" multiple @change="handleFileUpload" id="file-input" class="hidden" />
+                <label for="file-input" class="bg-bg-surface border border-border text-text py-1.5 px-3.5 rounded text-[0.85rem] font-medium cursor-pointer shadow-sm hover:bg-border">{{ t('fai.choose_files') }}</label>
+                <span class="text-[0.85rem] text-text-muted" v-if="uploadedFiles.length === 0">{{ t('fai.no_file') }}</span>
+                <div v-else class="flex flex-wrap gap-1.5">
+                  <div v-for="(file, idx) in uploadedFiles" :key="idx" class="flex items-center gap-1.5 bg-border py-1 px-2 rounded text-[0.8rem]">
+                    <span>{{ file.file_name }}</span>
+                    <button type="button" @click="removeFile(idx)" class="bg-transparent border-none text-[#ef4444] cursor-pointer text-[0.8rem]">✕</button>
                   </div>
                 </div>
               </div>
-              <p class="file-helper">{{ t('fai.multiple_files') }}</p>
+              <p class="text-[0.75rem] text-text-muted mt-1.5 mb-0">{{ t('fai.multiple_files') }}</p>
 
               <!-- Progress bar -->
-              <div v-if="isUploading" class="progress-bar-wrapper">
-                <div class="progress-bar" :style="{ width: uploadProgress + '%' }"></div>
+              <div v-if="isUploading" class="mt-2 bg-border h-1 rounded-sm overflow-hidden">
+                <div class="bg-primary h-full transition-[width] duration-200" :style="{ width: uploadProgress + '%' }"></div>
               </div>
             </div>
           </div>
@@ -515,372 +439,11 @@ onMounted(async () => {
         </div>
 
         <!-- Action Buttons (Bottom-Right aligned) -->
-        <div class="actions-section">
-          <button type="button" @click="saveAsDraft" class="btn-draft">{{ t('fai.save_draft') }}</button>
-          <button type="submit" class="btn-primary">{{ t('fai.submit') }}</button>
+        <div class="flex justify-end gap-3 mt-auto pt-4 border-t border-border">
+          <Button type="button" variant="secondary" @click="saveAsDraft">{{ t('fai.save_draft') }}</Button>
+          <Button type="submit">{{ t('fai.submit') }}</Button>
         </div>
       </form>
     </div>
   </div>
 </template>
-
-<style scoped>
-.create-request-page {
-  height: 100%;
-  overflow-y: auto;
-  padding: 1.5rem;
-  box-sizing: border-box;
-}
-
-.fai-form-container {
-  width: 100%;
-  max-width: 1550px;
-  min-height: 100%;
-  padding: 1.5rem;
-  background-color: var(--color-bg-surface);
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  margin: 0 auto;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-}
-
-.fai-form {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  margin: 0;
-}
-
-.header-section {
-  padding: 1rem 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 2px solid var(--color-border);
-  margin-bottom: 1.5rem;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.btn-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background-color: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  color: var(--color-text);
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-back:hover {
-  background-color: var(--color-border);
-}
-
-.icon-back {
-  width: 16px;
-  height: 16px;
-}
-
-.header-section h1 {
-  font-size: 1.5rem;
-  margin: 0;
-}
-
-.status-indicator {
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-.status-indicator.saving {
-  color: #f59e0b;
-}
-.status-indicator.saved {
-  color: var(--color-primary);
-}
-.status-indicator.error {
-  color: #ef4444;
-}
-
-.form-layout-grid {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 2rem;
-  margin-bottom: 1.25rem;
-}
-
-@media (max-width: 1200px) {
-  .form-layout-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-}
-
-.form-left-col, .form-right-col {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.inputs-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-}
-
-@media (max-width: 640px) {
-  .inputs-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.form-group label {
-  font-weight: 600;
-  font-size: 1rem;
-  color: var(--color-text);
-}
-
-.form-group input {
-  padding: 0.25rem 1rem;
-  height: 44px;
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  border-radius: 20px;
-  outline: none;
-  font-size: 1rem;
-  transition: all 0.2s;
-}
-
-.form-group input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(99, 224, 121, 0.2);
-}
-
-.required {
-  color: #ef4444;
-}
-
-.checkbox-section, .checklist-section, .file-section {
-  padding-bottom: 1.25rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.checkbox-section.no-border, .file-section.no-border {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.checkbox-section h3, .checklist-section h3, .file-section h3 {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-top: 0;
-  margin-bottom: 0.75rem;
-  color: var(--color-text);
-}
-
-.checkbox-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem 1.5rem;
-}
-
-.custom-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: var(--color-text);
-  cursor: pointer;
-  user-select: none;
-}
-
-.custom-checkbox input[type="radio"], .custom-checkbox input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--color-primary);
-  margin: 0;
-  flex-shrink: 0;
-}
-
-.custom-checkbox span {
-  word-break: break-word;
-  line-height: 1.25;
-}
-
-.align-center {
-  align-items: center;
-}
-
-.inline-input {
-  margin-left: 0.5rem;
-  padding: 0.25rem 1rem;
-  height: 44px;
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  border-radius: 20px;
-  outline: none;
-  font-size: 1rem;
-  transition: all 0.2s;
-}
-
-.inline-input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(99, 224, 121, 0.2);
-}
-
-.checklist-grid-compact {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.4rem 1.5rem;
-}
-
-@media (max-width: 640px) {
-  .checklist-grid-compact {
-    grid-template-columns: 1fr;
-  }
-}
-
-.file-upload-box {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  border: 1px solid var(--color-border);
-  padding: 0.5rem 0.75rem;
-  border-radius: 4px;
-  background: var(--color-bg);
-}
-
-.hidden-file-input {
-  display: none;
-}
-
-.file-upload-btn {
-  background-color: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  padding: 0.4rem 0.85rem;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.file-upload-btn:hover {
-  background-color: var(--color-border);
-}
-
-.file-info {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
-.uploaded-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.uploaded-item {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  background-color: var(--color-border);
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-}
-
-.remove-btn {
-  background: transparent;
-  border: none;
-  color: #ef4444;
-  cursor: pointer;
-  font-size: 0.8rem;
-}
-
-.file-helper {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  margin-top: 0.35rem;
-  margin-bottom: 0;
-}
-
-.progress-bar-wrapper {
-  margin-top: 0.5rem;
-  background-color: var(--color-border);
-  height: 4px;
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.progress-bar {
-  background-color: var(--color-primary);
-  height: 100%;
-  transition: width 0.2s;
-}
-
-.actions-section {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px solid var(--color-border);
-}
-
-.btn-draft {
-  background-color: var(--color-border);
-  color: var(--color-text-muted);
-  border: none;
-  padding: 0.6rem 1.25rem;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background-color var(--transition-speed) ease;
-}
-
-.btn-draft:hover {
-  background-color: #d1d5db;
-}
-
-html.dark .btn-draft:hover {
-  background-color: #444444;
-}
-
-.btn-primary {
-  background-color: var(--color-primary);
-  color: var(--color-bg-surface);
-  border: none;
-  padding: 0.6rem 1.25rem;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background-color var(--transition-speed) ease;
-}
-
-.btn-primary:hover {
-  filter: brightness(0.9);
-}
-</style>

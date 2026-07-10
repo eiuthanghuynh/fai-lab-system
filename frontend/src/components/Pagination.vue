@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import CustomDropdown from '@/components/CustomDropdown.vue';
+import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
 
 const { t } = useI18n();
 
@@ -80,125 +80,39 @@ const pages = computed(() => {
 </script>
 
 <template>
-  <div class="pagination-container">
-    <div class="pagination-left">
-      <span class="rows-label">{{ t('pagination.rows_per_page') }}</span>
-      <CustomDropdown 
-        class="pagination-dropdown"
-        :modelValue="rowsPerPage"
-        :options="dropdownOptions"
-        direction="up"
-        @update:modelValue="onRowsPerPageChange"
-      />
-      <span v-if="t('pagination.of_rows', { total })" class="total-label">{{ t('pagination.of_rows', { total }) }}</span>
+  <div class="flex justify-between items-center p-4 border-t border-border bg-bg-surface rounded-b-lg text-text-muted text-sm">
+    <div class="flex items-center gap-3">
+      <span class="font-medium text-text-muted">{{ t('pagination.rows_per_page') }}</span>
+      <div class="w-20 [&_button]:h-8 [&_button]:min-h-[32px] [&_button]:py-1 [&_button]:text-sm [&_button]:min-w-0">
+        <SingleSelectDropdown 
+          :modelValue="rowsPerPage"
+          :options="dropdownOptions"
+          @update:modelValue="onRowsPerPageChange"
+        />
+      </div>
+      <span v-if="t('pagination.of_rows', { total })" class="font-medium text-text-muted">{{ t('pagination.of_rows', { total }) }}</span>
     </div>
 
-    <div class="pagination-right">
-      <button class="page-btn nav-btn" :disabled="modelValue === 1" @click="changePage(1)">«</button>
-      <button class="page-btn nav-btn" :disabled="modelValue === 1" @click="changePage(modelValue - 1)">‹</button>
+    <div class="flex items-center gap-2">
+      <button class="flex items-center justify-center min-w-[32px] h-[32px] px-2 border border-transparent rounded-full bg-transparent text-text-muted font-semibold cursor-pointer transition-all hover:not(:disabled):bg-white/5 hover:not(:disabled):text-text disabled:opacity-30 disabled:cursor-not-allowed text-[1.2rem] leading-none" :disabled="modelValue === 1" @click="changePage(1)">«</button>
+      <button class="flex items-center justify-center min-w-[32px] h-[32px] px-2 border border-transparent rounded-full bg-transparent text-text-muted font-semibold cursor-pointer transition-all hover:not(:disabled):bg-white/5 hover:not(:disabled):text-text disabled:opacity-30 disabled:cursor-not-allowed text-[1.2rem] leading-none" :disabled="modelValue === 1" @click="changePage(modelValue - 1)">‹</button>
       
       <button 
         v-for="(page, idx) in pages" 
         :key="idx" 
-        class="page-btn" 
-        :class="{ active: page === modelValue, dots: page === '...' }"
+        :class="[
+          'flex items-center justify-center min-w-[32px] h-[32px] px-2 border border-transparent rounded-full font-semibold transition-all',
+          page === modelValue ? 'bg-primary text-bg' : 'bg-transparent text-text-muted',
+          page === '...' ? 'cursor-default' : 'cursor-pointer hover:not(:disabled):bg-white/5 hover:not(:disabled):text-text disabled:opacity-30 disabled:cursor-not-allowed'
+        ]"
         :disabled="page === '...'"
         @click="changePage(page)"
       >
         {{ page }}
       </button>
 
-      <button class="page-btn nav-btn" :disabled="modelValue === totalPages" @click="changePage(modelValue + 1)">›</button>
-      <button class="page-btn nav-btn" :disabled="modelValue === totalPages" @click="changePage(totalPages)">»</button>
+      <button class="flex items-center justify-center min-w-[32px] h-[32px] px-2 border border-transparent rounded-full bg-transparent text-text-muted font-semibold cursor-pointer transition-all hover:not(:disabled):bg-white/5 hover:not(:disabled):text-text disabled:opacity-30 disabled:cursor-not-allowed text-[1.2rem] leading-none" :disabled="modelValue === totalPages" @click="changePage(modelValue + 1)">›</button>
+      <button class="flex items-center justify-center min-w-[32px] h-[32px] px-2 border border-transparent rounded-full bg-transparent text-text-muted font-semibold cursor-pointer transition-all hover:not(:disabled):bg-white/5 hover:not(:disabled):text-text disabled:opacity-30 disabled:cursor-not-allowed text-[1.2rem] leading-none" :disabled="modelValue === totalPages" @click="changePage(totalPages)">»</button>
     </div>
   </div>
 </template>
-
-<style scoped>
-.pagination-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  border-top: 1px solid var(--color-border);
-  background: var(--color-bg-surface);
-  border-radius: 0 0 8px 8px;
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
-}
-
-.pagination-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.rows-label {
-  font-weight: 500;
-  color: var(--color-text-muted);
-}
-
-:deep(.pagination-dropdown .dropdown-trigger) {
-  height: 32px;
-  padding: 0 0.75rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-:deep(.pagination-dropdown .options-list li) {
-  padding: 0.5rem 0.75rem;
-  font-size: 0.9rem;
-}
-
-.total-label {
-  font-weight: 500;
-  color: var(--color-text-muted);
-}
-
-.pagination-right {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.page-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 32px;
-  height: 32px;
-  padding: 0 0.5rem;
-  border: 1px solid transparent;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--color-text-muted);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.page-btn:hover:not(:disabled):not(.dots) {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--color-text);
-}
-
-.page-btn.active {
-  background: var(--color-primary);
-  color: var(--color-bg);
-}
-
-.page-btn.dots {
-  cursor: default;
-  background: transparent;
-}
-
-.page-btn:disabled:not(.dots) {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.nav-btn {
-  font-size: 1.2rem;
-  line-height: 1;
-}
-</style>

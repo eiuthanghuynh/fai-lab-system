@@ -9,6 +9,8 @@ import Pagination from '@/components/Pagination.vue';
 import BaseModal from '@/components/common/BaseModal.vue';
 import DataTableToolbar from '@/components/common/DataTableToolbar.vue';
 import DataTable, { type DataTableColumn } from '@/components/common/DataTable.vue';
+import Button from '@/components/ui/Button.vue';
+import Input from '@/components/ui/Input.vue';
 import { useDataTable } from '@/composables/useDataTable';
 import { toast } from 'vue-sonner';
 
@@ -129,9 +131,9 @@ const deleteItem = async (item: any) => {
 </script>
 
 <template>
-  <div class="admin-page">
-    <div class="page-header">
-      <h1 class="page-title">{{ t('admin.fai_failure_modes', 'FAI Failure Modes') }}</h1>
+  <div class="flex flex-col gap-6 h-full p-8 overflow-hidden">
+    <div class="flex justify-between items-center">
+      <h1 class="m-0 text-2xl font-semibold text-text">{{ t('admin.fai_failure_modes', 'FAI Failure Modes') }}</h1>
     </div>
 
     <DataTableToolbar 
@@ -139,14 +141,14 @@ const deleteItem = async (item: any) => {
       :searchPlaceholder="t('action.search', 'Search')"
     >
       <template #actions>
-        <button class="pill-btn btn-primary" @click="openModal(null)">
+        <Button class="gap-2" @click="openModal(null)">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
           {{ t('action.create', 'Add') }}
-        </button>
+        </Button>
       </template>
     </DataTableToolbar>
 
-    <div class="table-wrapper">
+    <div class="flex-1 overflow-hidden flex flex-col">
       <DataTable 
         :columns="columns" 
         :data="items" 
@@ -157,11 +159,11 @@ const deleteItem = async (item: any) => {
         @sort="toggleSort"
       >
         <template #cell-actions="{ item }">
-          <div class="action-buttons">
-            <button class="btn-sm btn-edit" @click="openModal(item)">{{ t('action.edit', 'Edit') }}</button>
-            <button class="btn-sm btn-danger" @click="deleteItem(item)">
+          <div class="flex gap-2">
+            <Button variant="secondary" size="sm" @click="openModal(item)">{{ t('action.edit', 'Edit') }}</Button>
+            <Button variant="danger" size="sm" @click="deleteItem(item)">
               {{ t('action.delete', 'Delete') }}
-            </button>
+            </Button>
           </div>
         </template>
       </DataTable>
@@ -170,22 +172,22 @@ const deleteItem = async (item: any) => {
     <Pagination :total="totalItems" v-model="page" v-model:rowsPerPage="limit" />
 
     <BaseModal :isOpen="isModalOpen" :title="isEditing ? t('action.edit', 'Edit') : t('action.create', 'Add')" maxWidth="600px" @close="closeModal">
-      <form id="itemForm" @submit.prevent="saveItem" class="form-layout-5050">
-        <div class="form-row">
-          <div class="form-col-left">
-            <div class="label-header">
-              <label>{{ t('form.issue', 'Issue') }}</label>
-              <span class="tag-required">{{ t('form.required', 'Required') }}</span>
+      <form id="itemForm" @submit.prevent="saveItem" class="flex flex-col gap-4">
+        <div class="grid grid-cols-[1fr_2fr] gap-8 items-center">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text">{{ t('form.issue', 'Issue') }}</label>
+              <span class="text-[0.7rem] bg-primary/15 text-primary px-1.5 py-0.5 rounded font-bold leading-none">{{ t('form.required', 'Required') }}</span>
             </div>
           </div>
-          <div class="form-col-right">
-            <input type="text" v-model="formData.issue" required />
+          <div class="flex flex-col">
+            <Input v-model="formData.issue" required />
           </div>
         </div>
       </form>
       <template #footer>
-        <button type="button" class="btn-cancel" @click="closeModal">{{ t('action.cancel', 'Cancel') }}</button>
-        <button type="submit" form="itemForm" class="btn-primary">{{ t('action.save', 'Save') }}</button>
+        <Button variant="secondary" @click="closeModal">{{ t('action.cancel', 'Cancel') }}</Button>
+        <Button type="submit" form="itemForm">{{ t('action.save', 'Save') }}</Button>
       </template>
     </BaseModal>
 
@@ -193,164 +195,4 @@ const deleteItem = async (item: any) => {
   </div>
 </template>
 
-<style scoped>
-.admin-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  height: 100%;
-  padding: 2rem;
-  overflow: hidden;
-}
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.table-wrapper {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn-sm {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8rem;
-  border-radius: 4px;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn-edit {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--color-text);
-  border-color: var(--color-border);
-}
-
-.btn-danger {
-  background: rgba(255, 85, 85, 0.1);
-  color: #ff5555;
-  border-color: #ff5555;
-}
-
-.form-layout-5050 {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 2rem;
-  padding: 1.25rem 0;
-  border-bottom: 1px solid var(--color-border);
-  align-items: center;
-}
-
-.form-row:first-child {
-  padding-top: 0;
-  border-bottom: none;
-}
-
-.form-col-left {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.form-col-right {
-  display: flex;
-  flex-direction: column;
-}
-
-.label-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.label-header label {
-  font-weight: 600;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.tag-required {
-  font-size: 0.7rem;
-  padding: 0.15rem 0.4rem;
-  background-color: rgba(99, 224, 121, 0.15);
-  color: var(--color-primary);
-  border-radius: 4px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.form-col-right input[type="text"] {
-  width: 100%;
-  padding: 0.75rem;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  border-radius: 4px;
-  transition: border-color 0.2s;
-  outline: none;
-}
-
-.form-col-right input[type="text"]:focus {
-  border-color: var(--color-primary);
-}
-
-.btn-cancel {
-  background: transparent;
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.pill-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-weight: 500;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-  height: 44px;
-  font-size: 1rem;
-}
-
-.btn-primary {
-  background-color: var(--color-primary);
-  color: var(--color-bg);
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  border: none;
-  cursor: pointer;
-  font-weight: 500;
-}
-.pill-btn.btn-primary {
-  border-radius: 20px;
-}
-.btn-primary:hover {
-  filter: brightness(0.9);
-}
-</style>

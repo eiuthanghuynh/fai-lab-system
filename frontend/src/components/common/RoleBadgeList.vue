@@ -169,11 +169,11 @@ const updateTooltipPosition = (e: MouseEvent) => {
 
 <template>
   <div 
-    class="role-badge-list-container" 
+    class="w-full relative cursor-default" 
     ref="containerRef"
   >
     <div 
-      class="badges-wrapper"
+      class="inline-flex flex-row items-center gap-1 max-w-full overflow-hidden"
       @mouseenter="handleMouseEnter"
       @mouseleave="handleMouseLeave"
       @mousemove="updateTooltipPosition"
@@ -181,9 +181,9 @@ const updateTooltipPosition = (e: MouseEvent) => {
       <span 
         v-for="(role, index) in roles" 
         :key="role.id" 
-        class="role-badge" 
+        class="inline-flex items-center justify-center px-2 py-0.5 rounded-[12px] text-[0.7rem] font-bold whitespace-nowrap shrink-0 max-w-full overflow-hidden truncate" 
         :ref="el => { if (el) badgeRefs[index] = el as HTMLElement }"
-        :class="{ 'hidden-badge': visibleCount !== null && index >= visibleCount }"
+        :class="{ 'absolute invisible pointer-events-none': visibleCount !== null && index >= visibleCount }"
         :style="{ 
           backgroundColor: role.badge_color || '#63e079', 
           color: getContrastColor(role.badge_color || '#63e079')
@@ -193,7 +193,7 @@ const updateTooltipPosition = (e: MouseEvent) => {
       </span>
       <span 
         v-if="visibleCount !== null && visibleCount < roles.length" 
-        class="role-badge ellipsis-badge"
+        class="inline-flex items-center justify-center rounded-[12px] text-[0.7rem] shrink-0 max-w-full overflow-hidden truncate bg-bg-surface text-text border border-border px-1.5 py-0.5 font-black tracking-widest"
       >
         ...
       </span>
@@ -201,129 +201,33 @@ const updateTooltipPosition = (e: MouseEvent) => {
 
     <!-- Teleported Tooltip -->
     <Teleport to="body">
-      <Transition name="tooltip-fade">
+      <Transition 
+        enter-active-class="transition-opacity duration-200 ease-out"
+        leave-active-class="transition-opacity duration-200 ease-in"
+        enter-from-class="opacity-0"
+        leave-to-class="opacity-0"
+      >
         <div 
           v-if="isTooltipVisible" 
-          class="roles-custom-tooltip" 
+          class="fixed z-[10000] bg-bg-surface border border-border rounded-xl shadow-xl p-3 max-w-[320px] pointer-events-auto" 
           :style="tooltipStyle"
           @mouseenter="keepTooltip"
           @mouseleave="handleMouseLeave"
           ref="tooltipRef"
         >
-          <div class="tooltip-content">
+          <div class="flex flex-wrap gap-1.5 justify-center">
             <span 
               v-for="role in roles" 
               :key="'tt-' + role.id" 
-              class="role-badge" 
+              class="inline-flex items-center justify-center px-2 py-0.5 rounded-[12px] text-[0.7rem] font-bold whitespace-nowrap shrink-0 max-w-full overflow-hidden truncate" 
               :style="{ backgroundColor: role.badge_color || '#63e079', color: getContrastColor(role.badge_color || '#63e079') }"
             >
               {{ role.name }}
             </span>
           </div>
-          <div class="tooltip-arrow" :style="arrowStyle"></div>
+          <div class="absolute -bottom-[6px] w-3 h-3 bg-inherit border-r border-b border-border -z-10 transition-[left] duration-100 ease-out" style="transform: translateX(-50%) rotate(45deg);" :style="arrowStyle"></div>
         </div>
       </Transition>
     </Teleport>
   </div>
 </template>
-
-<style scoped>
-.role-badge-list-container {
-  width: 100%;
-  position: relative;
-  cursor: default;
-}
-
-.badges-wrapper {
-  display: inline-flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.25rem;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.role-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.15rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  white-space: nowrap;
-  flex-shrink: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.hidden-badge {
-  position: absolute;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.ellipsis-badge {
-  background-color: var(--color-bg-surface, #e2e8f0);
-  color: var(--color-text, #1e293b);
-  border: 1px solid var(--color-border, #cbd5e1);
-  padding: 0.15rem 0.4rem;
-  font-weight: 900;
-  letter-spacing: 1px;
-}
-
-/* Tooltip Styles */
-.roles-custom-tooltip {
-  position: fixed;
-  z-index: 10000;
-  /* Transform translates -50% horizontally so mouseX is center, and -100% vertically to be above */
-  transform: translate(-50%, -100%);
-  background: var(--color-bg-surface, #ffffff);
-  border: 1px solid var(--color-border, #e2e8f0);
-  border-radius: 12px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  padding: 0.75rem;
-  max-width: 320px;
-  pointer-events: auto; /* Allow interaction */
-}
-
-/* Dark mode overrides if any */
-:global(.dark) .roles-custom-tooltip {
-  background: #1e293b;
-  border-color: #334155;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-}
-
-.tooltip-content {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  justify-content: center;
-}
-
-.tooltip-arrow {
-  position: absolute;
-  bottom: -6px;
-  /* left is set dynamically inline */
-  transform: translateX(-50%) rotate(45deg);
-  width: 12px;
-  height: 12px;
-  background: inherit;
-  border-right: 1px solid var(--color-border, #e2e8f0);
-  border-bottom: 1px solid var(--color-border, #e2e8f0);
-  z-index: -1;
-  transition: left 0.1s ease;
-}
-
-.tooltip-fade-enter-active,
-.tooltip-fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.tooltip-fade-enter-from,
-.tooltip-fade-leave-to {
-  opacity: 0;
-  transform: translate(-50%, -90%) scale(0.95);
-}
-</style>

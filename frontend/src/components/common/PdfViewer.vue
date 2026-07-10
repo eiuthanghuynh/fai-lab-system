@@ -139,39 +139,39 @@ const downloadAll = async () => {
 </script>
 
 <template>
-  <div class="pdf-viewer-container">
+  <div class="border border-border rounded-lg bg-bg-surface overflow-hidden h-[800px] flex flex-col max-md:h-[750px]">
     <!-- Empty State -->
-    <div v-if="files.length === 0" class="empty-state">
-      <div class="empty-icon">📄</div>
+    <div v-if="files.length === 0" class="flex flex-col items-center justify-center grow p-12 text-text-muted">
+      <div class="text-[3rem] mb-4">📄</div>
       <p>{{ t('pdf.no_attachments') }}</p>
     </div>
 
     <!-- Split Panel Viewer -->
-    <div v-else class="split-panel">
+    <div v-else class="flex h-full w-full max-md:flex-col">
       <!-- Sidebar (Left) -->
-      <div class="sidebar">
-        <div class="sidebar-header">
-          <h3>{{ t('pdf.document_length') }} ({{ files.length }})</h3>
+      <div class="w-[250px] max-md:w-full max-md:h-[200px] border-r max-md:border-r-0 max-md:border-b border-border flex flex-col bg-bg shrink-0">
+        <div class="p-4 border-b border-border">
+          <h3 class="m-0 text-base font-semibold text-text">{{ t('pdf.document_length') }} ({{ files.length }})</h3>
         </div>
         
-        <div class="files-list">
+        <div class="grow overflow-y-auto p-2 flex flex-col gap-1">
           <div 
             v-for="(file, idx) in files" 
             :key="file.id"
-            class="file-item"
-            :class="{ active: idx === activeIndex }"
+            class="flex items-center justify-between px-3 py-2.5 rounded-md cursor-pointer transition-colors duration-200"
+            :class="idx === activeIndex ? 'bg-primary/20 text-primary font-semibold' : 'text-text-muted hover:bg-border hover:text-text'"
             @click="selectFile(idx)"
           >
-            <span class="file-name" :title="file.file_name">
+            <span class="grow whitespace-nowrap overflow-hidden text-ellipsis text-[0.9rem] pr-2" :title="file.file_name">
               {{ file.file_name }}
             </span>
             <button 
               type="button" 
-              class="btn-icon-download" 
+              class="bg-transparent border-none text-inherit cursor-pointer p-1 rounded flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity shrink-0" 
               @click.stop="downloadFile(file)"
               title="Download File"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-download">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="7 10 12 15 17 10"></polyline>
                 <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -180,9 +180,9 @@ const downloadAll = async () => {
           </div>
         </div>
 
-        <div class="sidebar-footer">
-          <button type="button" class="btn-download-all" @click="downloadAll">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+        <div class="p-4 border-t border-border">
+          <button type="button" class="w-full flex items-center justify-center gap-2 p-2.5 border border-border bg-bg-surface text-text rounded-md text-[0.9rem] font-semibold cursor-pointer transition-colors duration-200 hover:bg-border" @click="downloadAll">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
               <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -193,13 +193,13 @@ const downloadAll = async () => {
       </div>
 
       <!-- Main Viewer (Right) -->
-      <div class="main-viewer" v-if="currentFile">
-        <div class="viewer-header">
-          <h4 class="current-file-title" :title="currentFile.file_name">
+      <div class="grow flex flex-col bg-bg-surface" v-if="currentFile">
+        <div class="px-5 py-3 border-b border-border flex items-center justify-between bg-bg">
+          <h4 class="m-0 text-base font-semibold text-text whitespace-nowrap overflow-hidden text-ellipsis max-w-[60%]" :title="currentFile.file_name">
             {{ currentFile.file_name }}
           </h4>
-          <button type="button" class="btn-header-download" @click="downloadFile(currentFile)">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+          <button type="button" class="flex items-center gap-1.5 py-1.5 px-3 bg-primary text-bg-surface border-none rounded text-[0.85rem] font-semibold cursor-pointer transition-all hover:brightness-90" @click="downloadFile(currentFile)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-[14px] h-[14px]">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
               <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -208,30 +208,30 @@ const downloadAll = async () => {
           </button>
         </div>
 
-        <div class="viewer-body">
-          <div v-if="isCheckingFile" class="non-viewable-placeholder">
-            <div class="placeholder-content" style="border: none; background: transparent;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="file-icon" style="animation: spin 2s linear infinite;"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
+        <div class="grow relative bg-[#525659]">
+          <div v-if="isCheckingFile" class="w-full h-full flex items-center justify-center bg-bg">
+            <div class="flex flex-col items-center justify-center gap-4 p-12 bg-transparent max-w-[400px] text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-text-muted animate-spin"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
             </div>
           </div>
-          <div v-else-if="isFileNotFound" class="non-viewable-placeholder">
-            <div class="placeholder-content">
+          <div v-else-if="isFileNotFound" class="w-full h-full flex items-center justify-center bg-bg">
+            <div class="flex flex-col items-center justify-center gap-4 p-12 bg-bg-surface border border-dashed border-border rounded-[30px] max-w-[400px] text-center">
               <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ff5555" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="15" x2="15" y2="9"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-              <p class="placeholder-text" style="color: #ff5555;">{{ t('pdf.not_found_title') }}</p>
-              <p class="placeholder-text-small">{{ t('pdf.not_found_content') }}</p>
+              <p class="text-[#ff5555] text-lg m-0">{{ t('pdf.not_found_title') }}</p>
+              <p class="text-text-muted text-xs m-0">{{ t('pdf.not_found_content') }}</p>
             </div>
           </div>
           <iframe 
             v-else-if="isViewable"
             :src="viewerUrl" 
-            class="pdf-iframe" 
+            class="w-full h-full border-none" 
             title="Document Viewer"
           ></iframe>
-          <div v-else class="non-viewable-placeholder">
-            <div class="placeholder-content">
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="file-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-              <p class="placeholder-text">{{ t('pdf.download_placeholder_title') }}</p>
-              <p class="placeholder-text-small">{{ t('pdf.download_placeholder_content') }}</p>
+          <div v-else class="w-full h-full flex items-center justify-center bg-bg">
+            <div class="flex flex-col items-center justify-center gap-4 p-12 bg-bg-surface border border-dashed border-border rounded-[30px] max-w-[400px] text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-text-muted"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+              <p class="text-text text-lg m-0">{{ t('pdf.download_placeholder_title') }}</p>
+              <p class="text-text-muted text-xs m-0">{{ t('pdf.download_placeholder_content') }}</p>
             </div>
           </div>
         </div>
@@ -239,282 +239,3 @@ const downloadAll = async () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.pdf-viewer-container {
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background-color: var(--color-bg-surface);
-  overflow: hidden;
-  height: 800px;
-  display: flex;
-  flex-direction: column;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  flex-grow: 1;
-  padding: 3rem;
-  color: var(--color-text-muted);
-}
-
-.empty-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
-
-.split-panel {
-  display: flex;
-  height: 100%;
-  width: 100%;
-}
-
-/* Sidebar Styling */
-.sidebar {
-  width: 250px;
-  border-right: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-  background-color: var(--color-bg);
-  flex-shrink: 0;
-}
-
-.sidebar-header {
-  padding: 1rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.sidebar-header h3 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.files-list {
-  flex-grow: 1;
-  overflow-y: auto;
-  padding: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.file-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.6rem 0.8rem;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: var(--color-text-muted);
-}
-
-.file-item:hover {
-  background-color: var(--color-border);
-  color: var(--color-text);
-}
-
-.file-item.active {
-  background-color: var(--color-primary-light, #e0f2fe);
-  color: var(--color-primary, #0284c7);
-  font-weight: 600;
-}
-
-html.dark .file-item.active {
-  background-color: rgba(2, 132, 199, 0.2);
-  color: #38bdf8;
-}
-
-.file-name {
-  flex-grow: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.9rem;
-  padding-right: 0.5rem;
-}
-
-.btn-icon-download {
-  background: transparent;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  padding: 0.2rem;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.6;
-  transition: opacity 0.2s;
-  flex-shrink: 0;
-}
-
-.btn-icon-download:hover {
-  opacity: 1;
-}
-
-.btn-icon-download svg {
-  width: 16px;
-  height: 16px;
-}
-
-.sidebar-footer {
-  padding: 1rem;
-  border-top: 1px solid var(--color-border);
-}
-
-.btn-download-all {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.6rem;
-  border: 1px solid var(--color-border);
-  background-color: var(--color-bg-surface);
-  color: var(--color-text);
-  border-radius: 6px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-download-all:hover {
-  background-color: var(--color-border);
-}
-
-.btn-download-all svg {
-  width: 16px;
-  height: 16px;
-}
-
-/* Main Viewer Styling */
-.main-viewer {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--color-bg-surface);
-}
-
-.viewer-header {
-  padding: 0.8rem 1.2rem;
-  border-bottom: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background-color: var(--color-bg);
-}
-
-.current-file-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--color-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 60%;
-}
-
-.btn-header-download {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.8rem;
-  background-color: var(--color-primary);
-  color: var(--color-bg-surface);
-  border: none;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.btn-header-download:hover {
-  filter: brightness(0.9);
-}
-
-.btn-icon {
-  width: 14px;
-  height: 14px;
-}
-
-.viewer-body {
-  flex-grow: 1;
-  position: relative;
-  background-color: #525659; /* Default PDF viewer dark background */
-}
-
-.pdf-iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-}
-
-@media (max-width: 768px) {
-  .split-panel {
-    flex-direction: column;
-  }
-  .sidebar {
-    width: 100%;
-    height: 200px;
-    border-right: none;
-    border-bottom: 1px solid var(--color-border);
-  }
-  .pdf-viewer-container {
-    height: 750px;
-  }
-}
-
-.non-viewable-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--color-bg);
-}
-
-.placeholder-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  padding: 3rem;
-  background-color: var(--color-bg-surface);
-  border: 1px dashed var(--color-border);
-  border-radius: 30px;
-  max-width: 400px;
-  text-align: center;
-}
-
-.file-icon {
-  color: var(--color-text-muted);
-}
-
-.placeholder-text {
-  color: var(--color-text);
-  font-size: 1.1rem;
-  margin: 0;
-}
-
-@keyframes spin {
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.placeholder-text-small {
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
-  margin: 0;
-}
-</style>

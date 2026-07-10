@@ -6,7 +6,9 @@ import api from '@/services/api';
 import DataTable, { type DataTableColumn } from '@/components/common/DataTable.vue';
 import StatusBadge from '@/components/common/StatusBadge.vue';
 import BaseModal from '@/components/common/BaseModal.vue';
-import CustomDropdown from '@/components/CustomDropdown.vue';
+import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
+import Button from '@/components/ui/Button.vue';
+import Input from '@/components/ui/Input.vue';
 import { useAuthStore } from '@/stores/auth';
 import { toast } from 'vue-sonner';
 
@@ -153,69 +155,69 @@ const getResultClass = (res: string) => {
 </script>
 
 <template>
-  <div class="detail-page" v-if="request && !isLoading">
-    <div class="page-header">
-      <div class="header-left">
-        <button type="button" class="btn-back" @click="router.push('/lab/request/list')">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-back">
+  <div class="max-w-[1200px] mx-auto p-6 flex flex-col gap-6" v-if="request && !isLoading">
+    <div class="flex justify-between items-start mb-8 border-b-2 border-border pb-6">
+      <div class="flex items-center">
+        <Button variant="secondary" class="gap-2" @click="router.push('/lab/request/list')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
             <line x1="19" y1="12" x2="5" y2="12"></line>
             <polyline points="12 19 5 12 12 5"></polyline>
           </svg>
           {{ t('fai.back_to_list', 'Back to List') }}
-        </button>
+        </Button>
       </div>
-      <div class="title-container">
-        <h1>{{ request.model_no }} - {{ request.project_name }}</h1>
+      <div class="flex items-center gap-4">
+        <h1 class="m-0 text-2xl font-bold">{{ request.model_no }} - {{ request.project_name }}</h1>
         <StatusBadge :isActive="true" :activeText="request.status" inactiveText="" :variant="getStatusVariant(request.status)" />
       </div>
     </div>
 
-    <div class="info-card">
-      <h3 class="section-title">{{ t('lab.details') }}</h3>
-      <div class="info-grid">
-        <div class="info-item">
-          <label>Test No.</label>
-          <span>{{ request.test_no || '-' }}</span>
+    <div class="bg-bg-surface border border-border rounded-lg p-6 shadow-sm">
+      <h3 class="text-primary mt-0 mb-4 pb-2 border-b border-border text-lg font-semibold">{{ t('lab.details') }}</h3>
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-6">
+        <div class="flex flex-col gap-1">
+          <label class="text-[0.85rem] text-text-muted">Test No.</label>
+          <span class="font-medium text-text">{{ request.test_no || '-' }}</span>
         </div>
-        <div class="info-item">
-          <label>{{ t('lab.columns.model_description') }}</label>
-          <span>{{ request.model_description || '-' }}</span>
+        <div class="flex flex-col gap-1">
+          <label class="text-[0.85rem] text-text-muted">{{ t('lab.columns.model_description') }}</label>
+          <span class="font-medium text-text">{{ request.model_description || '-' }}</span>
         </div>
-        <div class="info-item">
-          <label>{{ t('lab.columns.quantity') }}</label>
-          <span>{{ request.quantity || '-' }}</span>
+        <div class="flex flex-col gap-1">
+          <label class="text-[0.85rem] text-text-muted">{{ t('lab.columns.quantity') }}</label>
+          <span class="font-medium text-text">{{ request.quantity || '-' }}</span>
         </div>
-        <div class="info-item">
-          <label>{{ t('lab.columns.product_sn') }}</label>
-          <span>{{ request.product_sn || '-' }}</span>
+        <div class="flex flex-col gap-1">
+          <label class="text-[0.85rem] text-text-muted">{{ t('lab.columns.product_sn') }}</label>
+          <span class="font-medium text-text">{{ request.product_sn || '-' }}</span>
         </div>
-        <div class="info-item">
-          <label>Revision</label>
-          <span>{{ request.revision || '-' }}</span>
+        <div class="flex flex-col gap-1">
+          <label class="text-[0.85rem] text-text-muted">Revision</label>
+          <span class="font-medium text-text">{{ request.revision || '-' }}</span>
         </div>
-        <div class="info-item">
-          <label>{{ t('lab.columns.stage') }}</label>
-          <span>{{ request.stage || '-' }}</span>
+        <div class="flex flex-col gap-1">
+          <label class="text-[0.85rem] text-text-muted">{{ t('lab.columns.stage') }}</label>
+          <span class="font-medium text-text">{{ request.stage || '-' }}</span>
         </div>
-        <div class="info-item">
-          <label>{{ t('lab.columns.priority') }}</label>
-          <span :class="{'text-danger font-weight-bold': request.priority === 'High'}">{{ request.priority || '-' }}</span>
+        <div class="flex flex-col gap-1">
+          <label class="text-[0.85rem] text-text-muted">{{ t('lab.columns.priority') }}</label>
+          <span class="font-medium" :class="{'text-[#ff5555]': request.priority === 'High', 'text-text': request.priority !== 'High'}">{{ request.priority || '-' }}</span>
         </div>
       </div>
     </div>
 
     <!-- Attachments -->
-    <div class="info-card" v-if="attachments.length > 0">
-      <h3 class="section-title">{{ t('fai.attachments', 'Attachments') }}</h3>
-      <ul class="file-list">
-        <li v-for="file in attachments" :key="file.id" class="file-item">
-          <a :href="`/uploads/${file.file_url}`" target="_blank">{{ file.file_name }}</a>
+    <div class="bg-bg-surface border border-border rounded-lg p-6 shadow-sm" v-if="attachments.length > 0">
+      <h3 class="text-primary mt-0 mb-4 pb-2 border-b border-border text-lg font-semibold">{{ t('fai.attachments', 'Attachments') }}</h3>
+      <ul class="list-none p-0 m-0 flex flex-col gap-2">
+        <li v-for="file in attachments" :key="file.id" class="flex items-center">
+          <a :href="`/uploads/${file.file_url}`" target="_blank" class="text-primary no-underline hover:underline">{{ file.file_name }}</a>
         </li>
       </ul>
     </div>
 
-    <div class="info-card">
-      <h3 class="section-title">{{ t('lab.work_order.title') }}</h3>
+    <div class="bg-bg-surface border border-border rounded-lg p-6 shadow-sm">
+      <h3 class="text-primary mt-0 mb-4 pb-2 border-b border-border text-lg font-semibold">{{ t('lab.work_order.title') }}</h3>
       <DataTable 
         :columns="woColumns" 
         :data="workOrders" 
@@ -229,222 +231,62 @@ const getResultClass = (res: string) => {
           {{ item.technician?.full_name || '-' }}
         </template>
         <template #cell-test_result="{ item }">
-          <span :class="getResultClass(item.test_result)">{{ item.test_result || '-' }}</span>
+          <span :class="{'text-emerald-500 font-bold': item.test_result === 'PASS', 'text-red-500 font-bold': item.test_result === 'FAIL'}">{{ item.test_result || '-' }}</span>
         </template>
         <template #cell-actions="{ item }">
-          <button 
+          <Button 
             v-if="canInspectLab"
-            class="btn-sm btn-primary" 
+            size="sm"
             @click="openUpdateModal(item)"
           >
             Update
-          </button>
+          </Button>
         </template>
       </DataTable>
     </div>
 
     <!-- Update WO Modal -->
     <BaseModal :isOpen="updateModalState.isOpen" title="Update Work Order" maxWidth="700px" @close="updateModalState.isOpen = false">
-      <form id="woUpdateForm" @submit.prevent="submitUpdate" class="form-layout-vertical">
-        <div class="form-group-row">
-          <div class="form-group">
-            <label>{{ t('lab.work_order.status') }} <span class="required">*</span></label>
-            <CustomDropdown v-model="updateModalState.status" :options="statusOptions" />
+      <form id="woUpdateForm" @submit.prevent="submitUpdate" class="flex flex-col gap-4">
+        <div class="flex gap-4">
+          <div class="flex-1 flex flex-col gap-2">
+            <label class="text-sm font-medium text-text">{{ t('lab.work_order.status') }} <span class="text-[#ff5555]">*</span></label>
+            <SingleSelectDropdown v-model="updateModalState.status" :options="statusOptions" />
           </div>
-          <div class="form-group">
-            <label>{{ t('lab.work_order.test_result') }}</label>
-            <CustomDropdown v-model="updateModalState.test_result" :options="resultOptions" />
+          <div class="flex-1 flex flex-col gap-2">
+            <label class="text-sm font-medium text-text">{{ t('lab.work_order.test_result') }}</label>
+            <SingleSelectDropdown v-model="updateModalState.test_result" :options="resultOptions" />
           </div>
         </div>
-        <div class="form-group" v-if="updateModalState.test_result === 'FAIL'">
-          <label>{{ t('lab.work_order.failure_details') }}</label>
-          <textarea v-model="updateModalState.failure_details" class="form-control" rows="3"></textarea>
+        <div class="flex flex-col gap-2" v-if="updateModalState.test_result === 'FAIL'">
+          <label class="text-sm font-medium text-text">{{ t('lab.work_order.failure_details') }}</label>
+          <textarea v-model="updateModalState.failure_details" class="w-full px-3 py-2 bg-bg border border-border rounded-md text-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all" rows="3"></textarea>
         </div>
-        <div class="form-group" v-if="updateModalState.test_result === 'FAIL'">
-          <label>{{ t('lab.work_order.improvement_action') }}</label>
-          <textarea v-model="updateModalState.improvement_plan" class="form-control" rows="3"></textarea>
+        <div class="flex flex-col gap-2" v-if="updateModalState.test_result === 'FAIL'">
+          <label class="text-sm font-medium text-text">{{ t('lab.work_order.improvement_action') }}</label>
+          <textarea v-model="updateModalState.improvement_plan" class="w-full px-3 py-2 bg-bg border border-border rounded-md text-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all" rows="3"></textarea>
         </div>
-        <div class="form-group">
-          <label>{{ t('lab.work_order.goal_comments') }}</label>
-          <input v-model="updateModalState.remark" type="text" class="form-control" />
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-text">{{ t('lab.work_order.goal_comments') }}</label>
+          <Input v-model="updateModalState.remark" />
         </div>
         
-        <div class="form-group">
-          <label>{{ t('lab.work_order.upload_report') }}</label>
-          <input type="file" ref="fileInputRef" @change="handleFileSelect" multiple class="form-control" />
-          <div class="file-list-preview mt-2">
-            <div v-for="(file, idx) in attachedFiles" :key="idx" class="badge-secondary mr-2 mb-2 p-1 rounded">
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-text">{{ t('lab.work_order.upload_report') }}</label>
+          <input type="file" ref="fileInputRef" @change="handleFileSelect" multiple class="w-full px-3 py-2 bg-bg border border-border rounded-md text-text" />
+          <div class="flex flex-wrap mt-2">
+            <div v-for="(file, idx) in attachedFiles" :key="idx" class="bg-bg-surface border border-border text-text-muted px-2 py-1 text-sm mr-2 mb-2 rounded">
               {{ file.name }}
             </div>
           </div>
         </div>
       </form>
       <template #footer>
-        <button type="button" class="btn-cancel" @click="updateModalState.isOpen = false">{{ t('action.cancel') }}</button>
-        <button type="submit" form="woUpdateForm" class="btn-primary">Save</button>
+        <Button variant="secondary" @click="updateModalState.isOpen = false">{{ t('action.cancel') }}</Button>
+        <Button type="submit" form="woUpdateForm">Save</Button>
       </template>
     </BaseModal>
   </div>
 </template>
 
-<style scoped>
-.detail-page {
-  padding: 1.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
 
-.page-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2rem;
-  border-bottom: 2px solid var(--color-border);
-  padding-bottom: 1.5rem;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-}
-
-.btn-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background-color: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  color: var(--color-text);
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-back:hover {
-  background-color: var(--color-border);
-}
-
-.icon-back {
-  width: 16px;
-  height: 16px;
-}
-
-.title-container {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.title-container h1 {
-  margin: 0;
-  font-size: 1.5rem;
-}
-
-.info-card {
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 1.5rem;
-}
-
-.section-title {
-  color: var(--color-primary);
-  margin-top: 0;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1.5rem;
-}
-
-.info-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.info-item label {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
-.info-item span {
-  font-weight: 500;
-  color: var(--color-text);
-}
-
-.file-list {
-  list-style-type: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.file-item a {
-  color: var(--color-primary);
-  text-decoration: none;
-}
-.file-item a:hover {
-  text-decoration: underline;
-}
-
-.form-layout-vertical {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.form-group-row {
-  display: flex;
-  gap: 1rem;
-}
-.form-group-row .form-group {
-  flex: 1;
-}
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.form-control {
-  padding: 0.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-family: inherit;
-}
-
-.btn-sm {
-  padding: 0.35rem 0.75rem;
-  font-size: 0.8rem;
-  border-radius: 4px;
-  cursor: pointer;
-  border: none;
-  font-weight: 500;
-}
-.btn-primary {
-  background-color: var(--color-primary);
-  color: #000;
-}
-.text-danger { color: #ff5555; }
-.text-success { color: #55ff55; }
-.font-weight-bold { font-weight: bold; }
-</style>

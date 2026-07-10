@@ -9,8 +9,9 @@ import DataTable, { type DataTableColumn } from '@/components/common/DataTable.v
 import Pagination from '@/components/Pagination.vue';
 import StatusBadge from '@/components/common/StatusBadge.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
-import CustomDropdown from '@/components/CustomDropdown.vue';
+import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
 import BaseModal from '@/components/common/BaseModal.vue';
+import Button from '@/components/ui/Button.vue';
 import { useDataTable } from '@/composables/useDataTable';
 import { useAuthStore } from '@/stores/auth';
 import { toast } from 'vue-sonner';
@@ -54,7 +55,7 @@ const columns = computed<DataTableColumn[]>(() => [
 const getStatusVariant = (status: string) => {
   switch (status) {
     case 'Draft': return 'secondary';
-    case 'Backlog': return 'danger';
+    case 'Backlog': return 'secondary';
     case 'Assigned': return 'warning';
     case 'Ongoing': return 'info';
     case 'Closed': return 'success';
@@ -181,9 +182,9 @@ const formatDateOnly = (dateString: string) => {
 </script>
 
 <template>
-  <div class="admin-page">
-    <div class="page-header">
-      <h1 class="page-title">{{ t('lab.list_title') }}</h1>
+  <div class="flex flex-col gap-6 h-full p-8 overflow-hidden box-border">
+    <div class="flex justify-between items-center">
+      <h1 class="m-0 text-2xl font-semibold text-text">{{ t('lab.list_title') }}</h1>
     </div>
 
     <DataTableToolbar 
@@ -191,7 +192,7 @@ const formatDateOnly = (dateString: string) => {
       :searchPlaceholder="t('lab.search_placeholder')"
     />
 
-    <div class="table-wrapper">
+    <div class="flex-1 overflow-hidden flex flex-col bg-bg-surface rounded-lg border border-border">
       <DataTable 
         :columns="columns" 
         :data="requests" 
@@ -259,35 +260,35 @@ const formatDateOnly = (dateString: string) => {
         </template>
 
         <template #cell-actions="{ item }">
-          <div class="action-buttons">
-            <button 
-              class="btn-sm" 
-              :class="item.status === 'Draft' ? 'btn-edit' : 'btn-details'" 
+          <div class="flex gap-2">
+            <Button 
+              size="sm" 
+              :variant="item.status === 'Draft' ? 'primary' : 'secondary'" 
               @click="handleAction(item)"
             >
               {{ item.status === 'Draft' ? t('fai.edit_draft') : t('lab.details') }}
-            </button>
-            <button 
+            </Button>
+            <Button 
               v-if="(item.status === 'Draft' && item.requestor_id === authStore.user?.id) || canManageRequestList"
-              class="btn-sm btn-delete" 
+              size="sm" variant="danger" 
               @click="deleteDraft(item.id)"
             >
               {{ item.status === 'Draft' ? t('fai.delete_draft') : t('action.delete') }}
-            </button>
-            <button 
+            </Button>
+            <Button 
               v-if="canAssignLab && item.status === 'Backlog'"
-              class="btn-sm btn-primary" 
+              size="sm" variant="primary" 
               @click="openAssignModal(item)"
             >
               {{ t('lab.assign') }}
-            </button>
-            <button 
+            </Button>
+            <Button 
               v-if="canInspectLab && item.status === 'Ongoing'"
-              class="btn-sm btn-primary" 
+              size="sm" variant="primary" 
               @click="handleAction(item)"
             >
               {{ t('fai.make_report') }}
-            </button>
+            </Button>
           </div>
         </template>
       </DataTable>
@@ -297,10 +298,10 @@ const formatDateOnly = (dateString: string) => {
 
     <!-- Assign Modal -->
     <BaseModal :isOpen="assignModalState.isOpen" title="Assign Priority" maxWidth="400px" @close="assignModalState.isOpen = false">
-      <form id="assignForm" @submit.prevent="handleAssign" class="form-layout-vertical">
-        <div class="form-group">
-          <label>Priority <span class="required">*</span></label>
-          <CustomDropdown 
+      <form id="assignForm" @submit.prevent="handleAssign" class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+          <label class="text-[0.85rem] font-semibold text-text">Priority <span class="text-[#ef4444]">*</span></label>
+          <SingleSelectDropdown 
             v-model="assignModalState.priority" 
             :options="priorityOptions" 
             placeholder="Select priority" 
@@ -308,8 +309,8 @@ const formatDateOnly = (dateString: string) => {
         </div>
       </form>
       <template #footer>
-        <button type="button" class="btn-cancel" @click="assignModalState.isOpen = false">{{ t('action.cancel') }}</button>
-        <button type="submit" form="assignForm" class="btn-primary" :disabled="isLoading">Save</button>
+        <Button type="button" variant="ghost" @click="assignModalState.isOpen = false">{{ t('action.cancel') }}</Button>
+        <Button type="submit" form="assignForm" :loading="isLoading">Save</Button>
       </template>
     </BaseModal>
 
@@ -324,93 +325,3 @@ const formatDateOnly = (dateString: string) => {
   </div>
 </template>
 
-<style scoped>
-.admin-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  height: 100%;
-  padding: 2rem;
-  overflow: hidden;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.page-title {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.table-wrapper {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--color-bg-surface);
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn-sm {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8rem;
-  border-radius: 4px;
-  border: none;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color var(--transition-speed) ease;
-}
-
-.btn-details {
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-}
-.btn-details:hover { background-color: var(--color-border); }
-
-.btn-edit {
-  background-color: var(--color-primary);
-  color: var(--color-primary-text);
-}
-.btn-edit:hover { filter: brightness(0.9); }
-
-
-.btn-delete {
-  background-color: rgba(255, 85, 85, 0.1);
-  color: #ff5555;
-  border: 1px solid #ff5555;
-}
-.btn-delete:hover {
-  background-color: rgba(255, 85, 85, 0.2);
-}
-
-.form-layout-vertical {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.form-control {
-  padding: 0.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-.required { color: #ff5555; }
-</style>

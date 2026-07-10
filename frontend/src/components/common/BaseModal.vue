@@ -31,114 +31,27 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <Transition name="modal">
-    <div v-if="isOpen" class="modal-overlay" @mousedown.self="handleClose">
-      <div class="modal-content" :style="{ maxWidth: maxWidth || '600px' }">
-        <div class="modal-header">
-          <h2>{{ title }}</h2>
-          <button type="button" class="btn-close-icon" @click="handleClose">
+  <Transition 
+    enter-active-class="transition-all duration-300 ease-out"
+    leave-active-class="transition-all duration-300 ease-in"
+    enter-from-class="opacity-0"
+    leave-to-class="opacity-0"
+  >
+    <div v-if="isOpen" class="fixed inset-0 bg-black/70 flex items-center justify-center z-[100]" @mousedown.self="handleClose">
+      <div class="bg-bg-surface rounded-lg w-full border border-border shadow-xl flex flex-col transition-transform duration-300 scale-100" :style="{ maxWidth: maxWidth || '600px' }">
+        <div class="px-8 pt-6 pb-4 flex justify-between items-center border-b border-border">
+          <h2 class="m-0 text-xl font-bold text-text">{{ title }}</h2>
+          <button type="button" class="bg-transparent border-none text-text-muted cursor-pointer p-1 rounded hover:bg-white/10 hover:text-text transition-colors flex items-center justify-center" @click="handleClose">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
-        <div class="modal-body">
+        <div class="px-8 py-6 overflow-visible">
           <slot></slot>
         </div>
-        <div class="modal-footer" v-if="$slots.footer">
+        <div class="px-8 pt-4 pb-6 flex justify-end gap-4 border-t border-border" v-if="$slots.footer">
           <slot name="footer"></slot>
         </div>
       </div>
     </div>
   </Transition>
 </template>
-
-<style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-}
-
-.modal-content {
-  background: var(--color-bg-surface);
-  border-radius: 8px;
-  width: 100%;
-  border: 1px solid var(--color-border);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  display: flex;
-  flex-direction: column;
-  max-height: 90vh;
-}
-
-/* Vue Transition Classes */
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.modal-enter-active .modal-content,
-.modal-leave-active .modal-content {
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-from .modal-content,
-.modal-leave-to .modal-content {
-  transform: translateY(20px) scale(0.95);
-  opacity: 0;
-}
-
-.modal-header {
-  padding: 1.5rem 2rem 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-size: 1.25rem;
-}
-
-.btn-close-icon {
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s, color 0.2s;
-}
-
-.btn-close-icon:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--color-text);
-}
-
-.modal-body {
-  padding: 1.5rem 2rem;
-  overflow-y: auto;
-}
-
-.modal-footer {
-  padding: 1rem 2rem 1.5rem;
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  border-top: 1px solid var(--color-border);
-}
-</style>

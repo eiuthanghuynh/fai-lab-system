@@ -24,8 +24,10 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import MultiSelectDropdown from '@/components/common/MultiSelectDropdown.vue'
 import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue'
 import ChartCard from '@/components/common/ChartCard.vue'
+import FaiFirstPassYieldChart from '@/components/common/FaiFirstPassYieldChart.vue'
 import DataTable, { type DataTableColumn } from '@/components/common/DataTable.vue'
 import Pagination from '@/components/Pagination.vue'
+import Button from '@/components/ui/Button.vue'
 import { useDataTable } from '@/composables/useDataTable'
 import { useRouter } from 'vue-router'
 
@@ -34,7 +36,7 @@ const router = useRouter()
 const getStatusVariant = (status: string) => {
   switch (status) {
     case 'Draft': return 'secondary';
-    case 'Backlog': return 'danger';
+    case 'Backlog': return 'secondary';
     case 'Ongoing': return 'warning';
     case 'Approved': return 'success';
     case 'Rejected': return 'danger';
@@ -63,9 +65,9 @@ const isDark = useDark()
 const kpiList = computed(() => [
   { label: t('dashboard.total_fai'), value: stats.value.kpi.total, color: 'bg-blue-500' },
   { label: t('dashboard.closed'), value: stats.value.kpi.closed, color: 'bg-emerald-500' },
-  { label: t('dashboard.ongoing'), value: stats.value.kpi.ongoing, color: 'bg-amber-500' },
-  { label: t('dashboard.backlog'), value: stats.value.kpi.backlogAssigned, color: 'bg-red-500' },
-  { label: t('dashboard.pass_rate'), value: `${stats.value.kpi.passRate}%`, color: 'bg-purple-500' }
+  { label: t('dashboard.ongoing'), value: stats.value.kpi.ongoing, color: 'bg-yellow-400' },
+  { label: t('dashboard.backlog'), value: stats.value.kpi.backlogAssigned, color: 'bg-gray-500' },
+  { label: t('dashboard.pass_rate'), value: `${stats.value.kpi.passRate}%`, color: 'bg-emerald-500' }
 ])
 
 const getStatusText = (status: string) => {
@@ -133,7 +135,8 @@ const stats = ref<any>({
     status: { closed: 0, ongoing: 0, backlog: 0 },
     result: { pass: 0, fail: 0, tbd: 0 },
     commodity: [],
-    pareto: []
+    pareto: [],
+    weeklyYield: []
   }
 })
 const recentRequests = ref<any[]>([])
@@ -279,12 +282,7 @@ onUnmounted(() => {
 
 // --- CHART CONFIGURATIONS ---
 
-const chartDark = ref(isDark.value)
-watch(isDark, (val) => {
-  setTimeout(() => {
-    chartDark.value = val
-  }, 300) // Tăng delay lên 300ms để đảm bảo mượt mà trên mọi cấu hình
-})
+const chartDark = computed(() => isDark.value)
 
 const textColor = computed(() => chartDark.value ? '#e5e7eb' : '#374151')
 const gridColor = computed(() => chartDark.value ? '#374151' : '#e5e7eb')
@@ -295,7 +293,7 @@ const statusData = computed(() => ({
   datasets: [
     {
       label: 'Requests',
-      backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+      backgroundColor: ['#10b981', '#facc15', '#6b7280'],
       data: [
         stats.value.charts.status.closed,
         stats.value.charts.status.ongoing,
@@ -368,7 +366,7 @@ const commodityData = computed(() => {
     labels: cData.map((c: any) => c.name),
     datasets: [
       {
-        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'],
+        backgroundColor: ['#3b82f6', '#10b981', '#facc15', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'],
         data: cData.map((c: any) => c.count)
       }
     ]
@@ -455,9 +453,9 @@ const paretoOptions = computed(() => ({
   <div class="dashboard-container flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 h-full transition-colors duration-300">
     
     <!-- Sticky Header -->
-    <div class="sticky top-0 z-1000 bg-white dark:bg-gray-800 shadow-md px-4 md:px-6 lg:px-8 py-4 mb-6 flex flex-col md:flex-row items-center justify-between gap-4 transition-colors duration-300">
+    <div class="sticky top-0 z-50 bg-white dark:bg-gray-800 shadow-md px-4 md:px-6 lg:px-8 py-4 mb-6 flex flex-col md:flex-row items-center justify-between gap-4 transition-colors duration-300">
       <div class="flex items-center gap-4 w-full md:w-auto">
-        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">FAI Dashboard</h1>
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">{{ t('dashboard.title') }}</h1>
         <span class="text-sm text-gray-500 dark:text-gray-400 font-medium flex items-center">
           <i class="bi bi-calendar3 mr-2"></i>
           {{ new Date().toLocaleDateString() }} - {{ t('dashboard.week_number', { n: currentWeek }) }}
@@ -492,14 +490,14 @@ const paretoOptions = computed(() => ({
           </button>
         </div>
 
-        <button @click="handleReset" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md shadow-sm transition-colors w-full sm:w-auto">
+        <Button @click="handleReset" variant="secondary" class="w-full sm:w-auto">
           {{ t('dashboard.reset') }}
-        </button>
+        </Button>
 
-        <button @click="handleRefresh" class="px-4 py-2 bg-primary hover:bg-blue-600 text-white font-medium rounded-md shadow-sm transition-colors flex items-center justify-center gap-2 w-full sm:w-auto">
+        <Button @click="handleRefresh" class="w-full sm:w-auto gap-2">
           <i class="bi bi-arrow-clockwise" :class="{ 'animate-spin': isLoading }"></i>
           {{ t('dashboard.refresh') }}
-        </button>
+        </Button>
       </div>
     </div>
 
@@ -510,9 +508,9 @@ const paretoOptions = computed(() => ({
         <i class="bi bi-info-circle-fill mr-3 text-xl"></i>
         <p>{{ t('dashboard.new_data') }}</p>
       </div>
-      <button @click="handleRefresh" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded shadow transition-colors text-sm font-bold">
+      <Button @click="handleRefresh" class="bg-amber-500 hover:bg-amber-600 text-white border-none shadow text-sm font-bold">
         {{ t('dashboard.reload_data') }}
-      </button>
+      </Button>
     </div>
 
     <!-- KPIs Grid -->
@@ -545,16 +543,21 @@ const paretoOptions = computed(() => ({
 
     </div>
 
+    <!-- FAI First Pass Yield Chart Section (Conditional) -->
+    <div v-if="authStore.hasPermission('MANAGE_REQUEST_LIST') && stats.charts.weeklyYield?.length" class="mb-8">
+      <FaiFirstPassYieldChart :data="stats.charts.weeklyYield" />
+    </div>
+
     <!-- Request List Section (Conditional) -->
     <div v-if="authStore.hasPermission('MANAGE_REQUEST_LIST')" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden mb-8 transition-colors duration-300">
       <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center transition-colors duration-300">
         <h2 class="text-lg font-semibold text-gray-800 dark:text-white m-0">{{ t('dashboard.recent_requests') }}</h2>
-        <button 
+        <Button 
           @click="router.push(`/${systemFilter.toLowerCase()}/request/list`)"
-          class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded text-sm font-medium shadow-sm transition-colors"
+          variant="secondary" size="sm"
         >
           {{ t('dashboard.view_all') }} &rarr;
-        </button>
+        </Button>
       </div>
       
       <div class="p-4" style="height: 600px; display: flex; flex-direction: column;">
@@ -609,12 +612,12 @@ const paretoOptions = computed(() => ({
 
           <template #cell-actions="{ item }">
             <div class="flex items-center justify-center">
-              <button 
-                class="px-3 py-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded text-xs font-medium shadow-sm transition-colors"
+              <Button 
+                variant="secondary" size="sm" class="text-xs px-3 py-1"
                 @click="router.push(`/${systemFilter.toLowerCase()}/request/${item.id}`)"
               >
                 {{ t('fai.details') }}
-              </button>
+              </Button>
             </div>
           </template>
         </DataTable>

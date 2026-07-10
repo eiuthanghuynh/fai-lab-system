@@ -11,8 +11,9 @@ import ConfirmModal from '@/components/ConfirmModal.vue';
 import { useDataTable } from '@/composables/useDataTable';
 import { useAuthStore } from '@/stores/auth';
 import { useRequestListStateStore } from '@/stores/requestListState';
-import { toast } from 'vue-sonner';
-import CustomDropdown from '@/components/CustomDropdown.vue';
+import Button from '@/components/ui/Button.vue';
+import Input from '@/components/ui/Input.vue';
+import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
 import BaseModal from '@/components/common/BaseModal.vue';
 
 const router = useRouter();
@@ -162,7 +163,7 @@ const formatOrdinal = (n: number) => {
 const getStatusVariant = (status: string) => {
   switch (status) {
     case 'Draft': return 'secondary';
-    case 'Backlog': return 'danger';
+    case 'Backlog': return 'secondary';
     case 'Ongoing': return 'warning';
     case 'Approved': return 'success';
     case 'Rejected': return 'danger';
@@ -406,9 +407,9 @@ const getRowClass = (item: any) => {
 </script>
 
 <template>
-  <div class="admin-page">
-    <div class="page-header">
-      <h1 class="page-title">{{ t('fai.list_title') }}</h1>
+  <div class="flex flex-col gap-6 h-full p-8 overflow-hidden box-border">
+    <div class="flex justify-between items-center">
+      <h1 class="m-0 text-2xl font-semibold text-text">{{ t('fai.list_title') }}</h1>
     </div>
 
     <!-- Toolbar containing only search bar and filters -->
@@ -417,123 +418,103 @@ const getRowClass = (item: any) => {
       :searchPlaceholder="t('fai.search_placeholder')"
     >
       <template #filters>
-        <div class="filters-container" ref="popoverRef">
-          <button class="pill-btn btn-secondary filter-trigger" @click.stop="showFiltersPopover = !showFiltersPopover">
+        <div class="relative inline-block" ref="popoverRef">
+          <Button variant="secondary" class="gap-2" @click.stop="showFiltersPopover = !showFiltersPopover">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
             </svg>
             {{ t('action.filter') || 'Filters' }}
-            <span v-if="activeFiltersCount > 0" class="filter-badge">{{ activeFiltersCount }}</span>
-          </button>
+            <span v-if="activeFiltersCount > 0" class="bg-primary text-bg rounded-full px-1.5 py-0.5 text-xs font-bold ml-1">{{ activeFiltersCount }}</span>
+          </Button>
 
-          <div v-if="showFiltersPopover" class="filters-popover">
-            <div class="popover-header">
-              <h3>{{ t('fai.advanced_filters') || 'Advanced Filters' }}</h3>
-              <button class="btn-close" @click="showFiltersPopover = false">&times;</button>
+          <div v-if="showFiltersPopover" class="absolute top-full right-0 mt-2 w-[580px] bg-bg-surface border border-border rounded-xl shadow-xl z-50 flex flex-col origin-top-right animate-in fade-in slide-in-from-top-2 duration-200">
+            <div class="flex justify-between items-center p-4 border-b border-border rounded-t-xl bg-bg-surface">
+              <h3 class="m-0 text-[1.1rem] font-semibold text-text">{{ t('fai.advanced_filters') || 'Advanced Filters' }}</h3>
+              <button class="bg-transparent border-none text-2xl text-text-muted cursor-pointer leading-none hover:text-text" @click="showFiltersPopover = false">&times;</button>
             </div>
             
-            <div class="popover-body">
-              <div class="filter-grid">
-                <!-- Project Name -->
-                <div class="filter-item">
-                  <label>Project Name</label>
-                  <input type="text" v-model="localFilters.projectName" :placeholder="t('fai.placeholder.search_project')" class="pill-input-field" />
+            <div class="p-5 flex flex-col gap-5">
+              <div class="grid grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[0.85rem] font-semibold text-text">Project Name</label>
+                  <Input type="text" v-model="localFilters.projectName" :placeholder="t('fai.placeholder.search_project')" />
                 </div>
-
-                <!-- Part No. -->
-                <div class="filter-item">
-                  <label>Part No.</label>
-                  <input type="text" v-model="localFilters.partNo" :placeholder="t('fai.placeholder.search_part_no')" class="pill-input-field" />
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[0.85rem] font-semibold text-text">Part No.</label>
+                  <Input type="text" v-model="localFilters.partNo" :placeholder="t('fai.placeholder.search_part_no')" />
                 </div>
-
-                <!-- Category (Commodity) -->
-                <div class="filter-item">
-                  <label>Category (Commodity)</label>
-                  <CustomDropdown v-model="localFilters.commodityPart" :options="commodityPartOptions" :placeholder="t('fai.placeholder.all_categories')" />
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[0.85rem] font-semibold text-text">Category (Commodity)</label>
+                  <SingleSelectDropdown v-model="localFilters.commodityPart" :options="commodityPartOptions" :placeholder="t('fai.placeholder.all_categories')" />
                 </div>
-
-                <!-- Supplier Name -->
-                <div class="filter-item">
-                  <label>Supplier Name</label>
-                  <input type="text" v-model="localFilters.supplierName" :placeholder="t('fai.placeholder.search_supplier')" class="pill-input-field" />
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[0.85rem] font-semibold text-text">Supplier Name</label>
+                  <Input type="text" v-model="localFilters.supplierName" :placeholder="t('fai.placeholder.search_supplier')" />
                 </div>
-
-                <!-- Tracking No. -->
-                <div class="filter-item">
-                  <label>Tracking No.</label>
-                  <input type="text" v-model="localFilters.trackingNo" :placeholder="t('fai.placeholder.search_tracking')" class="pill-input-field" />
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[0.85rem] font-semibold text-text">Tracking No.</label>
+                  <Input type="text" v-model="localFilters.trackingNo" :placeholder="t('fai.placeholder.search_tracking')" />
                 </div>
-
-                <!-- Inspector By -->
-                <div class="filter-item">
-                  <label>Inspector By</label>
-                  <CustomDropdown v-model="localFilters.inspectorId" :options="inspectorOptions" :placeholder="t('fai.placeholder.all_inspectors')" />
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[0.85rem] font-semibold text-text">Inspector By</label>
+                  <SingleSelectDropdown v-model="localFilters.inspectorId" :options="inspectorOptions" :placeholder="t('fai.placeholder.all_inspectors')" />
                 </div>
-
-                <!-- Status -->
-                <div class="filter-item">
-                  <label>Status</label>
-                  <CustomDropdown v-model="localFilters.status" :options="statusOptions" :placeholder="t('fai.placeholder.all_status')" />
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[0.85rem] font-semibold text-text">Status</label>
+                  <SingleSelectDropdown v-model="localFilters.status" :options="statusOptions" :placeholder="t('fai.placeholder.all_status')" />
                 </div>
-
-                <!-- Result -->
-                <div class="filter-item">
-                  <label>Result</label>
-                  <CustomDropdown v-model="localFilters.result" :options="resultOptions" :placeholder="t('fai.placeholder.all_results')" />
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[0.85rem] font-semibold text-text">Result</label>
+                  <SingleSelectDropdown v-model="localFilters.result" :options="resultOptions" :placeholder="t('fai.placeholder.all_results')" />
                 </div>
               </div>
 
-              <div class="date-filters-section">
-                <!-- Receive Date Range -->
-                <div class="date-range-item">
-                  <label>Receive Date</label>
-                  <div class="date-inputs">
-                    <input type="date" v-model="localFilters.receiveDateFrom" class="pill-date-field" />
-                    <span>to</span>
-                    <input type="date" v-model="localFilters.receiveDateTo" class="pill-date-field" />
+              <div class="flex flex-col gap-3 pt-4 border-t border-border">
+                <div class="grid grid-cols-[120px_1fr] items-center">
+                  <label class="text-[0.85rem] font-semibold text-text">Receive Date</label>
+                  <div class="flex items-center gap-2">
+                    <input type="date" v-model="localFilters.receiveDateFrom" class="flex-1 bg-bg border border-border rounded-full px-3 h-9 outline-none text-text text-sm cursor-pointer" />
+                    <span class="text-text-muted text-sm">to</span>
+                    <input type="date" v-model="localFilters.receiveDateTo" class="flex-1 bg-bg border border-border rounded-full px-3 h-9 outline-none text-text text-sm cursor-pointer" />
                   </div>
                 </div>
-
-                <!-- Complete Date Range -->
-                <div class="date-range-item">
-                  <label>Complete Date</label>
-                  <div class="date-inputs">
-                    <input type="date" v-model="localFilters.completeDateFrom" class="pill-date-field" />
-                    <span>to</span>
-                    <input type="date" v-model="localFilters.completeDateTo" class="pill-date-field" />
+                <div class="grid grid-cols-[120px_1fr] items-center">
+                  <label class="text-[0.85rem] font-semibold text-text">Complete Date</label>
+                  <div class="flex items-center gap-2">
+                    <input type="date" v-model="localFilters.completeDateFrom" class="flex-1 bg-bg border border-border rounded-full px-3 h-9 outline-none text-text text-sm cursor-pointer" />
+                    <span class="text-text-muted text-sm">to</span>
+                    <input type="date" v-model="localFilters.completeDateTo" class="flex-1 bg-bg border border-border rounded-full px-3 h-9 outline-none text-text text-sm cursor-pointer" />
                   </div>
                 </div>
-
-                <!-- Est Date Range -->
-                <div class="date-range-item">
-                  <label>Est Date</label>
-                  <div class="date-inputs">
-                    <input type="date" v-model="localFilters.estDateFrom" class="pill-date-field" />
-                    <span>to</span>
-                    <input type="date" v-model="localFilters.estDateTo" class="pill-date-field" />
+                <div class="grid grid-cols-[120px_1fr] items-center">
+                  <label class="text-[0.85rem] font-semibold text-text">Est Date</label>
+                  <div class="flex items-center gap-2">
+                    <input type="date" v-model="localFilters.estDateFrom" class="flex-1 bg-bg border border-border rounded-full px-3 h-9 outline-none text-text text-sm cursor-pointer" />
+                    <span class="text-text-muted text-sm">to</span>
+                    <input type="date" v-model="localFilters.estDateTo" class="flex-1 bg-bg border border-border rounded-full px-3 h-9 outline-none text-text text-sm cursor-pointer" />
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="popover-footer">
-              <button class="pill-btn btn-secondary" @click="resetFilters">
+            <div class="flex justify-between p-4 border-t border-border bg-bg-surface rounded-b-xl">
+              <Button variant="secondary" @click="resetFilters" class="gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
                   <path d="M3 3v5h5"></path>
                 </svg>
                 {{ t('action.reset') || 'Reset' }}
-              </button>
-              <button class="pill-btn btn-primary" @click="applyFilters">
+              </Button>
+              <Button @click="applyFilters">
                 {{ t('action.apply') || 'Apply Filters' }}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       </template>
     </DataTableToolbar>
 
-    <div class="table-wrapper">
+    <div class="flex-1 overflow-hidden flex flex-col bg-bg-surface rounded-lg border border-border">
       <DataTable 
         :columns="columns" 
         :data="requests" 
@@ -634,35 +615,35 @@ const getRowClass = (item: any) => {
         </template>
 
         <template #cell-actions="{ item }">
-          <div class="action-buttons">
-            <button 
-              class="btn-sm" 
-              :class="item.status === 'Draft' ? 'btn-edit' : 'btn-details'" 
+          <div class="flex gap-2">
+            <Button 
+              size="sm" 
+              :variant="item.status === 'Draft' ? 'primary' : 'secondary'" 
               @click="handleAction(item)"
             >
               {{ item.status === 'Draft' ? t('fai.edit_draft') : t('fai.details') }}
-            </button>
-            <button 
+            </Button>
+            <Button 
               v-if="item.status === 'Draft' || canManageRequestList"
-              class="btn-sm btn-delete" 
+              size="sm" variant="danger" 
               @click="handleDelete(item)"
             >
               {{ item.status === 'Draft' ? t('fai.delete_draft') : t('action.delete') }}
-            </button>
-            <button 
+            </Button>
+            <Button 
               v-if="canAssignFai && item.status === 'Backlog'"
-              class="btn-sm btn-primary" 
+              size="sm" variant="primary" 
               @click="openAssignModal(item)"
             >
               {{ t('fai.assign') }}
-            </button>
-            <button 
+            </Button>
+            <Button 
               v-if="canInspectFai && item.status === 'Ongoing'"
-              class="btn-sm btn-primary" 
+              size="sm" variant="primary" 
               @click="handleMakeReport(item)"
             >
               {{ t('fai.make_report') }}
-            </button>
+            </Button>
           </div>
         </template>
       </DataTable>
@@ -680,17 +661,17 @@ const getRowClass = (item: any) => {
 
     <!-- Assign Modal -->
     <BaseModal :isOpen="assignModalState.isOpen" :title="t('fai.assign_title')" maxWidth="690px" @close="assignModalState.isOpen = false">
-      <form id="assignForm" @submit.prevent="handleAssign" class="form-layout-5050">
-        <div class="form-row">
-          <div class="form-col-left">
-            <div class="label-header">
-              <label>{{ t('fai.inspector') }}</label>
-              <span class="tag-required">{{ t('form.required') }}</span>
+      <form id="assignForm" @submit.prevent="handleAssign" class="flex flex-col gap-6">
+        <div class="grid grid-cols-[1fr_1.5fr] gap-8 items-center pb-5 border-b border-border">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text m-0">{{ t('fai.inspector') }}</label>
+              <span class="text-[0.7rem] px-1.5 py-0.5 bg-[rgba(99,224,121,0.15)] text-primary rounded font-semibold leading-none">{{ t('form.required') }}</span>
             </div>
-            <p class="field-desc">{{ t('fai.assign_desc') }}</p>
+            <p class="text-[0.8rem] text-text-muted m-0 leading-[1.4]">{{ t('fai.assign_desc') }}</p>
           </div>
-          <div class="form-col-right">
-            <CustomDropdown 
+          <div class="flex flex-col">
+            <SingleSelectDropdown 
               v-model="assignModalState.inspectorId" 
               :options="inspectorOptions" 
               :placeholder="t('form.required')" 
@@ -698,15 +679,15 @@ const getRowClass = (item: any) => {
           </div>
         </div>
         
-        <div class="form-row">
-          <div class="form-col-left">
-            <div class="label-header">
-              <label>{{ t('fai.priority') }}</label>
-              <span class="tag-required">{{ t('form.required') }}</span>
+        <div class="grid grid-cols-[1fr_1.5fr] gap-8 items-center pb-2">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text m-0">{{ t('fai.priority') }}</label>
+              <span class="text-[0.7rem] px-1.5 py-0.5 bg-[rgba(99,224,121,0.15)] text-primary rounded font-semibold leading-none">{{ t('form.required') }}</span>
             </div>
           </div>
-          <div class="form-col-right">
-            <CustomDropdown 
+          <div class="flex flex-col">
+            <SingleSelectDropdown 
               v-model="assignModalState.priority" 
               :options="priorityOptions" 
               :placeholder="t('form.required')" 
@@ -715,416 +696,13 @@ const getRowClass = (item: any) => {
         </div>
       </form>
       <template #footer>
-        <button type="button" class="btn-cancel" @click="assignModalState.isOpen = false">{{ t('action.cancel') }}</button>
-        <button type="submit" form="assignForm" class="btn-primary" :disabled="isLoading">
-          <span v-if="isLoading" class="spinner"></span>
+        <Button type="button" variant="secondary" @click="assignModalState.isOpen = false">{{ t('action.cancel') }}</Button>
+        <Button type="submit" form="assignForm" :loading="isLoading">
           {{ t('action.save') }}
-        </button>
+        </Button>
       </template>
     </BaseModal>
   </div>
 </template>
 
-<style scoped>
-.form-layout-5050 {
-  display: flex;
-  flex-direction: column;
-}
 
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1.5fr;
-  gap: 2rem;
-  padding: 1.25rem 0;
-  border-bottom: 1px solid var(--color-border);
-  align-items: center;
-}
-
-.form-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.form-row:first-child {
-  padding-top: 0;
-}
-
-.form-col-left {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.form-col-right {
-  display: flex;
-  flex-direction: column;
-}
-
-.label-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.label-header label {
-  font-weight: 600;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.tag-required {
-  font-size: 0.7rem;
-  padding: 0.15rem 0.4rem;
-  background-color: rgba(99, 224, 121, 0.15);
-  color: var(--color-primary);
-  border-radius: 4px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.field-desc {
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
-  margin: 0;
-  line-height: 1.4;
-}
-
-.admin-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  height: 100%;
-  padding: 2rem;
-  overflow: hidden;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.table-wrapper {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn-sm {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8rem;
-  border-radius: 4px;
-  border: none;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color var(--transition-speed) ease;
-}
-
-.btn-edit {
-  background-color: var(--color-primary);
-  color: var(--color-primary-text);
-}
-
-.btn-edit:hover {
-  filter: brightness(0.9);
-}
-
-.btn-details {
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-}
-.btn-details:hover {
-  background-color: var(--color-border);
-}
-
-.btn-delete {
-  background-color: rgba(255, 85, 85, 0.1);
-  color: #ff5555;
-  border: 1px solid #ff5555;
-}
-.btn-delete:hover {
-  background-color: rgba(255, 85, 85, 0.2);
-}
-.btn-cancel {
-  background: transparent;
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.pill-filter {
-  display: flex;
-  align-items: center;
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 20px;
-  padding: 0.25rem 1rem;
-  gap: 0.5rem;
-  min-width: 180px;
-  height: 44px;
-}
-
-.filter-icon {
-  color: var(--color-text-muted);
-}
-
-.pill-input {
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--color-text);
-  width: 100%;
-  padding: 0.25rem 0;
-  font-size: 1rem;
-}
-
-/* Chrome, Safari, Edge, Opera: Remove spin buttons */
-.pill-input::-webkit-outer-spin-button,
-.pill-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-/* Firefox: Remove spin buttons */
-.pill-input[type=number] {
-  -moz-appearance: textfield;
-}
-
-/* Overdue Rows Styling */
-:deep(.overdue-row td) {
-  background-color: #ffebeb !important;
-  color: #c53030 !important;
-}
-
-:deep(.overdue-row:hover td) {
-  filter: brightness(0.95);
-}
-
-:deep(html.dark .overdue-row td) {
-  background-color: #450a0a !important;
-  color: #fecaca !important;
-}
-
-.date-filter-wrapper {
-  gap: 0.5rem;
-  padding-left: 0.75rem;
-  border: none;
-  background: transparent;
-  display: flex;
-  align-items: center;
-}
-
-.pill-date {
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 20px;
-  outline: none;
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: 1rem;
-  cursor: pointer;
-  height: 44px;
-  padding: 0 1rem;
-}
-
-.pill-date::-webkit-calendar-picker-indicator {
-  filter: invert(0.5);
-  cursor: pointer;
-}
-
-/* Advanced Filters Popover */
-.filters-container {
-  position: relative;
-  display: inline-block;
-}
-
-.filter-badge {
-  background: var(--color-primary);
-  color: var(--color-bg);
-  border-radius: 50%;
-  padding: 0.1rem 0.4rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  margin-left: 0.25rem;
-}
-
-.filters-popover {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 0.5rem;
-  width: 580px;
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  animation: popoverFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes popoverFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.popover-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.popover-header h3 {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.btn-close {
-  background: transparent;
-  border: none;
-  font-size: 1.5rem;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  line-height: 1;
-}
-.btn-close:hover {
-  color: var(--color-text);
-}
-
-.popover-body {
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  max-height: 420px;
-  overflow-y: auto;
-}
-
-.filter-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-}
-
-.filter-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.filter-item label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.pill-input-field {
-  padding: 0.25rem 1rem;
-  height: 44px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  border-radius: 20px;
-  outline: none;
-  font-size: 0.95rem;
-  transition: all 0.2s;
-  width: 100%;
-  box-sizing: border-box;
-}
-.pill-input-field:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(99, 224, 121, 0.2);
-}
-
-.date-filters-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--color-border);
-}
-
-.date-range-item {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  align-items: center;
-}
-
-.date-range-item label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.date-inputs {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.date-inputs span {
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
-}
-
-.pill-date-field {
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 20px;
-  outline: none;
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: 0.9rem;
-  cursor: pointer;
-  height: 36px;
-  padding: 0 0.75rem;
-  flex: 1;
-}
-
-.pill-date-field::-webkit-calendar-picker-indicator {
-  filter: invert(0.5);
-  cursor: pointer;
-}
-
-.popover-footer {
-  display: flex;
-  justify-content: space-between;
-  padding: 1rem 1.25rem;
-  border-top: 1px solid var(--color-border);
-  background: var(--color-bg-surface);
-}
-
-.popover-footer .pill-btn {
-  padding: 0.5rem 1.25rem;
-  font-size: 0.95rem;
-}
-
-</style>

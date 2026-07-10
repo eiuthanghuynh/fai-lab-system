@@ -52,7 +52,8 @@ const getDashboardStats = async (req, res) => {
         statusGroups,
         resultGroups,
         commodityCounts,
-        commodityFailCounts
+        commodityFailCounts,
+        weeklyData
       ] = await Promise.all([
         prisma.faiRequest.count({ where: whereClause }),
         
@@ -78,6 +79,12 @@ const getDashboardStats = async (req, res) => {
           by: ['commodity_part'],
           where: { ...whereClause, result: 'Fail' },
           _count: { commodity_part: true }
+        }),
+
+        prisma.faiRequest.groupBy({
+          by: ['week_no', 'status', 'result'],
+          where: whereClause,
+          _count: { id: true }
         })
       ]);
 
@@ -117,6 +124,52 @@ const getDashboardStats = async (req, res) => {
         count: c._count.commodity_part
       })).sort((a, b) => b.count - a.count);
 
+      // Process weekly data for First Pass Yield
+      // We proactively generate 52/53 weeks of the current year (or from the query 'year' filter)
+      const currentYearForWeek = year ? parseInt(year.split(',')[0]) : new Date().getFullYear();
+      const numWeeks = 52; // Assuming 52 weeks for standard, could be 53
+      const weeklyYieldMap = {};
+      
+      for (let i = 1; i <= numWeeks; i++) {
+        const wStr = `WW${i.toString().padStart(2, '0')}`;
+        weeklyYieldMap[i] = {
+          week: wStr,
+          received: 0,
+          inspection: 0,
+          failure: 0,
+          pending: 0,
+          pass: 0,
+          passRate: '0.0'
+        };
+      }
+
+      weeklyData.forEach(d => {
+        const wObj = weeklyYieldMap[d.week_no];
+        if (wObj) {
+          const count = d._count.id;
+          wObj.received += count;
+          
+          if (d.status === 'Closed') {
+            wObj.inspection += count;
+          }
+          if (['Ongoing', 'Assigned', 'Backlog', 'Evaluating'].includes(d.status)) {
+            wObj.pending += count;
+          }
+          
+          if (d.result === 'Fail') {
+            wObj.failure += count;
+          }
+          if (d.result === 'Pass') {
+            wObj.pass += count;
+          }
+        }
+      });
+
+      const weeklyYield = Object.values(weeklyYieldMap).map(w => {
+        w.passRate = (w.pass + w.failure) > 0 ? ((w.pass / (w.pass + w.failure)) * 100).toFixed(2) : '0.00';
+        return w;
+      });
+
       const payload = {
         kpi: {
           total: totalRequests,
@@ -129,7 +182,8 @@ const getDashboardStats = async (req, res) => {
           status: { closed, ongoing, backlog: backlogAssigned },
           result: { pass, fail, tbd: totalRequests - pass - fail },
           commodity: mappedCommodityCounts,
-          pareto: mappedCommodityFailCounts
+          pareto: mappedCommodityFailCounts,
+          weeklyYield
         }
       };
 
