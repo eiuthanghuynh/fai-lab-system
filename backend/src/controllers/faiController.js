@@ -545,7 +545,7 @@ const deleteDraft = async (req, res) => {
       }
     }
 
-    if (global.io) {
+    if (global.io && request.status !== 'Draft') {
       global.io.emit('fai-request-deleted', parseInt(id));
       global.io.emit('fai_dashboard_updated');
     }

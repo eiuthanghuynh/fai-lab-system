@@ -492,7 +492,7 @@ const deleteDraft = async (req, res) => {
       }
     }
 
-    if (global.io) {
+    if (global.io && request.status !== 'Draft') {
       global.io.emit('lab-request-deleted', parseInt(id));
     }
 
