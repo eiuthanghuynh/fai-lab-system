@@ -5,8 +5,8 @@ const { authenticateToken, checkPermission } = require('../middlewares/authMiddl
 
 router.use(authenticateToken);
 
-// All user management operations require MANAGE_USERS permission
-router.use(checkPermission('MANAGE_USERS'));
+// All user management operations require ADMINISTRATOR permission
+router.use(checkPermission('ADMINISTRATOR'));
 
 router.get('/', userController.getUsers);
 router.post('/', userController.createUser);

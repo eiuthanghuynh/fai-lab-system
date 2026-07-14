@@ -36,7 +36,7 @@ const localFilters = ref({
   projectName: '',
   partNo: '',
   commodityPart: '' as number | '',
-  supplierName: '',
+  supplierId: '' as number | '',
   trackingNo: '',
   receiveDateFrom: '',
   receiveDateTo: '',
@@ -50,6 +50,7 @@ const localFilters = ref({
 });
 
 const commodityPartOptions = ref<{ value: number, label: string }[]>([]);
+const supplierOptions = ref<{ value: number, label: string }[]>([]);
 const inspectorOptions = ref<{ value: number, label: string }[]>([]);
 
 const statusOptions = computed(() => [
@@ -72,7 +73,7 @@ const activeFiltersCount = computed(() => {
   if (lf.projectName) count++;
   if (lf.partNo) count++;
   if (lf.commodityPart) count++;
-  if (lf.supplierName) count++;
+  if (lf.supplierId) count++;
   if (lf.trackingNo) count++;
   if (lf.receiveDateFrom || lf.receiveDateTo) count++;
   if (lf.completeDateFrom || lf.completeDateTo) count++;
@@ -133,10 +134,10 @@ const columns = computed<DataTableColumn[]>(() => [
   { key: 'part_no', label: 'Part Number', sortable: true, minWidth: '150px' },
   { key: 'revision', label: 'Revision', sortable: true, minWidth: '120px' },
   { key: 'part_name', label: 'Part Name', sortable: true, minWidth: '200px' },
-  { key: 'tracking_no', label: 'Tracking No.', sortable: true, minWidth: '200px' },
+  { key: 'tracking_no', label: 'Tracking No.', sortable: true, minWidth: '150px' },
   { key: 'commodity_part', label: 'Commodity Part', sortable: true, minWidth: '160px' },
-  { key: 'supplier_name', label: 'Supplier Name', sortable: true, minWidth: '180px' },
-  { key: 'part_type', label: 'Part Type', sortable: true, minWidth: '150px' },
+  { key: 'supplier_id', label: 'Supplier Name', sortable: true, minWidth: '180px' },
+  { key: 'part_type', label: 'Part Type', sortable: true, minWidth: '120px' },
   { key: 'reason_for_submission', label: 'Reason for Submission', sortable: true, minWidth: '250px' },
   { key: 'receive_date', label: 'Receive Date', sortable: true, minWidth: '150px' },
   { key: 'sample_qty', label: 'Sample Qty', sortable: true, minWidth: '120px' },
@@ -198,7 +199,7 @@ const resetFilters = () => {
     projectName: '',
     partNo: '',
     commodityPart: '',
-    supplierName: '',
+    supplierId: '',
     trackingNo: '',
     receiveDateFrom: '',
     receiveDateTo: '',
@@ -289,7 +290,7 @@ const fetchRequests = async () => {
     if (lf.projectName) params.append('project_name', lf.projectName);
     if (lf.partNo) params.append('part_no', lf.partNo);
     if (lf.commodityPart) params.append('commodity_part', lf.commodityPart.toString());
-    if (lf.supplierName) params.append('supplier_name', lf.supplierName);
+    if (lf.supplierId) params.append('supplier_id', lf.supplierId.toString());
     if (lf.trackingNo) params.append('tracking_no', lf.trackingNo);
     if (lf.receiveDateFrom) params.append('receive_date_from', lf.receiveDateFrom);
     if (lf.receiveDateTo) params.append('receive_date_to', lf.receiveDateTo);
@@ -329,6 +330,19 @@ onMounted(async () => {
     }
   } catch (err) {
     console.error('Failed to load commodity parts:', err);
+  }
+
+  // Fetch suppliers
+  try {
+    const res = await api.get('/suppliers?limit=100');
+    if (res.data && res.data.data) {
+      supplierOptions.value = res.data.data.map((sup: any) => ({
+        value: sup.id,
+        label: sup.name
+      }));
+    }
+  } catch (err) {
+    console.error('Failed to load suppliers:', err);
   }
 
   // Fetch inspectors (users with MANAGE_FAI_REQUEST permission)
@@ -444,7 +458,7 @@ const getRowClass = (item: any) => {
             </div>
             <div class="flex flex-col gap-1.5">
               <label class="text-[0.85rem] font-semibold text-text">Supplier Name</label>
-              <Input type="text" v-model="localFilters.supplierName" :placeholder="t('fai.placeholder.search_supplier')" />
+              <SingleSelectDropdown v-model="localFilters.supplierId" :options="supplierOptions" :placeholder="t('fai.placeholder.all_suppliers', 'All Suppliers')" />
             </div>
             <div class="flex flex-col gap-1.5">
               <label class="text-[0.85rem] font-semibold text-text">Tracking No.</label>
@@ -561,6 +575,10 @@ const getRowClass = (item: any) => {
 
         <template #cell-commodity_part="{ item }">
           {{ item.commodityPartRel?.name || item.commodity_part || '-' }}
+        </template>
+
+        <template #cell-supplier_id="{ item }">
+          {{ item.supplier?.name || '-' }}
         </template>
 
         <template #cell-part_type="{ item }">

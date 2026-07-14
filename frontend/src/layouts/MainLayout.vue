@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useDark, useToggle } from '@vueuse/core';
-import { getContrastColor } from '../utils/color';
 import XpLogo from '../assets/XP-logo-white.svg';
 import LanguageSwitcher from '../components/LanguageSwitcher.vue';
 import ConfirmModal from '../components/ConfirmModal.vue';
@@ -119,7 +118,7 @@ const toggleDark = () => {
             </div>
           </Transition>
         </div>
-        <div v-if="hasAccess('admin-users') || hasAccess('admin-roles')" class="flex flex-col">
+        <div v-if="hasAccess('admin-users') || hasAccess('admin-roles') || hasAccess('admin-fai-failure-modes')" class="flex flex-col">
           <div class="px-6 py-3 font-medium border-l-[3px] border-transparent flex justify-between items-center cursor-pointer select-none hover:text-text hover:bg-white/5 hover:border-primary transition-colors"
                :class="route.path.startsWith('/admin') ? 'text-primary border-primary' : 'text-text-muted'"
                @click="toggleDbMenu">
@@ -137,8 +136,9 @@ const toggleDark = () => {
             <div v-show="isDbMenuOpen" class="flex flex-col bg-black/10 overflow-hidden">
               <router-link v-if="hasAccess('admin-users')" to="/admin/users" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.users') }}</router-link>
               <router-link v-if="hasAccess('admin-roles')" to="/admin/roles" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.roles') }}</router-link>
-              <router-link v-if="hasAccess('admin-roles')" to="/admin/fai-failure-modes" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.fai_failure_modes', 'FAI Failure Modes') }}</router-link>
-              <router-link v-if="hasAccess('admin-roles')" to="/admin/commodity-parts" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.commodity_parts', 'Commodity Parts') }}</router-link>
+              <router-link v-if="hasAccess('admin-fai-failure-modes')" to="/admin/fai-failure-modes" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.fai_failure_modes', 'FAI Failure Modes') }}</router-link>
+              <router-link v-if="hasAccess('admin-commodity-parts')" to="/admin/commodity-parts" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.commodity_parts', 'Commodity Parts') }}</router-link>
+              <router-link v-if="hasAccess('admin-suppliers')" to="/admin/suppliers" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.suppliers', 'Suppliers') }}</router-link>
             </div>
           </Transition>
         </div>

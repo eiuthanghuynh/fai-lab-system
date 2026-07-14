@@ -30,26 +30,32 @@ const router = createRouter({
         {
           path: 'admin/users',
           name: 'admin-users',
-          meta: { permission: 'MANAGE_USERS' },
+          meta: { permission: 'ADMINISTRATOR' },
           component: () => import('../views/admin/UserManagementView.vue'),
         },
         {
           path: 'admin/roles',
           name: 'admin-roles',
-          meta: { permission: 'MANAGE_ROLES' },
+          meta: { permission: 'ADMINISTRATOR' },
           component: () => import('../views/admin/RoleManagementView.vue'),
         },
         {
           path: 'admin/fai-failure-modes',
           name: 'admin-fai-failure-modes',
-          meta: { permission: 'MANAGE_ROLES' },
+          meta: { permission: 'ADMINISTRATOR' },
           component: () => import('../views/admin/FaiFailureModeManagementView.vue'),
         },
         {
           path: 'admin/commodity-parts',
           name: 'admin-commodity-parts',
-          meta: { permission: 'MANAGE_ROLES' },
+          meta: { permission: 'ADMINISTRATOR' },
           component: () => import('../views/admin/CommodityPartManagementView.vue'),
+        },
+        {
+          path: 'admin/suppliers',
+          name: 'admin-suppliers',
+          meta: { permission: 'ADMINISTRATOR' },
+          component: () => import('../views/admin/SupplierManagementView.vue'),
         },
         {
           path: 'unauthorized',
@@ -102,7 +108,7 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, from) => {
   const authStore = useAuthStore()
 
   // If logged in and navigating to a permission-gated page, sync permissions with backend first
@@ -115,21 +121,21 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next({ name: 'login' })
+    return { name: 'login' }
   } else if (to.name === 'login' && authStore.isAuthenticated) {
-    next({ name: 'home' })
+    return { name: 'home' }
   } else if (to.meta.permission) {
     const requiredPermissions = Array.isArray(to.meta.permission)
       ? to.meta.permission
       : [to.meta.permission];
     const hasAny = requiredPermissions.some(perm => authStore.hasPermission(perm as string));
     if (!hasAny) {
-      next({ name: 'unauthorized' })
+      return { name: 'unauthorized' }
     } else {
-      next()
+      return true
     }
   } else {
-    next()
+    return true
   }
 })
 

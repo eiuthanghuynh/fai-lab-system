@@ -113,21 +113,26 @@ const login = async (req, res) => {
         permissions
       },
       process.env.JWT_SECRET || 'secret',
-      { expiresIn: '1d' }
+      { expiresIn: '15m' }
     );
 
+    const rememberToken = crypto.randomBytes(32).toString('hex');
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { remember_token: rememberToken }
+    });
+
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    };
+
     if (keep_logged_in) {
-      const rememberToken = crypto.randomBytes(32).toString('hex');
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { remember_token: rememberToken }
-      });
-      res.cookie('remember_token', rememberToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000 // 1 day, although cron deletes it at 17:00
-      });
+      cookieOptions.maxAge = 24 * 60 * 60 * 1000; // 1 day
     }
+
+    res.cookie('remember_token', rememberToken, cookieOptions);
 
     res.json({
       message: 'Login successful',
@@ -193,7 +198,7 @@ const me = async (req, res) => {
         permissions
       },
       process.env.JWT_SECRET || 'secret',
-      { expiresIn: '1d' }
+      { expiresIn: '15m' }
     );
 
     res.json({
@@ -219,21 +224,22 @@ const logout = async (req, res) => {
   try {
     res.clearCookie('remember_token');
     const userId = req.user?.id;
+    const rememberToken = req.cookies?.remember_token;
+
     if (userId) {
-      try {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { 
-            last_logout_at: new Date(),
-            remember_token: null
-          }
-        });
-      } catch (dbErr) {
-        console.log(`[Logout] User ${userId} not found in database, bypassing DB update.`);
-      }
-      await delCache(`user:${userId}:session`);
+      await prisma.user.update({
+        where: { id: userId },
+        data: { remember_token: null }
+      });
+      await delCache(`user_permissions:${userId}`);
+    } else if (rememberToken) {
+      await prisma.user.updateMany({
+        where: { remember_token: rememberToken },
+        data: { remember_token: null }
+      });
     }
-    res.json({ message: 'Logged out successfully' });
+
+    res.json({ message: 'Logged out successfully.' });
   } catch (error) {
     console.error('Logout error:', error);
     res.status(500).json({ error: 'Internal server error.' });
@@ -257,7 +263,7 @@ const forgotPassword = async (req, res) => {
       // 1. Tạo token
       const rawToken = crypto.randomBytes(32).toString('hex');
       const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
-      
+
       // 2. Lưu token vào DB, hạn 5 phút
       await prisma.user.update({
         where: { id: user.id },
@@ -270,7 +276,7 @@ const forgotPassword = async (req, res) => {
       // 3. Đẩy việc gửi email vào Queue
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       const resetLink = `${frontendUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
-      
+
       await emailQueue.add('sendResetPassword', { email, resetLink });
     }
 

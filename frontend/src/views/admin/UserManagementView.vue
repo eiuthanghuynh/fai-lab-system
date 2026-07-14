@@ -176,7 +176,7 @@ onMounted(() => {
 const openModal = (user: any = null) => {
   if (user) {
     isEditing.value = true;
-    formData.value = { ...user, password: '', role_ids: user.roles ? user.roles.map((r: any) => r.id) : [] };
+    formData.value = { ...user, department: user.department || '', password: '', role_ids: user.roles ? user.roles.map((r: any) => r.id) : [] };
   } else {
     isEditing.value = false;
     formData.value = { id: 0, username: '', password: '', email: '', full_name: '', employee_id: '', department: '', role_ids: [] };

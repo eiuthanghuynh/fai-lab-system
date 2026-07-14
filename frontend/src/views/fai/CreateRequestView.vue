@@ -23,7 +23,7 @@ const faiRequestSchema = z.object({
   part_no: z.string().min(1, 'error.required_field'),
   part_name: z.string().min(1, 'error.required_field'),
   revision: z.string().min(1, 'error.required_field'),
-  supplier_name: z.string().min(1, 'error.required_field'),
+  supplier_id: z.union([z.number(), z.string()]).refine(val => val !== '', 'error.required_field'),
   address: z.string().min(1, 'error.required_field'),
   commodity_part: z.union([z.number(), z.string()]).refine(val => val !== '', 'error.required_field'),
   person_in_charge: z.string().min(1, 'error.required_field'),
@@ -38,7 +38,8 @@ const projectName = ref('');
 const partNo = ref('');
 const partName = ref('');
 const revision = ref('');
-const supplierName = ref('');
+const supplierId = ref<number | ''>('');
+const supplierOptions = ref<{ value: number, label: string }[]>([]);
 const address = ref('');
 const commodityPart = ref<number | ''>('');
 const commodityPartOptions = ref<{ value: number, label: string }[]>([]);
@@ -148,7 +149,7 @@ const saveAsDraft = async () => {
       part_no: partNo.value,
       part_name: partName.value,
       revision: revision.value,
-      supplier_name: supplierName.value,
+      supplier_id: supplierId.value,
       address: address.value,
       commodity_part: commodityPart.value,
       person_in_charge: personInCharge.value,
@@ -194,7 +195,7 @@ const submitForm = async () => {
     part_no: partNo.value,
     part_name: partName.value,
     revision: revision.value,
-    supplier_name: supplierName.value,
+    supplier_id: supplierId.value,
     address: address.value,
     commodity_part: commodityPart.value,
     person_in_charge: personInCharge.value,
@@ -215,7 +216,7 @@ const submitForm = async () => {
       part_no: partNo.value,
       part_name: partName.value,
       revision: revision.value,
-      supplier_name: supplierName.value,
+      supplier_id: supplierId.value,
       address: address.value,
       commodity_part: commodityPart.value,
       person_in_charge: personInCharge.value,
@@ -267,6 +268,19 @@ onMounted(async () => {
     console.error('Failed to load commodity parts:', err);
   }
 
+  // Fetch suppliers for dropdown
+  try {
+    const res = await api.get('/suppliers?limit=100');
+    if (res.data && res.data.data) {
+      supplierOptions.value = res.data.data.map((sup: any) => ({
+        value: sup.id,
+        label: sup.name
+      }));
+    }
+  } catch (err) {
+    console.error('Failed to load suppliers:', err);
+  }
+
   const draftId = route.query.id;
   if (draftId) {
     try {
@@ -278,7 +292,7 @@ onMounted(async () => {
         partNo.value = draft.part_no || '';
         partName.value = draft.part_name || '';
         revision.value = draft.revision || '';
-        supplierName.value = draft.supplier_name || '';
+        supplierId.value = draft.supplier_id || '';
         address.value = draft.address || '';
         commodityPart.value = draft.commodity_part || '';
         personInCharge.value = draft.person_in_charge || '';
@@ -368,7 +382,12 @@ onMounted(async () => {
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">Supplier Name: <span class="text-[#ef4444]">*</span></label>
-                <Input type="text" v-model="supplierName" :placeholder="t('fai.placeholder.supplier_name')" :error="formErrors.supplier_name ? t(formErrors.supplier_name) : undefined" required />
+                <SingleSelectDropdown 
+                  v-model="supplierId" 
+                  :options="supplierOptions" 
+                  :placeholder="t('fai.placeholder.supplier_name')" 
+                  :error="formErrors.supplier_id ? t(formErrors.supplier_id) : undefined"
+                />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">Supplier Address: <span class="text-[#ef4444]">*</span></label>

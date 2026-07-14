@@ -27,7 +27,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 64 * 1024 * 1024 } // 64MB limit
+  limits: { fileSize: 128 * 1024 * 1024 } // 128MB limit
 });
 
 router.use(authenticateToken);
@@ -35,10 +35,10 @@ router.use(authenticateToken);
 router.get('/', faiController.getRequests);
 router.get('/inspectors/list', faiController.getInspectors);
 router.get('/:id', faiController.getRequestById);
-router.delete('/:id', faiController.deleteDraft);
+router.delete('/:id', checkPermission('SUBMIT_FAI_REQUEST'), faiController.deleteDraft);
 router.post('/upload', upload.array('files'), faiController.uploadFiles);
-router.post('/draft', faiController.saveDraft);
-router.post('/', faiController.submitRequest);
+router.post('/draft', checkPermission('SUBMIT_FAI_REQUEST'), faiController.saveDraft);
+router.post('/', checkPermission('SUBMIT_FAI_REQUEST'), faiController.submitRequest);
 router.post('/:id/assign', checkPermission('ASSIGN_FAI'), faiController.assignRequest);
 
 module.exports = router;

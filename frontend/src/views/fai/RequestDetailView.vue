@@ -180,9 +180,9 @@ const goBack = () => {
                   <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Part Revision</span>
                   <span class="text-[0.95rem] text-text break-all">{{ request.revision || '-' }}</span>
                 </div>
-                <div class="flex flex-col gap-1.5">
-                  <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Supplier Name</span>
-                  <span class="text-[0.95rem] text-text break-all">{{ request.supplier_name || '-' }}</span>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-[0.75rem] font-bold text-text-muted uppercase tracking-wider">{{ t('fai.form.supplier_name', 'Supplier Name') }}</span>
+                  <span class="text-[0.95rem] text-text break-all">{{ request.supplier?.name || '-' }}</span>
                 </div>
                 <div class="flex flex-col gap-1.5">
                   <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Supplier Address</span>

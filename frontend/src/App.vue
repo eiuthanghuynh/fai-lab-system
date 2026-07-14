@@ -36,8 +36,10 @@ onMounted(async () => {
   
   const success = await authStore.autoLogin();
   
-  if (!authStore.isAuthenticated && success && router.currentRoute.value.name === 'login') {
+  if (success && router.currentRoute.value.name === 'login') {
     router.push({ name: 'home' });
+  } else if (!success && router.currentRoute.value.meta.requiresAuth) {
+    router.push({ name: 'login' });
   }
 });
 

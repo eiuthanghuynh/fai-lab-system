@@ -55,7 +55,7 @@ const getRequests = async (req, res) => {
       project_name,
       part_no,
       commodity_part,
-      supplier_name,
+      supplier_id,
       tracking_no,
       receive_date_from,
       receive_date_to,
@@ -86,7 +86,7 @@ const getRequests = async (req, res) => {
         { test_no: { contains: search, mode: 'insensitive' } },
         { part_no: { contains: search, mode: 'insensitive' } },
         { part_name: { contains: search, mode: 'insensitive' } },
-        { supplier_name: { contains: search, mode: 'insensitive' } },
+        { supplier: { name: { contains: search, mode: 'insensitive' } } },
         { tracking_no: { contains: search, mode: 'insensitive' } },
         { project_name: { contains: search, mode: 'insensitive' } }
       ];
@@ -101,8 +101,8 @@ const getRequests = async (req, res) => {
     if (commodity_part) {
       where.commodity_part = parseInt(commodity_part);
     }
-    if (supplier_name) {
-      where.supplier_name = { contains: supplier_name, mode: 'insensitive' };
+    if (supplier_id) {
+      where.supplier_id = parseInt(supplier_id);
     }
     if (tracking_no) {
       where.tracking_no = { contains: tracking_no, mode: 'insensitive' };
@@ -171,6 +171,7 @@ const getRequests = async (req, res) => {
       take: limitNumber,
       include: {
         commodityPartRel: true,
+        supplier: true,
         requestor: {
           select: { id: true, full_name: true }
         },
@@ -259,7 +260,7 @@ const saveDraft = async (req, res) => {
       part_no,
       part_name,
       revision,
-      supplier_name,
+      supplier_id,
       address,
       commodity_part,
       part_type,
@@ -299,9 +300,9 @@ const saveDraft = async (req, res) => {
       part_no: part_no || '',
       part_name: part_name || '',
       revision: revision || '',
-      supplier_name: supplier_name || '',
+      ...(supplier_id ? { supplier: { connect: { id: parseInt(supplier_id) } } } : {}),
       address: address || '',
-      commodity_part: commodity_part ? parseInt(commodity_part) : null,
+      ...(commodity_part ? { commodityPartRel: { connect: { id: parseInt(commodity_part) } } } : {}),
       person_in_charge: person_in_charge || '',
       tracking_no: tracking_no || '',
       part_type: part_type || '',
@@ -313,8 +314,8 @@ const saveDraft = async (req, res) => {
       failure_details: failure_details || null,
       improvement_plan: improvement_plan || null,
       week_no: getWeek(new Date()),
-      project_name: project_name || 'FAI-PROJECT',
-      form_data: req.body, // full backup
+      project_name: project_name,
+      form_data: req.body,
       status: 'Draft',
       requestor: { connect: { id: req.user.id } }
     };
@@ -362,7 +363,7 @@ const submitRequest = async (req, res) => {
       part_no,
       part_name,
       revision,
-      supplier_name,
+      supplier_id,
       address,
       commodity_part,
       part_type,
@@ -381,8 +382,8 @@ const submitRequest = async (req, res) => {
     } = req.body;
 
     // 1. Validate required fields for final submission
-    if (!project_name || !part_no || !part_name || !supplier_name || !revision || !address || !commodity_part || !person_in_charge) {
-      return res.status(400).json({ error: 'error.required_field' });
+    if (!project_name || !part_no || !part_name || !supplier_id || !revision || !address || !commodity_part || !person_in_charge) {
+      return res.status(400).json({ success: false, error: 'Missing required fields for submission.' });
     }
 
     const parsedSampleQty = sample_qty ? parseInt(sample_qty) : 3;
@@ -408,9 +409,9 @@ const submitRequest = async (req, res) => {
       part_no,
       part_name,
       revision: revision || '',
-      supplier_name,
+      ...(supplier_id ? { supplier: { connect: { id: parseInt(supplier_id) } } } : {}),
       address: address || '',
-      commodity_part: commodity_part ? parseInt(commodity_part) : null,
+      ...(commodity_part ? { commodityPartRel: { connect: { id: parseInt(commodity_part) } } } : {}),
       person_in_charge: person_in_charge || '',
       tracking_no: tracking_no || '',
       part_type: part_type || '',
@@ -501,7 +502,8 @@ const getRequestById = async (req, res) => {
             username: true
           }
         },
-        commodityPartRel: true
+        commodityPartRel: true,
+        supplier: true
       }
     });
 

@@ -5,8 +5,8 @@ const { authenticateToken, checkPermission } = require('../middlewares/authMiddl
 
 router.use(authenticateToken);
 
-// All role management operations require MANAGE_ROLES permission
-router.use(checkPermission('MANAGE_ROLES'));
+// All role management operations require ADMINISTRATOR permission
+router.use(checkPermission('ADMINISTRATOR'));
 
 router.get('/permissions', roleController.getPermissions);
 router.get('/', roleController.getRoles);

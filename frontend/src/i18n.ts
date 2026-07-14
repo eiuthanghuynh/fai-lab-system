@@ -201,6 +201,7 @@ const messages = {
     admin: {
       users: 'User Management',
       roles: 'Role Management',
+      suppliers: 'Supplier Management',
       back_to_app: 'Back to App',
       create_user: 'Create User',
       edit_user: 'Edit User',
@@ -532,6 +533,7 @@ const messages = {
     admin: {
       users: 'Quản lý người dùng',
       roles: 'Quản lý vai trò',
+      suppliers: 'Quản lý nhà cung cấp',
       back_to_app: 'Trở lại ứng dụng',
       create_user: 'Tạo mới người dùng',
       edit_user: 'Sửa thông tin',

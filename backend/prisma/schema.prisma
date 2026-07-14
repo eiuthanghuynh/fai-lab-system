@@ -115,7 +115,7 @@ model FaiRequest {
   part_name             String?  @db.VarChar(255)
   tracking_no           String?  @db.VarChar(100)
   commodity_part        Int?
-  supplier_name         String?  @db.VarChar(255)
+  supplier_id           Int?
   part_type             String?  @db.VarChar(100)
   reason_for_submission String?  @db.VarChar(255)
   receive_date          DateTime? @db.Date
@@ -146,8 +146,18 @@ model FaiRequest {
   inspector        User?    @relation("FaiInspector", fields: [inspector_id], references: [id])
   faiFailureModeRel FaiFailureMode? @relation(fields: [fai_failure_mode], references: [id])
   commodityPartRel  CommodityPart?  @relation(fields: [commodity_part], references: [id])
+  supplier          Supplier?       @relation(fields: [supplier_id], references: [id])
 
   @@map("fai_requests")
+}
+
+model Supplier {
+  id        Int          @id @default(autoincrement())
+  name      String       @unique @db.VarChar(100)
+  full_name String?      @db.VarChar(255)
+  requests  FaiRequest[]
+
+  @@map("suppliers")
 }
 
 model LabRequest {

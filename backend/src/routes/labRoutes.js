@@ -26,7 +26,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 64 * 1024 * 1024 }
+  limits: { fileSize: 128 * 1024 * 1024 }
 });
 
 router.use(authenticateToken);
@@ -36,9 +36,9 @@ router.get('/inspectors/list', labController.getInspectors);
 router.get('/requests', labController.getRequests);
 router.get('/requests/:id', labController.getRequestById);
 router.post('/requests/upload', upload.array('files'), labController.uploadFiles);
-router.post('/requests/draft', labController.saveDraft);
-router.post('/requests', labController.submitRequest);
-router.delete('/requests/:id/draft', labController.deleteDraft);
+router.post('/requests/draft', checkPermission('SUBMIT_LAB_REQUEST'), labController.saveDraft);
+router.post('/requests', checkPermission('SUBMIT_LAB_REQUEST'), labController.submitRequest);
+router.delete('/requests/:id/draft', checkPermission('SUBMIT_LAB_REQUEST'), labController.deleteDraft);
 router.post('/requests/:id/assign', checkPermission('ASSIGN_LAB'), labController.assignRequest);
 
 // Work Order endpoints

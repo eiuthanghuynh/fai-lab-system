@@ -42,8 +42,7 @@ async function main() {
 
   // 2. Create/Upsert Permissions (using 'name' as unique identifier)
   const permissions = [
-    { name: 'MANAGE_USERS', description: 'Manage system users (Create, Read, Update, Delete, Restore)' },
-    { name: 'MANAGE_ROLES', description: 'Manage roles and role permissions' },
+    { name: 'ADMINISTRATOR', description: 'Manage users, roles, FAI failure modes, suppliers, commodity parts' },
     { name: 'SUBMIT_FAI_REQUEST', description: 'Create and submit FAI requests' },
     { name: 'MANAGE_REQUEST_LIST', description: 'Manage FAI request list and perform administrative actions like hard deletion' },
     { name: 'ASSIGN_FAI', description: 'Assign an inspector to FAI requests' },
@@ -76,8 +75,7 @@ async function main() {
   const adminRole = seededRoles['Admin'];
   if (adminRole) {
     const adminRolePermissions = [
-      seededPermissions['MANAGE_USERS'],
-      seededPermissions['MANAGE_ROLES'],
+      seededPermissions['ADMINISTRATOR'],
       seededPermissions['SUBMIT_FAI_REQUEST'],
       seededPermissions['MANAGE_REQUEST_LIST'],
       seededPermissions['ASSIGN_FAI'],
@@ -146,7 +144,8 @@ async function main() {
       password_hash: hashedPassword,
       full_name: 'Admin',
       employee_id: 'SYSTEM',
-      email: 'admin@local.com'
+      email: 'admin@local.com',
+      department: ''
     }
   });
 
@@ -188,6 +187,50 @@ async function main() {
     });
   }
   console.log('CommodityParts seeded.');
+
+  // 7. Create/Upsert Suppliers
+  const suppliers = [
+    { name: 'WANG TAK', full_name: 'Wang Tak Metal Manufactory Limited' },
+    { name: 'AMEYA', full_name: 'AMEYA HOLDING LIMITED' },
+    { name: 'AN VIET PHAT', full_name: null },
+    { name: 'CEE', full_name: null },
+    { name: 'CHANGZHOU', full_name: null },
+    { name: 'CHENGDA', full_name: null },
+    { name: 'DENSETING', full_name: null },
+    { name: 'EPE', full_name: null },
+    { name: 'EVERGREEN', full_name: null },
+    { name: 'HUAYI', full_name: null },
+    { name: 'JETWAY', full_name: null },
+    { name: 'JIJING', full_name: null },
+    { name: 'KABLE-X', full_name: null },
+    { name: 'MINGSHIN', full_name: null },
+    { name: 'NEW HEART', full_name: null },
+    { name: 'ORTRONICS', full_name: null },
+    { name: 'PERFECT', full_name: null },
+    { name: 'PHUOC HIEP THANH', full_name: null },
+    { name: 'PRAMERS', full_name: null },
+    { name: 'QIMAO', full_name: null },
+    { name: 'RENHE', full_name: null },
+    { name: 'SCHURTER', full_name: null },
+    { name: 'SUNWAY', full_name: null },
+    { name: 'SUZHOU HUAYI', full_name: null },
+    { name: 'SUZHOU RENHE', full_name: null },
+    { name: 'SUZHOU SUNWAY', full_name: 'SUZHOU RENHE HOLDING CO.,LTD' },
+    { name: 'SWARM BOBBIN', full_name: null },
+    { name: 'TARRY', full_name: null },
+    { name: 'WELGAO', full_name: null },
+    { name: 'YJN', full_name: null },
+    { name: 'YOLUCKY', full_name: null }
+  ];
+
+  for (const s of suppliers) {
+    await prisma.supplier.upsert({
+      where: { name: s.name },
+      update: { full_name: s.full_name },
+      create: { name: s.name, full_name: s.full_name }
+    });
+  }
+  console.log('Suppliers seeded.');
 
   console.log('Database seeded successfully!');
 }

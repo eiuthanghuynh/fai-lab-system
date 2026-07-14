@@ -74,6 +74,7 @@ CREATE TABLE "user_roles" (
 -- CreateTable
 CREATE TABLE "fai_requests" (
     "id" SERIAL NOT NULL,
+    "test_no" VARCHAR(50),
     "requestor_id" INTEGER NOT NULL,
     "project_name" VARCHAR(255) NOT NULL,
     "part_no" VARCHAR(100) NOT NULL,
@@ -81,13 +82,13 @@ CREATE TABLE "fai_requests" (
     "part_name" VARCHAR(255),
     "tracking_no" VARCHAR(100),
     "commodity_part" INTEGER,
-    "supplier_name" VARCHAR(255),
+    "supplier_id" INTEGER,
     "part_type" VARCHAR(100),
     "reason_for_submission" VARCHAR(255),
     "receive_date" DATE,
     "sample_qty" INTEGER NOT NULL DEFAULT 1,
     "submission_time" INTEGER NOT NULL DEFAULT 1,
-    "priority" "PriorityLevel" NOT NULL DEFAULT 'Normal',
+    "priority" "PriorityLevel",
     "priority_reason" TEXT,
     "week_no" INTEGER,
     "complete_date" DATE,
@@ -112,6 +113,15 @@ CREATE TABLE "fai_requests" (
 );
 
 -- CreateTable
+CREATE TABLE "suppliers" (
+    "id" SERIAL NOT NULL,
+    "name" VARCHAR(100) NOT NULL,
+    "full_name" VARCHAR(255),
+
+    CONSTRAINT "suppliers_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "lab_requests" (
     "id" SERIAL NOT NULL,
     "test_no" VARCHAR(50),
@@ -122,7 +132,7 @@ CREATE TABLE "lab_requests" (
     "project_name" VARCHAR(255),
     "revision" VARCHAR(50),
     "stage" VARCHAR(100),
-    "priority" "PriorityLevel" NOT NULL DEFAULT 'Normal',
+    "priority" "PriorityLevel",
     "priority_reason" TEXT,
     "week_no" INTEGER,
     "request_date" DATE NOT NULL,
@@ -268,7 +278,13 @@ CREATE UNIQUE INDEX "roles_name_key" ON "roles"("name");
 CREATE UNIQUE INDEX "permissions_name_key" ON "permissions"("name");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "fai_requests_test_no_key" ON "fai_requests"("test_no");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "fai_requests_idempotency_key_key" ON "fai_requests"("idempotency_key");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "suppliers_name_key" ON "suppliers"("name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "lab_requests_test_no_key" ON "lab_requests"("test_no");
@@ -308,6 +324,9 @@ ALTER TABLE "fai_requests" ADD CONSTRAINT "fai_requests_fai_failure_mode_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "fai_requests" ADD CONSTRAINT "fai_requests_commodity_part_fkey" FOREIGN KEY ("commodity_part") REFERENCES "commodity_parts"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "fai_requests" ADD CONSTRAINT "fai_requests_supplier_id_fkey" FOREIGN KEY ("supplier_id") REFERENCES "suppliers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "lab_requests" ADD CONSTRAINT "lab_requests_requestor_id_fkey" FOREIGN KEY ("requestor_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

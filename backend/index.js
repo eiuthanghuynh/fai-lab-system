@@ -8,6 +8,7 @@ const roleRoutes = require('./src/routes/roleRoutes');
 const faiRoutes = require('./src/routes/faiRoutes');
 const faiFailureModeRoutes = require('./src/routes/faiFailureModeRoutes');
 const commodityPartRoutes = require('./src/routes/commodityPartRoutes');
+const supplierRoutes = require('./src/routes/supplierRoutes');
 const labRoutes = require('./src/routes/labRoutes');
 const dashboardRoutes = require('./src/routes/dashboardRoutes');
 
@@ -80,6 +81,7 @@ app.use('/api/roles', roleRoutes);
 app.use('/api/fai', faiRoutes);
 app.use('/api/fai-failure-modes', faiFailureModeRoutes);
 app.use('/api/commodity-parts', commodityPartRoutes);
+app.use('/api/suppliers', supplierRoutes);
 app.use('/api/lab', labRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
