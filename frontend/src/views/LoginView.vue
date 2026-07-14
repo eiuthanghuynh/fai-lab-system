@@ -54,7 +54,9 @@ const handleLogin = async () => {
     localStorage.setItem('keep_logged_in_preference', String(keepLoggedIn.value));
 
     authStore.setAuth(data.token, data.user, data.user.permissions);
-    router.push({ name: 'home' });
+    
+    const redirect = router.currentRoute.value.query.redirect as string || '/';
+    router.push(redirect);
   } catch (err) {
     error.value = 'login.internal_error';
   } finally {

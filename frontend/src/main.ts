@@ -5,10 +5,20 @@ import App from './App.vue'
 import router from './router'
 import i18n from './i18n'
 
+import { useAuthStore } from './stores/auth'
+
 const app = createApp(App)
+const pinia = createPinia()
+app.use(pinia)
 
-app.use(createPinia())
-app.use(router)
-app.use(i18n)
+const initApp = async () => {
+  const authStore = useAuthStore()
+  await authStore.autoLogin()
 
-app.mount('#app')
+  app.use(router)
+  app.use(i18n)
+  
+  app.mount('#app')
+}
+
+initApp()
