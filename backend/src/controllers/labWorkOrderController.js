@@ -1,5 +1,6 @@
 const prisma = require('../config/db');
-const { minioClient, minioClientPublic, MINIO_BUCKET } = require('../config/minioClient');
+const { minioClient, MINIO_BUCKET } = require('../config/minioClient');
+const { cleanupOrphanedAttachments } = require('../utils/attachmentHelper');
 const fs = require('fs').promises;
 
 const getByRequestId = async (req, res) => {
@@ -120,6 +121,11 @@ const updateStatus = async (req, res) => {
       });
     }
 
+    if (id) {
+      const keptFileIds = file_ids ? file_ids.map(fid => parseInt(fid)) : [];
+      await cleanupOrphanedAttachments(id, 'LAB_WORK_ORDER', keptFileIds);
+    }
+
     if (global.io) {
       global.io.emit('lab-work-order-updated', updated);
     }
@@ -143,11 +149,6 @@ const uploadWorkOrderFiles = async (req, res) => {
 
     const attachments = [];
     for (const file of req.files) {
-      await minioClient.fPutObject(MINIO_BUCKET, file.filename, file.path, {
-        'Content-Type': file.mimetype
-      });
-      await fs.unlink(file.path);
-
       const att = await prisma.requestAttachment.create({
         data: {
           request_id: 0, // temp placeholder

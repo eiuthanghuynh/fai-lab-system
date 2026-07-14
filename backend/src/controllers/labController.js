@@ -1,6 +1,7 @@
 const prisma = require('../config/db');
 const { emailQueue, connection: redis } = require('../config/queue');
 const { getWeek } = require('date-fns');
+const { cleanupOrphanedAttachments } = require('../utils/attachmentHelper');
 const { minioClient, minioClientPublic, MINIO_BUCKET } = require('../config/minioClient');
 const fs = require('fs').promises;
 
@@ -267,6 +268,11 @@ const saveDraft = async (req, res) => {
       });
     }
 
+    if (id) {
+      const keptFileIds = file_ids.map(fid => parseInt(fid));
+      await cleanupOrphanedAttachments(id, 'LAB', keptFileIds);
+    }
+
     const keys = await redis.keys('lab_requests:*');
     if (keys.length > 0) await redis.del(keys);
 
@@ -391,6 +397,11 @@ const submitRequest = async (req, res) => {
       });
     }
 
+    if (id) {
+      const keptFileIds = file_ids.map(fid => parseInt(fid));
+      await cleanupOrphanedAttachments(id, 'LAB', keptFileIds);
+    }
+
     // Save idempotency key to Redis (expire in 10 minutes)
     if (idempotency_key) {
       const redisKey = `idempotency:${idempotency_key}`;
@@ -465,11 +476,6 @@ const uploadFiles = async (req, res) => {
 
     const attachments = [];
     for (const file of req.files) {
-      await minioClient.fPutObject(MINIO_BUCKET, file.filename, file.path, {
-        'Content-Type': file.mimetype
-      });
-      await fs.unlink(file.path);
-
       const att = await prisma.requestAttachment.create({
         data: {
           request_id: 0, // temp placeholder
