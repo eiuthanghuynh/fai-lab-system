@@ -1,12 +1,23 @@
+-- CreateEnum
+CREATE TYPE "PriorityLevel" AS ENUM ('Normal', 'Urgent');
+
+-- CreateEnum
+CREATE TYPE "RequestStatus" AS ENUM ('Draft', 'Backlog', 'Assigned', 'Ongoing', 'Closed');
+
 -- CreateTable
 CREATE TABLE "users" (
     "id" SERIAL NOT NULL,
     "username" VARCHAR(50) NOT NULL,
     "password_hash" VARCHAR(255) NOT NULL,
     "full_name" VARCHAR(100) NOT NULL,
+    "employee_id" VARCHAR(100) NOT NULL,
+    "department" VARCHAR(100),
     "email" VARCHAR(100) NOT NULL,
-    "role_id" INTEGER NOT NULL,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "last_logout_at" TIMESTAMP(3),
+    "remember_token" VARCHAR(255),
+    "reset_password_token" VARCHAR(255),
+    "reset_password_expires" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -18,6 +29,7 @@ CREATE TABLE "roles" (
     "id" SERIAL NOT NULL,
     "name" VARCHAR(50) NOT NULL,
     "description" TEXT,
+    "badge_color" VARCHAR(20) NOT NULL DEFAULT '#63e079',
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -49,26 +61,52 @@ CREATE TABLE "role_permissions" (
 );
 
 -- CreateTable
-CREATE TABLE "fai_requests" (
-    "id" SERIAL NOT NULL,
-    "requestor_id" INTEGER NOT NULL,
-    "person_in_charge" VARCHAR(255),
-    "project_name" VARCHAR(255) NOT NULL,
-    "form_data" JSONB NOT NULL,
-    "inspector_id" INTEGER,
-    "status" VARCHAR(50) NOT NULL DEFAULT 'Draft',
-    "result" VARCHAR(50),
-    "fai_failure_mode" VARCHAR(255),
-    "part_no" VARCHAR(100) NOT NULL,
-    "revision" VARCHAR(50),
-    "part_name" VARCHAR(255),
-    "remark" TEXT,
-    "tracking_no" VARCHAR(100),
-    "estimated_date" DATE,
-    "receive_date" DATE,
+CREATE TABLE "user_roles" (
+    "user_id" INTEGER NOT NULL,
+    "role_id" INTEGER NOT NULL,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "user_roles_pkey" PRIMARY KEY ("user_id","role_id")
+);
+
+-- CreateTable
+CREATE TABLE "fai_requests" (
+    "id" SERIAL NOT NULL,
+    "requestor_id" INTEGER NOT NULL,
+    "project_name" VARCHAR(255) NOT NULL,
+    "part_no" VARCHAR(100) NOT NULL,
+    "revision" VARCHAR(50),
+    "part_name" VARCHAR(255),
+    "tracking_no" VARCHAR(100),
+    "commodity_part" INTEGER,
+    "supplier_name" VARCHAR(255),
+    "part_type" VARCHAR(100),
+    "reason_for_submission" VARCHAR(255),
+    "receive_date" DATE,
+    "sample_qty" INTEGER NOT NULL DEFAULT 1,
+    "submission_time" INTEGER NOT NULL DEFAULT 1,
+    "priority" "PriorityLevel" NOT NULL DEFAULT 'Normal',
+    "priority_reason" TEXT,
+    "week_no" INTEGER,
+    "complete_date" DATE,
+    "failure_details" TEXT,
+    "improvement_plan" TEXT,
+    "inspector_id" INTEGER,
+    "fai_failure_mode" INTEGER,
+    "remark" TEXT,
+    "estimated_date" DATE,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+    "status" "RequestStatus" NOT NULL DEFAULT 'Draft',
+    "result" VARCHAR(50),
+    "person_in_charge" VARCHAR(255),
+    "address" VARCHAR(255),
+    "idempotency_key" VARCHAR(255),
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "submission_contents" JSONB,
+    "form_data" JSONB NOT NULL,
 
     CONSTRAINT "fai_requests_pkey" PRIMARY KEY ("id")
 );
@@ -76,28 +114,55 @@ CREATE TABLE "fai_requests" (
 -- CreateTable
 CREATE TABLE "lab_requests" (
     "id" SERIAL NOT NULL,
-    "requestor_id" INTEGER NOT NULL,
+    "test_no" VARCHAR(50),
     "model_no" VARCHAR(100) NOT NULL,
     "model_description" VARCHAR(255),
-    "item_test" VARCHAR(255),
-    "sample_qty" INTEGER NOT NULL DEFAULT 1,
-    "receive_date" DATE,
-    "priority" VARCHAR(50) NOT NULL DEFAULT 'Mid',
-    "result" VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    "quantity" INTEGER NOT NULL DEFAULT 1,
+    "product_sn" VARCHAR(255),
+    "project_name" VARCHAR(255),
+    "revision" VARCHAR(50),
+    "stage" VARCHAR(100),
+    "priority" "PriorityLevel" NOT NULL DEFAULT 'Normal',
+    "priority_reason" TEXT,
+    "week_no" INTEGER,
+    "request_date" DATE NOT NULL,
+    "estimated_date" DATE,
     "complete_date" DATE,
-    "status" VARCHAR(50) NOT NULL DEFAULT 'Backlog',
-    "return_date" DATE,
-    "remark" TEXT,
-    "failure_details" TEXT,
-    "improvement_plan" TEXT,
-    "rejection_reason" TEXT,
-    "technician_id" INTEGER,
+    "status" "RequestStatus" NOT NULL DEFAULT 'Draft',
+    "requestor_id" INTEGER NOT NULL,
     "approved_by" INTEGER,
-    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "sample_received_date" DATE,
+    "sample_return_date" DATE,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "idempotency_key" VARCHAR(255),
+    "inspector_id" INTEGER,
 
     CONSTRAINT "lab_requests_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "lab_work_orders" (
+    "id" SERIAL NOT NULL,
+    "work_order_no" VARCHAR(50) NOT NULL,
+    "lab_request_id" INTEGER NOT NULL,
+    "quantity" INTEGER NOT NULL DEFAULT 1,
+    "product_sn" VARCHAR(255),
+    "item_test" VARCHAR(255) NOT NULL,
+    "procedure_condition" TEXT,
+    "test_specification" TEXT,
+    "remark" TEXT,
+    "status" VARCHAR(50) NOT NULL DEFAULT 'Backlog',
+    "test_result" VARCHAR(50),
+    "failure_details" TEXT,
+    "improvement_plan" TEXT,
+    "technician_id" INTEGER,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+
+    CONSTRAINT "lab_work_orders_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -171,8 +236,27 @@ CREATE TABLE "notifications" (
     CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "fai_failure_modes" (
+    "id" SERIAL NOT NULL,
+    "issue" TEXT NOT NULL,
+
+    CONSTRAINT "fai_failure_modes_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "commodity_parts" (
+    "id" SERIAL NOT NULL,
+    "name" TEXT NOT NULL,
+
+    CONSTRAINT "commodity_parts_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_username_key" ON "users"("username");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_employee_id_key" ON "users"("employee_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
@@ -183,8 +267,23 @@ CREATE UNIQUE INDEX "roles_name_key" ON "roles"("name");
 -- CreateIndex
 CREATE UNIQUE INDEX "permissions_name_key" ON "permissions"("name");
 
--- AddForeignKey
-ALTER TABLE "users" ADD CONSTRAINT "users_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+-- CreateIndex
+CREATE UNIQUE INDEX "fai_requests_idempotency_key_key" ON "fai_requests"("idempotency_key");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "lab_requests_test_no_key" ON "lab_requests"("test_no");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "lab_requests_idempotency_key_key" ON "lab_requests"("idempotency_key");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "lab_work_orders_work_order_no_key" ON "lab_work_orders"("work_order_no");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "fai_failure_modes_issue_key" ON "fai_failure_modes"("issue");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "commodity_parts_name_key" ON "commodity_parts"("name");
 
 -- AddForeignKey
 ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -193,19 +292,37 @@ ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_role_id_fkey" FO
 ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_permission_id_fkey" FOREIGN KEY ("permission_id") REFERENCES "permissions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "fai_requests" ADD CONSTRAINT "fai_requests_requestor_id_fkey" FOREIGN KEY ("requestor_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "fai_requests" ADD CONSTRAINT "fai_requests_inspector_id_fkey" FOREIGN KEY ("inspector_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "fai_requests" ADD CONSTRAINT "fai_requests_fai_failure_mode_fkey" FOREIGN KEY ("fai_failure_mode") REFERENCES "fai_failure_modes"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "fai_requests" ADD CONSTRAINT "fai_requests_commodity_part_fkey" FOREIGN KEY ("commodity_part") REFERENCES "commodity_parts"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "lab_requests" ADD CONSTRAINT "lab_requests_requestor_id_fkey" FOREIGN KEY ("requestor_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "lab_requests" ADD CONSTRAINT "lab_requests_technician_id_fkey" FOREIGN KEY ("technician_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "lab_requests" ADD CONSTRAINT "lab_requests_approved_by_fkey" FOREIGN KEY ("approved_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "lab_requests" ADD CONSTRAINT "lab_requests_approved_by_fkey" FOREIGN KEY ("approved_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "lab_requests" ADD CONSTRAINT "lab_requests_inspector_id_fkey" FOREIGN KEY ("inspector_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "lab_work_orders" ADD CONSTRAINT "lab_work_orders_lab_request_id_fkey" FOREIGN KEY ("lab_request_id") REFERENCES "lab_requests"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "lab_work_orders" ADD CONSTRAINT "lab_work_orders_technician_id_fkey" FOREIGN KEY ("technician_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "lab_request_images" ADD CONSTRAINT "lab_request_images_lab_request_id_fkey" FOREIGN KEY ("lab_request_id") REFERENCES "lab_requests"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

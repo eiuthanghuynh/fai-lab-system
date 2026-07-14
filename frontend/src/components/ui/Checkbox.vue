@@ -9,7 +9,7 @@ defineProps<{
 </script>
 
 <template>
-  <label class="flex items-start gap-2 text-[0.9rem] text-text cursor-pointer select-none" :class="{ 'opacity-50 cursor-not-allowed': disabled }">
+  <label class="flex items-start px-3 py-2 gap-2 text-[0.9rem] text-text cursor-pointer select-none" :class="{ 'opacity-50 cursor-not-allowed': disabled }">
     <input
       type="checkbox"
       :value="value"

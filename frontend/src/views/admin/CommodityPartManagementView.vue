@@ -133,7 +133,7 @@ const deleteItem = async (item: any) => {
 <template>
   <div class="flex flex-col gap-6 h-full p-8 overflow-hidden">
     <div class="flex justify-between items-center">
-      <h1 class="m-0 text-2xl font-semibold text-text">{{ t('admin.commodity_parts', 'Commodity Parts') }}</h1>
+      <h1 class="text-2xl">{{ t('admin.commodity_parts', 'Commodity Parts') }}</h1>
     </div>
 
     <DataTableToolbar 

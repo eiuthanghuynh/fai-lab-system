@@ -52,7 +52,8 @@ async function main() {
     { name: 'ASSIGN_LAB', description: 'Assign inspector to LAB Request' },
     { name: 'INSPECT_LAB', description: 'Create LAB Work Orders and make reports to each order' },
     { name: 'VIEW_DASHBOARD_FAI', description: 'View dashboard and aggregated statistics for FAI' },
-    { name: 'VIEW_DASHBOARD_LAB', description: 'View dashboard and aggregated statistics for LAB' }
+    { name: 'VIEW_DASHBOARD_LAB', description: 'View dashboard and aggregated statistics for LAB' },
+    { name: 'VIEW_FIRST_PASS_YIELD', description: 'View First Pass Yield charts in dashboard' }
   ];
 
   const seededPermissions = {};
@@ -83,7 +84,10 @@ async function main() {
       seededPermissions['INSPECT_FAI'],
       seededPermissions['SUBMIT_LAB_REQUEST'],
       seededPermissions['ASSIGN_LAB'],
-      seededPermissions['INSPECT_LAB']
+      seededPermissions['INSPECT_LAB'],
+      seededPermissions['VIEW_DASHBOARD_FAI'],
+      seededPermissions['VIEW_DASHBOARD_LAB'],
+      seededPermissions['VIEW_FIRST_PASS_YIELD']
     ];
 
     for (const perm of adminRolePermissions) {
@@ -140,8 +144,8 @@ async function main() {
     create: {
       username: 'admin',
       password_hash: hashedPassword,
-      full_name: 'System Admin',
-      employee_id: 'ADMIN001',
+      full_name: 'Admin',
+      employee_id: 'SYSTEM',
       email: 'admin@local.com'
     }
   });
@@ -159,7 +163,7 @@ async function main() {
   const failureModes = [
     'Material Issue', 'Drawing Issue', 'Design Issue', 'Documents Issue', 
     'Reliability/Environmental Test Issue', 'Functional/Electrical Test Issue', 
-    'Appearance issue', 'Form/ Fitting Issue', 'Drawing Issue/Material Issue'
+    'Appearance Issue', 'Form/ Fitting Issue', 'Drawing Issue/Material Issue'
   ];
 
   for (const issue of failureModes) {

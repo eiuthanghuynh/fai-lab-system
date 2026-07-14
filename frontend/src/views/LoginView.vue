@@ -72,7 +72,7 @@ const handleLogin = async () => {
       
       <div class="bg-bg-surface p-12 max-sm:p-8 rounded-lg w-full max-w-[520px] shadow-[0_10px_30px_rgba(0,0,0,0.15)] text-text border border-border">
         <div class="text-primary font-bold text-[29px] mb-2 text-center tracking-[1px]">FAI/LAB System</div>
-        <h1 class="text-center mb-8 text-[19px] text-text font-semibold">{{ t('login.title') }}</h1>
+        <h1 class="text-center mb-8 text-[19px] text-text">{{ t('login.title') }}</h1>
         
         <form @submit.prevent="handleLogin">
           <div class="mb-6">

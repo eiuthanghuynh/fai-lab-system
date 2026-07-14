@@ -11,7 +11,7 @@ defineProps<{
       <h2 class="text-lg font-semibold text-gray-800 dark:text-white transition-colors duration-300 m-0">{{ title }}</h2>
       <slot name="header-actions" />
     </div>
-    <div :class="bodyClass || 'h-64'">
+    <div :class="bodyClass || 'h-82.5'">
       <slot />
     </div>
   </div>

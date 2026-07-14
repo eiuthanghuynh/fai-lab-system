@@ -7,6 +7,8 @@ import DataTable, { type DataTableColumn } from '@/components/common/DataTable.v
 import StatusBadge from '@/components/common/StatusBadge.vue';
 import BaseModal from '@/components/common/BaseModal.vue';
 import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
+import PdfViewer from '@/components/common/PdfViewer.vue';
+import DetailCard from '@/components/common/DetailCard.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 import { useAuthStore } from '@/stores/auth';
@@ -152,98 +154,166 @@ const getResultClass = (res: string) => {
   if (res === 'FAIL') return 'text-danger font-weight-bold';
   return '';
 };
+
+const formatDate = (dateString: string) => {
+  if (!dateString) return '-';
+  const d = new Date(dateString);
+  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
 </script>
 
 <template>
-  <div class="max-w-[1200px] mx-auto p-6 flex flex-col gap-6" v-if="request && !isLoading">
-    <div class="flex justify-between items-start mb-8 border-b-2 border-border pb-6">
-      <div class="flex items-center">
-        <Button variant="secondary" class="gap-2" @click="router.push('/lab/request/list')">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
-            <line x1="19" y1="12" x2="5" y2="12"></line>
-            <polyline points="12 19 5 12 12 5"></polyline>
-          </svg>
-          {{ t('fai.back_to_list', 'Back to List') }}
-        </Button>
-      </div>
-      <div class="flex items-center gap-4">
-        <h1 class="m-0 text-2xl font-bold">{{ request.model_no }} - {{ request.project_name }}</h1>
-        <StatusBadge :isActive="true" :activeText="request.status" inactiveText="" :variant="getStatusVariant(request.status)" />
-      </div>
-    </div>
-
-    <div class="bg-bg-surface border border-border rounded-lg p-6 shadow-sm">
-      <h3 class="text-primary mt-0 mb-4 pb-2 border-b border-border text-lg font-semibold">{{ t('lab.details') }}</h3>
-      <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-6">
-        <div class="flex flex-col gap-1">
-          <label class="text-[0.85rem] text-text-muted">Test No.</label>
-          <span class="font-medium text-text">{{ request.test_no || '-' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-[0.85rem] text-text-muted">{{ t('lab.columns.model_description') }}</label>
-          <span class="font-medium text-text">{{ request.model_description || '-' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-[0.85rem] text-text-muted">{{ t('lab.columns.quantity') }}</label>
-          <span class="font-medium text-text">{{ request.quantity || '-' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-[0.85rem] text-text-muted">{{ t('lab.columns.product_sn') }}</label>
-          <span class="font-medium text-text">{{ request.product_sn || '-' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-[0.85rem] text-text-muted">Revision</label>
-          <span class="font-medium text-text">{{ request.revision || '-' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-[0.85rem] text-text-muted">{{ t('lab.columns.stage') }}</label>
-          <span class="font-medium text-text">{{ request.stage || '-' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-[0.85rem] text-text-muted">{{ t('lab.columns.priority') }}</label>
-          <span class="font-medium" :class="{'text-[#ff5555]': request.priority === 'High', 'text-text': request.priority !== 'High'}">{{ request.priority || '-' }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Attachments -->
-    <div class="bg-bg-surface border border-border rounded-lg p-6 shadow-sm" v-if="attachments.length > 0">
-      <h3 class="text-primary mt-0 mb-4 pb-2 border-b border-border text-lg font-semibold">{{ t('fai.attachments', 'Attachments') }}</h3>
-      <ul class="list-none p-0 m-0 flex flex-col gap-2">
-        <li v-for="file in attachments" :key="file.id" class="flex items-center">
-          <a :href="`/uploads/${file.file_url}`" target="_blank" class="text-primary no-underline hover:underline">{{ file.file_name }}</a>
-        </li>
-      </ul>
-    </div>
-
-    <div class="bg-bg-surface border border-border rounded-lg p-6 shadow-sm">
-      <h3 class="text-primary mt-0 mb-4 pb-2 border-b border-border text-lg font-semibold">{{ t('lab.work_order.title') }}</h3>
-      <DataTable 
-        :columns="woColumns" 
-        :data="workOrders" 
-        :isLoading="isLoading"
-        rowKey="id"
-      >
-        <template #cell-status="{ item }">
-          <StatusBadge :isActive="true" :activeText="item.status" inactiveText="" :variant="getStatusVariant(item.status)" />
-        </template>
-        <template #cell-technician="{ item }">
-          {{ item.technician?.full_name || '-' }}
-        </template>
-        <template #cell-test_result="{ item }">
-          <span :class="{'text-emerald-500 font-bold': item.test_result === 'PASS', 'text-red-500 font-bold': item.test_result === 'FAIL'}">{{ item.test_result || '-' }}</span>
-        </template>
-        <template #cell-actions="{ item }">
-          <Button 
-            v-if="canInspectLab"
-            size="sm"
-            @click="openUpdateModal(item)"
-          >
-            Update
+  <div class="h-full overflow-y-auto p-6 box-border">
+    <div class="w-full max-w-[1550px] mx-auto flex flex-col gap-6">
+      
+      <!-- Header -->
+      <div class="flex justify-between items-center border-b border-border pb-4">
+        <div class="flex items-center gap-6">
+          <Button variant="secondary" class="gap-2" @click="router.push('/lab/request/list')">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            {{ t('fai.back_to_list', 'Back to List') }}
           </Button>
-        </template>
-      </DataTable>
-    </div>
+          <h2 class="m-0 text-2xl font-bold text-text">{{ t('lab.detail_title') }} <span v-if="request">#{{ request.id }}</span></h2>
+        </div>
+        
+        <div v-if="request" class="flex items-center">
+          <StatusBadge 
+            :isActive="true" 
+            :activeText="request.status" 
+            inactiveText="" 
+            :variant="getStatusVariant(request.status)"
+          />
+        </div>
+      </div>
+
+      <!-- Loading and Error States -->
+      <div v-if="isLoading" class="flex flex-col items-center justify-center p-20 bg-bg-surface border border-border rounded-lg text-text-muted">
+        <div class="w-10 h-10 border-4 border-border border-t-primary rounded-full animate-spin mb-4"></div>
+        <p>Loading request details...</p>
+      </div>
+
+      <!-- Detail Content -->
+      <div v-else-if="request" class="flex flex-col gap-6">
+        <div class="flex flex-col gap-6">
+          
+          <div class="flex flex-col gap-6">
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <DetailCard title="General Information">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div class="flex flex-col gap-1.5">
+                    <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Requestor Name</span>
+                    <span class="text-[0.95rem] text-text break-all">{{ request.requestor?.full_name || request.requestor?.username || '-' }}</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Test No.</span>
+                    <span class="text-[0.95rem] text-text break-all">{{ request.test_no || '-' }}</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Model Description</span>
+                    <span class="text-[0.95rem] text-text break-all">{{ request.model_description || '-' }}</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Product SN</span>
+                    <span class="text-[0.95rem] text-text break-all">{{ request.product_sn || '-' }}</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Revision</span>
+                    <span class="text-[0.95rem] text-text break-all">{{ request.revision || '-' }}</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Stage</span>
+                    <span class="text-[0.95rem] text-text break-all">{{ request.stage || '-' }}</span>
+                  </div>
+                </div>
+              </DetailCard>
+
+              <!-- Card 2: Sample & Schedule Info -->
+              <DetailCard title="Sample & Schedule">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div class="flex flex-col gap-1.5">
+                    <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Quantity</span>
+                  <span class="text-[0.95rem] text-text break-all">{{ request.quantity || '-' }}</span>
+                </div>
+                  <div class="flex flex-col gap-1">
+                    <label class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Priority</label>
+                    <span class="text-[0.95rem] font-medium" :class="{'text-[#ff5555]': request.priority === 'Urgent', 'text-text': request.priority !== 'Urgent'}">{{ request.priority || '-' }}</span>
+                  </div>
+                  <div class="flex flex-col gap-1">
+                    <label class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Priority Reason</label>
+                    <span class="text-[0.95rem] font-medium break-all" :class="{'text-[#ff5555]': request.priority === 'Urgent', 'text-text': request.priority !== 'Urgent'}">{{ request.priority_reason || '-' }}</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Week</span>
+                    <span class="text-[0.95rem] text-text break-all">{{ request.week_no || '-' }}</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Receive Date</span>
+                    <span class="text-[0.95rem] text-text break-all">{{ formatDate(request.sample_received_date) }}</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Return Date</span>
+                    <span class="text-[0.95rem] text-text break-all">{{ formatDate(request.sample_return_date) }}</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Estimated Date</span>
+                    <span class="text-[0.95rem] text-text break-all">{{ formatDate(request.estimated_date) }}</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Complete Date</span>
+                    <span class="text-[0.95rem] text-text break-all">{{ formatDate(request.complete_date) }}</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Created At</span>
+                    <span class="text-[0.95rem] text-text break-all">{{ formatDate(request.created_at) }}</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Updated At</span>
+                    <span class="text-[0.95rem] text-text break-all">{{ formatDate(request.updated_at) }}</span>
+                  </div>
+                </div>
+              </DetailCard>
+            </div>
+
+            <DetailCard :title="`${t('lab.work_order.title')} - Inspector: ${request.inspector?.full_name || (workOrders.length > 0 && workOrders[0].technician ? workOrders[0].technician.full_name : t('lab.work_order.not_assign', 'Not Assign'))}`">
+              <DataTable 
+                :columns="woColumns" 
+                :data="workOrders" 
+                :isLoading="isLoading"
+                rowKey="id"
+              >
+                <template #cell-status="{ item }">
+                  <StatusBadge :isActive="true" :activeText="item.status" inactiveText="" :variant="getStatusVariant(item.status)" />
+                </template>
+                <template #cell-technician="{ item }">
+                  {{ item.technician?.full_name || '-' }}
+                </template>
+                <template #cell-test_result="{ item }">
+                  <span :class="{'text-emerald-500 font-bold': item.test_result === 'PASS', 'text-red-500 font-bold': item.test_result === 'FAIL'}">{{ item.test_result || '-' }}</span>
+                </template>
+                <template #cell-actions="{ item }">
+                  <Button 
+                    v-if="canInspectLab"
+                    size="sm"
+                    @click="openUpdateModal(item)"
+                  >
+                    Update
+                  </Button>
+                </template>
+              </DataTable>
+            </DetailCard>
+          </div>
+          
+          <!-- Section: PDF Viewer (Attachments) -->
+          <div class="bg-bg-surface border border-border rounded-lg p-6 shadow-sm">
+            <h3 class="mt-0 mb-5 text-[1.15rem] font-semibold text-primary border-b border-border pb-2">{{ t('fai.attachments', 'Attachments') }}</h3>
+            <PdfViewer :files="attachments || []" />
+          </div>
+        </div>
+      </div>
 
     <!-- Update WO Modal -->
     <BaseModal :isOpen="updateModalState.isOpen" title="Update Work Order" maxWidth="700px" @close="updateModalState.isOpen = false">
@@ -286,6 +356,7 @@ const getResultClass = (res: string) => {
         <Button type="submit" form="woUpdateForm">Save</Button>
       </template>
     </BaseModal>
+    </div>
   </div>
 </template>
 

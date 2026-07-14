@@ -101,7 +101,13 @@ const formatDateOnly = (dateString: string) => {
 }
 
 // Global states
-const systemFilter = ref<'FAI' | 'LAB'>('FAI')
+const initSystemFilter = (): 'FAI' | 'LAB' => {
+  if (authStore.hasPermission('VIEW_DASHBOARD_FAI')) return 'FAI'
+  if (authStore.hasPermission('VIEW_DASHBOARD_LAB')) return 'LAB'
+  return 'FAI'
+}
+
+const systemFilter = ref<'FAI' | 'LAB'>(initSystemFilter())
 const yearFilter = ref<string[]>([])
 const weekFilter = ref<string[]>([])
 const showNewDataToast = ref(false)
@@ -188,10 +194,12 @@ const weeksOptions = computed(() => Array.from({ length: 53 }, (_, i) => {
   return { label: t('dashboard.week_number', { n: w }), value: w }
 }))
 
-const systemOptions = [
-  { label: 'FAI', value: 'FAI' },
-  { label: 'LAB', value: 'LAB' }
-]
+const systemOptions = computed(() => {
+  const options = []
+  if (authStore.hasPermission('VIEW_DASHBOARD_FAI')) options.push({ label: 'FAI', value: 'FAI' })
+  if (authStore.hasPermission('VIEW_DASHBOARD_LAB')) options.push({ label: 'LAB', value: 'LAB' })
+  return options
+})
 
 const fetchDashboardStats = async (refresh = false) => {
   isLoading.value = true
@@ -248,6 +256,22 @@ const handleReset = () => {
   // watcher will trigger fetch
 }
 
+// Scrollbar auto-hide logic for custom legend
+const commodityLegendScrollRef = ref<HTMLElement | null>(null)
+let legendScrollTimeout: number | null = null
+
+const wakeLegendScrollbar = () => {
+  if (commodityLegendScrollRef.value) {
+    commodityLegendScrollRef.value.classList.remove('is-scrollbar-idle')
+    if (legendScrollTimeout) clearTimeout(legendScrollTimeout)
+    legendScrollTimeout = window.setTimeout(() => {
+      if (commodityLegendScrollRef.value) {
+        commodityLegendScrollRef.value.classList.add('is-scrollbar-idle')
+      }
+    }, 1000)
+  }
+}
+
 // Socket Listeners
 const initSocket = () => {
   const socket = socketService.getSocket()
@@ -271,6 +295,9 @@ onMounted(() => {
   fetchDashboardStats()
   fetchRecentRequests()
   initSocket()
+  if (commodityLegendScrollRef.value) {
+    commodityLegendScrollRef.value.classList.add('is-scrollbar-idle')
+  }
 })
 
 onUnmounted(() => {
@@ -343,7 +370,7 @@ const doughnutOptions = computed(() => ({
   layout: { padding: 20 }, // ponytail: safe margin for doughnut labels
   color: textColor.value,
   plugins: {
-    legend: { position: 'right' as const, labels: { color: textColor.value } },
+    legend: { display: false },
     datalabels: {
       color: '#fff',
       font: { weight: 'bold' },
@@ -360,18 +387,31 @@ const doughnutOptions = computed(() => ({
 }))
 
 // 3. Commodity Chart (Pie)
+const commodityColors = ['#3b82f6', '#10b981', '#facc15', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
+
 const commodityData = computed(() => {
   const cData = stats.value.charts.commodity
   return {
     labels: cData.map((c: any) => c.name),
     datasets: [
       {
-        backgroundColor: ['#3b82f6', '#10b981', '#facc15', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'],
+        backgroundColor: commodityColors,
         data: cData.map((c: any) => c.count)
       }
     ]
   }
 })
+
+const commodityDoughnutOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  layout: { padding: 20 },
+  color: textColor.value,
+  plugins: {
+    legend: { display: false },
+    datalabels: doughnutOptions.value.plugins.datalabels
+  }
+}))
 
 // 4. Pareto Chart (Bar + Line for Commodity Fails)
 const paretoData = computed(() => {
@@ -397,6 +437,10 @@ const paretoData = computed(() => {
         datalabels: {
           display: true,
           align: 'top' as const,
+          anchor: 'end' as const,
+          color: '#000000',
+          textStrokeColor: '#ffffff',
+          textStrokeWidth: 3,
           formatter: (value: number) => value.toFixed(0) + '%'
         }
       },
@@ -404,12 +448,14 @@ const paretoData = computed(() => {
         type: 'bar' as const,
         label: 'Fails',
         data: pData.map((c: any) => c.count),
-        backgroundColor: '#3b82f6',
+        backgroundColor: pData.map((_: any, i: number) => i < 3 ? '#1d4ed8' : '#60a5fa'), // Top 3 darker blue
         yAxisID: 'y',
         datalabels: {
           display: true,
           align: 'center' as const,
-          color: '#fff'
+          anchor: 'center' as const,
+          color: '#ffffff',
+          font: { weight: 'bold' as const }
         }
       }
     ]
@@ -422,11 +468,14 @@ const paretoOptions = computed(() => ({
   layout: { padding: { top: 30 } }, // ponytail: top padding avoids line chart datalabels clipping
   color: textColor.value,
   plugins: {
-    legend: { position: 'bottom' as const, labels: { color: textColor.value } }
+    legend: { display: false }
   },
   scales: {
     x: {
-      ticks: { color: textColor.value },
+      ticks: { 
+        color: textColor.value,
+        font: (ctx: any) => ctx.index < 3 ? { weight: 'bold' as const } : { weight: 'normal' as const }
+      },
       grid: { display: false }
     },
     y: {
@@ -455,7 +504,7 @@ const paretoOptions = computed(() => ({
     <!-- Sticky Header -->
     <div class="sticky top-0 z-50 bg-white dark:bg-gray-800 shadow-md px-4 md:px-6 lg:px-8 py-4 mb-6 flex flex-col md:flex-row items-center justify-between gap-4 transition-colors duration-300">
       <div class="flex items-center gap-4 w-full md:w-auto">
-        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">{{ t('dashboard.title') }}</h1>
+        <h1 class="text-2xl">{{ t('dashboard.title') }}</h1>
         <span class="text-sm text-gray-500 dark:text-gray-400 font-medium flex items-center">
           <i class="bi bi-calendar3 mr-2"></i>
           {{ new Date().toLocaleDateString() }} - {{ t('dashboard.week_number', { n: currentWeek }) }}
@@ -466,6 +515,7 @@ const paretoOptions = computed(() => ({
         <SingleSelectDropdown
           v-model="systemFilter"
           :options="systemOptions"
+          :disabled="systemOptions.length <= 1"
           class="w-full sm:w-28"
         />
 
@@ -525,30 +575,56 @@ const paretoOptions = computed(() => ({
     <!-- Charts Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-10 gap-6 mb-8">
       
-      <ChartCard class="lg:col-span-3" title="Commodity Request Distribution">
-        <Doughnut :data="commodityData" :options="doughnutOptions" />
+      <ChartCard class="lg:col-span-3" bodyClass="h-[330px] flex flex-col" title="Commodity Request Distribution">
+        <div class="flex-1 min-h-[220px]">
+          <Doughnut :data="commodityData" :options="commodityDoughnutOptions" />
+        </div>
+        <div class="overflow-x-auto whitespace-nowrap mt-4 pb-2 is-scrollbar-idle" ref="commodityLegendScrollRef" @scroll="wakeLegendScrollbar" @mousemove="wakeLegendScrollbar">
+          <div class="flex gap-4 px-2 w-max mx-auto">
+            <div v-for="(label, idx) in commodityData.labels" :key="label" class="flex items-center gap-1.5 text-xs text-text-muted">
+              <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: commodityColors[idx % commodityColors.length] }"></div>
+              {{ label }}
+            </div>
+          </div>
+        </div>
       </ChartCard>
 
       <ChartCard class="lg:col-span-7" title="FAI Status Overview">
         <Bar :data="statusData" :options="statusOptions" />
       </ChartCard>
 
-      <ChartCard class="lg:col-span-3" title="FAI Result Overview">
-        <Doughnut :data="resultData" :options="doughnutOptions" />
+      <ChartCard class="lg:col-span-3" bodyClass="h-[330px] flex flex-col" title="FAI Result Overview">
+        <div class="flex-1 min-h-[220px]">
+          <Doughnut :data="resultData" :options="doughnutOptions" />
+        </div>
+        <div class="flex flex-wrap gap-4 justify-center mt-4 pb-2">
+          <div v-for="(label, idx) in resultData.labels" :key="label" class="flex items-center gap-1.5 text-xs text-text-muted">
+            <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: resultData.datasets[0].backgroundColor[idx] }"></div>
+            {{ label }}
+          </div>
+        </div>
       </ChartCard>
 
-      <ChartCard class="lg:col-span-7" title="Commodity Pareto (Failure Mode)">
-        <Bar :data="paretoData" :options="paretoOptions" />
+      <ChartCard class="lg:col-span-7" bodyClass="h-[330px] flex flex-col" title="Commodity Pareto (Failure Mode)">
+        <div class="flex-1 min-h-[220px]">
+          <Bar :data="paretoData" :options="paretoOptions" />
+        </div>
+        <div class="flex flex-wrap gap-4 justify-center mt-4 pb-2">
+          <div v-for="(dataset, idx) in paretoData.datasets" :key="dataset.label" class="flex items-center gap-1.5 text-xs text-text-muted">
+            <div :class="['w-4', dataset.type === 'line' ? 'h-1 border-t-2 border-dashed bg-transparent' : 'h-4 rounded-sm']" :style="{ backgroundColor: dataset.type === 'line' ? 'transparent' : dataset.backgroundColor, borderColor: dataset.borderColor }"></div>
+            {{ dataset.label }}
+          </div>
+        </div>
       </ChartCard>
 
     </div>
 
     <!-- FAI First Pass Yield Chart Section (Conditional) -->
-    <div v-if="authStore.hasPermission('MANAGE_REQUEST_LIST') && stats.charts.weeklyYield?.length" class="mb-8">
+    <div v-if="authStore.hasPermission('VIEW_FIRST_PASS_YIELD') && stats.charts.weeklyYield?.length" class="mb-8">
       <FaiFirstPassYieldChart :data="stats.charts.weeklyYield" />
     </div>
 
-    <!-- Request List Section (Conditional) -->
+    <!-- Recent Requests List -->
     <div v-if="authStore.hasPermission('MANAGE_REQUEST_LIST')" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden mb-8 transition-colors duration-300">
       <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center transition-colors duration-300">
         <h2 class="text-lg font-semibold text-gray-800 dark:text-white m-0">{{ t('dashboard.recent_requests') }}</h2>
@@ -579,9 +655,8 @@ const paretoOptions = computed(() => ({
           
           <template #cell-priority="{ item }">
             <span v-if="item.priority" :class="[
-              'badge', 
-              item.priority === 'High' ? 'badge-danger' : 
-              (item.priority === 'Medium' ? 'badge-warning' : 'badge-success')
+              'px-2 py-1 rounded-md text-xs font-semibold',
+              item.priority === 'Urgent' ? 'badge-danger' : 'badge-success'
             ]">
               {{ item.priority }}
             </span>

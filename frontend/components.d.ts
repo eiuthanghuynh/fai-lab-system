@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ActionDropdown: typeof import('./src/components/common/ActionDropdown.vue')['default']
     BaseModal: typeof import('./src/components/common/BaseModal.vue')['default']
     Button: typeof import('./src/components/ui/Button.vue')['default']
     ChartCard: typeof import('./src/components/common/ChartCard.vue')['default']
@@ -19,7 +20,9 @@ declare module 'vue' {
     CustomDropdown: typeof import('./src/components/CustomDropdown.vue')['default']
     DataTable: typeof import('./src/components/common/DataTable.vue')['default']
     DataTableToolbar: typeof import('./src/components/common/DataTableToolbar.vue')['default']
+    DetailCard: typeof import('./src/components/common/DetailCard.vue')['default']
     FaiFirstPassYieldChart: typeof import('./src/components/common/FaiFirstPassYieldChart.vue')['default']
+    FilterDrawer: typeof import('./src/components/common/FilterDrawer.vue')['default']
     ForgotPasswordModal: typeof import('./src/components/ForgotPasswordModal.vue')['default']
     Input: typeof import('./src/components/ui/Input.vue')['default']
     LanguageSwitcher: typeof import('./src/components/LanguageSwitcher.vue')['default']
@@ -33,5 +36,6 @@ declare module 'vue' {
     SearchInput: typeof import('./src/components/common/SearchInput.vue')['default']
     SingleSelectDropdown: typeof import('./src/components/common/SingleSelectDropdown.vue')['default']
     StatusBadge: typeof import('./src/components/common/StatusBadge.vue')['default']
+    Textarea: typeof import('./src/components/ui/Textarea.vue')['default']
   }
 }

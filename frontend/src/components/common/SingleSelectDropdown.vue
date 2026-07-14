@@ -5,15 +5,19 @@ const props = defineProps<{
   modelValue: string | number
   options: { label: string | number; value: string | number }[]
   placeholder?: string
+  error?: string
 }>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string | number): void
+  (e: 'clear-error'): void
 }>()
 
 const isOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
+const menuRef = ref<HTMLElement | null>(null)
 const isUpwards = ref(false)
+const dropdownStyle = ref({})
 
 const updatePosition = () => {
   if (!dropdownRef.value) return;
@@ -21,11 +25,22 @@ const updatePosition = () => {
   const spaceBelow = window.innerHeight - rect.bottom;
   const spaceAbove = rect.top;
   
-  // If there's less than 260px below and more space above, open upwards
   if (spaceBelow < 260 && spaceAbove > spaceBelow) {
     isUpwards.value = true;
+    dropdownStyle.value = {
+      position: 'fixed',
+      bottom: `${window.innerHeight - rect.top + 4}px`,
+      left: `${rect.left}px`,
+      width: `${rect.width}px`
+    }
   } else {
     isUpwards.value = false;
+    dropdownStyle.value = {
+      position: 'fixed',
+      top: `${rect.bottom + 4}px`,
+      left: `${rect.left}px`,
+      width: `${rect.width}px`
+    }
   }
 }
 
@@ -38,8 +53,10 @@ const toggleDropdown = async () => {
 }
 
 const closeDropdown = (e: MouseEvent) => {
-  if (dropdownRef.value && !dropdownRef.value.contains(e.target as Node)) {
-    isOpen.value = false
+  const target = e.target as Node;
+  const isClickInside = dropdownRef.value?.contains(target) || menuRef.value?.contains(target);
+  if (!isClickInside) {
+    isOpen.value = false;
   }
 }
 
@@ -47,7 +64,7 @@ const onScroll = (e: Event) => {
   if (!isOpen.value) return;
   const target = e.target as HTMLElement;
   // Ignore scrolling inside the dropdown itself
-  if (dropdownRef.value && dropdownRef.value.contains(target)) {
+  if (dropdownRef.value?.contains(target) || menuRef.value?.contains(target)) {
     return;
   }
   isOpen.value = false;
@@ -67,6 +84,7 @@ onUnmounted(() => {
 
 const selectOption = (value: string | number) => {
   emit('update:modelValue', value)
+  emit('clear-error')
   isOpen.value = false
 }
 
@@ -82,7 +100,10 @@ const displayValue = computed(() => {
     <button
       type="button"
       @click="toggleDropdown"
-      class="form-select w-full bg-bg-surface border border-border px-3 py-2 text-text rounded-md shadow-sm focus:ring-primary focus:border-primary text-left flex justify-between items-center cursor-pointer min-w-[100px]"
+      class="form-select w-full bg-bg-surface px-3 py-2 text-text rounded-md shadow-sm text-left flex justify-between items-center cursor-pointer min-w-[100px]"
+      :class="[
+        error ? 'border border-danger focus:ring-danger focus:border-danger' : 'border border-border focus:ring-primary focus:border-primary'
+      ]"
     >
       <span class="truncate block w-full pr-4" :class="{'text-text-muted': !modelValue}">
         {{ displayValue }}
@@ -93,23 +114,27 @@ const displayValue = computed(() => {
         </svg>
       </span>
     </button>
+    <p v-if="error" class="mt-1 text-sm text-danger">{{ error }}</p>
 
     <!-- Dropdown Menu -->
-    <transition
-      enter-active-class="transition ease-out duration-100"
-      enter-from-class="transform opacity-0 scale-95"
-      enter-to-class="transform opacity-100 scale-100"
-      leave-active-class="transition ease-in duration-75"
-      leave-from-class="transform opacity-100 scale-100"
-      leave-to-class="transform opacity-0 scale-95"
-    >
-      <div
-        v-show="isOpen"
-        :class="[
-          'absolute z-[500] w-full bg-bg-surface shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-primary ring-opacity-5 overflow-auto focus:outline-none sm:text-sm border border-border',
-          isUpwards ? 'bottom-full mb-1 origin-bottom' : 'top-full mt-1 origin-top'
-        ]"
+    <Teleport to="body">
+      <transition
+        enter-active-class="transition ease-out duration-100"
+        enter-from-class="transform opacity-0 scale-95"
+        enter-to-class="transform opacity-100 scale-100"
+        leave-active-class="transition ease-in duration-75"
+        leave-from-class="transform opacity-100 scale-100"
+        leave-to-class="transform opacity-0 scale-95"
       >
+        <div
+          v-show="isOpen"
+          ref="menuRef"
+          :style="dropdownStyle"
+          :class="[
+            'dropdown-menu-teleport z-[9999] bg-bg-surface shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-primary ring-opacity-5 overflow-auto focus:outline-none sm:text-sm border border-border',
+            isUpwards ? 'origin-bottom' : 'origin-top'
+          ]"
+        >
       <div v-if="options.length === 0" class="px-3 py-2 text-text-muted text-sm">
         No options available
       </div>
@@ -124,7 +149,8 @@ const displayValue = computed(() => {
           {{ option.label }}
         </span>
       </div>
-      </div>
-    </transition>
+        </div>
+      </transition>
+    </Teleport>
   </div>
 </template>

@@ -6,6 +6,19 @@ datasource db {
   provider = "postgresql"
 }
 
+enum PriorityLevel {
+  Normal
+  Urgent
+}
+
+enum RequestStatus {
+  Draft
+  Backlog
+  Assigned
+  Ongoing
+  Closed
+}
+
 model User {
   id            Int      @id @default(autoincrement())
   username      String   @unique @db.VarChar(50)
@@ -27,6 +40,7 @@ model User {
   faiRequestsAsRequestor  FaiRequest[] @relation("FaiRequestor")
   faiRequestsAsInspector  FaiRequest[] @relation("FaiInspector")
   labRequestsAsRequestor  LabRequest[] @relation("LabRequestor")
+  labRequestsAsInspector  LabRequest[] @relation("LabInspector")
   labWorkOrdersAsTechnician LabWorkOrder[] @relation("LabTechnician")
   labRequestsAsApprover   LabRequest[] @relation("LabApprover")
   faiLabReports FaiLabReport[]
@@ -93,6 +107,7 @@ model UserRole {
 
 model FaiRequest {
   id                    Int      @id @default(autoincrement())
+  test_no               String?  @unique @db.VarChar(50)
   requestor_id          Int
   project_name          String   @db.VarChar(255)
   part_no               String   @db.VarChar(100)
@@ -106,7 +121,8 @@ model FaiRequest {
   receive_date          DateTime? @db.Date
   sample_qty            Int      @default(1)
   submission_time       Int      @default(1)
-  priority              String?  @db.VarChar(50)
+  priority              PriorityLevel?
+  priority_reason       String?  @db.Text
   week_no               Int?
   complete_date         DateTime? @db.Date
   failure_details       String?  @db.Text
@@ -117,7 +133,7 @@ model FaiRequest {
   estimated_date        DateTime? @db.Date
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
-  status                String   @default("Draft") @db.VarChar(50)
+  status                RequestStatus @default(Draft)
   result                String?  @db.VarChar(50)
   person_in_charge      String?  @db.VarChar(255)
   address               String?  @db.VarChar(255)
@@ -144,11 +160,13 @@ model LabRequest {
   project_name      String?  @db.VarChar(255)
   revision          String?  @db.VarChar(50)
   stage             String?  @db.VarChar(100)
-  priority          String   @default("Mid") @db.VarChar(50)
+  priority          PriorityLevel?
   priority_reason   String?  @db.Text
+  week_no           Int?
   request_date      DateTime @db.Date
   estimated_date    DateTime? @db.Date
-  status            String   @default("Draft") @db.VarChar(50)
+  complete_date     DateTime? @db.Date
+  status            RequestStatus @default(Draft)
   requestor_id      Int
   approved_by       Int?
   sample_received_date DateTime? @db.Date
@@ -160,6 +178,8 @@ model LabRequest {
 
   requestor         User     @relation("LabRequestor", fields: [requestor_id], references: [id])
   approver          User?    @relation("LabApprover", fields: [approved_by], references: [id])
+  inspector_id      Int?
+  inspector         User?    @relation("LabInspector", fields: [inspector_id], references: [id])
   workOrders        LabWorkOrder[]
   images            LabRequestImage[]
 

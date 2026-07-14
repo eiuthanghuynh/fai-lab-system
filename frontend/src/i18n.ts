@@ -115,7 +115,7 @@ const messages = {
       saving_draft: 'Saving draft...',
       draft_saved: 'Draft saved successfully',
       draft_error: 'Draft save error',
-      detail_title: 'Request Details',
+      detail_title: 'FAI - Request Details',
       back_to_list: 'Back to List',
       general_information: 'General Information',
       submission_contents: 'Submission Contents',
@@ -126,9 +126,9 @@ const messages = {
       inspector: 'Inspector',
       assign_title: 'Assign Inspector',
       assign_desc: 'Select an inspector and priority level for this request.',
-      priority_high: 'High',
-      priority_medium: 'Medium',
-      priority_low: 'Low'
+      priority_urgent: 'Urgent',
+      priority_normal: 'Normal',
+      priority_reason: 'Priority Reason'
     },
     lab: {
       form_title: 'LAB Request Form',
@@ -136,12 +136,14 @@ const messages = {
       search_placeholder: 'Search by model, project, product SN...',
       create_new: 'Create LAB Request',
       details: 'Request Details',
+      assign: 'Assign',
+      detail_title: 'LAB - Request Details',
       columns: {
         id: 'ID',
         model_no: 'Model No',
         model_description: 'Model Description',
         quantity: 'Quantity',
-        product_sn: 'Product SN',
+        product_sn: 'Product S\u200BN',
         project_name: 'Project Name',
         stage: 'Stage',
         priority: 'Priority',
@@ -182,7 +184,7 @@ const messages = {
       confirm: 'Confirm',
       cancel: 'Cancel',
       delete_confirm: 'Are you sure you want to delete this item?',
-      choose_language: 'Choose language',
+      choose_language: 'Choose Language',
       dark_mode: 'Dark Mode',
       submit_request: 'Send Recovery Request'
     },
@@ -294,7 +296,11 @@ const messages = {
       email_exists: 'Email already exists.',
       employee_id_exists: 'Employee ID already exists.',
       save_failed: 'An error occurred while saving. Please try again.',
-      role_required: 'Please select at least 1 role.'
+      role_required: 'Please select at least 1 role.',
+      validation_failed: 'Validation is failed, please review and try again.',
+      required_field: 'This field is required.',
+      sample_qty_fai_bounds: 'Sample quantity must be between 3 and 20.',
+      sample_qty_lab_bounds: 'Sample quantity must be between 1 and 20.'
     },
     error_page: {
       unauthorized_title: '401',
@@ -441,7 +447,7 @@ const messages = {
       saving_draft: 'Đang lưu bản nháp...',
       draft_saved: 'Đã lưu bản nháp',
       draft_error: 'Lỗi lưu bản nháp',
-      detail_title: 'Chi tiết yêu cầu',
+      detail_title: 'FAI - Chi tiết yêu cầu',
       back_to_list: 'Quay lại danh sách',
       general_information: 'Thông tin chung',
       submission_contents: 'Nội dung đính kèm',
@@ -452,9 +458,9 @@ const messages = {
       inspector: 'Người Inspect',
       assign_title: 'Phân công Người Inspect',
       assign_desc: 'Vui lòng chọn người Inspect và mức độ ưu tiên.',
-      priority_high: 'Cao (High)',
-      priority_medium: 'Trung bình (Medium)',
-      priority_low: 'Thấp (Low)'
+      priority_urgent: 'Urgent',
+      priority_normal: 'Normal',
+      priority_reason: 'Lý do ưu tiên'
     },
     lab: {
       form_title: 'LAB Request',
@@ -462,12 +468,13 @@ const messages = {
       search_placeholder: 'Tìm kiếm theo model, project, product SN...',
       details: 'Chi tiết',
       assign: 'Phân công',
+      detail_title: 'LAB - Chi tiết yêu cầu',
       columns: {
         id: 'ID',
         model_no: 'Mã Model',
         model_description: 'Mô tả Model',
         quantity: 'Số lượng',
-        product_sn: 'Product SN',
+        product_sn: 'Product S\u200BN',
         project_name: 'Tên Dự án',
         stage: 'Giai đoạn',
         priority: 'Mức ưu tiên',
@@ -620,7 +627,11 @@ const messages = {
       email_exists: 'Email đã tồn tại.',
       employee_id_exists: 'Mã nhân viên đã tồn tại.',
       save_failed: 'Đã xảy ra lỗi khi lưu. Vui lòng thử lại.',
-      role_required: 'Vui lòng chọn ít nhất 1 quyền (Role).'
+      role_required: 'Vui lòng chọn ít nhất 1 quyền (Role).',
+      validation_failed: 'Xác thực thông tin thất bại, vui lòng kiểm tra thông tin và thử lại.',
+      required_field: 'Trường này là bắt buộc.',
+      sample_qty_fai_bounds: 'Số lượng mẫu phải từ 3 đến 20.',
+      sample_qty_lab_bounds: 'Số lượng mẫu phải từ 1 đến 20.'
     },
     error_page: {
       unauthorized_title: '401',

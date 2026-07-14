@@ -34,6 +34,7 @@ const getRequests = async (req, res) => {
 
     if (search) {
       where.OR = [
+        { test_no: { contains: search, mode: 'insensitive' } },
         { model_no: { contains: search, mode: 'insensitive' } },
         { project_name: { contains: search, mode: 'insensitive' } },
         { product_sn: { contains: search, mode: 'insensitive' } }
@@ -81,6 +82,9 @@ const getRequests = async (req, res) => {
         approver: {
           select: { full_name: true }
         },
+        inspector: {
+          select: { id: true, full_name: true }
+        },
         workOrders: {
           where: { is_active: true },
           include: {
@@ -120,6 +124,9 @@ const getRequestById = async (req, res) => {
       include: {
         requestor: {
           select: { full_name: true, username: true }
+        },
+        inspector: {
+          select: { id: true, full_name: true }
         },
         workOrders: {
           where: { is_active: true },
@@ -164,7 +171,7 @@ const generateTestNo = async () => {
   const year = today.getFullYear();
   const month = String(today.getMonth() + 1).padStart(2, '0');
   const day = String(today.getDate()).padStart(2, '0');
-  const datePrefix = `${year}${month}${day}-`;
+  const datePrefix = `LAB${year}${month}${day}-`;
 
   const lastRequest = await prisma.labRequest.findFirst({
     where: {
@@ -198,8 +205,15 @@ const saveDraft = async (req, res) => {
       revision,
       stage,
       file_ids = [],
-      idempotency_key
+      idempotency_key,
+      priority,
+      priority_reason
     } = req.body;
+
+    const parsedQuantity = quantity ? parseInt(quantity) : 1;
+    if (parsedQuantity < 1 || parsedQuantity > 20) {
+      return res.status(400).json({ error: 'error.sample_qty_lab_bounds' });
+    }
 
     // Idempotency Check using Redis for Draft
     if (idempotency_key) {
@@ -217,15 +231,17 @@ const saveDraft = async (req, res) => {
     const requestData = {
       model_no: model_no || '',
       model_description: model_description || '',
-      quantity: quantity ? parseInt(quantity) : 1,
+      quantity: parsedQuantity,
       product_sn: product_sn || '',
       project_name: project_name || '',
       revision: revision || '',
       stage: stage || '',
       request_date: new Date(),
       status: 'Draft',
-      requestor_id: req.user.id,
-      priority: 'Medium'
+      requestor: { connect: { id: req.user.id } },
+      priority: priority || null,
+      priority_reason: priority_reason || null,
+      week_no: getWeek(new Date())
     };
 
     if (id) {
@@ -234,12 +250,8 @@ const saveDraft = async (req, res) => {
         data: requestData
       });
     } else {
-      const test_no = await generateTestNo();
       request = await prisma.labRequest.create({
-        data: {
-          ...requestData,
-          test_no
-        }
+        data: requestData
       });
     }
 
@@ -290,11 +302,30 @@ const submitRequest = async (req, res) => {
       revision,
       stage,
       file_ids = [],
-      idempotency_key
+      idempotency_key,
+      priority,
+      priority_reason
     } = req.body;
 
-    if (!model_no || !quantity) {
-      return res.status(400).json({ error: 'Model number and quantity are required.' });
+    if (!model_no || !quantity || !model_description || !product_sn || !project_name || !revision) {
+      return res.status(400).json({ error: 'error.required_field' });
+    }
+
+    const parsedQuantity = quantity ? parseInt(quantity) : 1;
+    if (parsedQuantity < 1 || parsedQuantity > 20) {
+      return res.status(400).json({ error: 'error.sample_qty_lab_bounds' });
+    }
+    
+    if (stage && stage.startsWith('Prototype')) {
+      const parts = stage.split(' ');
+      if (parts.length > 1) {
+        const protoNum = parseInt(parts[1]);
+        if (isNaN(protoNum) || protoNum < 1 || protoNum > 20) {
+          return res.status(400).json({ error: 'error.sample_qty_lab_bounds' });
+        }
+      } else {
+         return res.status(400).json({ error: 'error.sample_qty_lab_bounds' }); // missing number
+      }
     }
 
     // Idempotency Check using Redis
@@ -312,7 +343,7 @@ const submitRequest = async (req, res) => {
     const requestData = {
       model_no,
       model_description: model_description || '',
-      quantity: parseInt(quantity),
+      quantity: parsedQuantity,
       product_sn: product_sn || '',
       project_name: project_name || '',
       revision: revision || '',
@@ -320,16 +351,23 @@ const submitRequest = async (req, res) => {
       request_date: new Date(),
       status: 'Backlog',
       idempotency_key,
-      requestor_id: req.user.id,
-      priority: 'Medium' // default
+      requestor: { connect: { id: req.user.id } },
+      priority: priority || null,
+      priority_reason: priority_reason || null,
+      week_no: getWeek(new Date())
     };
 
     let request;
     if (id) {
       // Edit mode (if it was draft or we allow editing)
+      const existingDraft = await prisma.labRequest.findUnique({ where: { id: parseInt(id) } });
+      const test_no = existingDraft.test_no || await generateTestNo();
       request = await prisma.labRequest.update({
         where: { id: parseInt(id) },
-        data: requestData
+        data: {
+          ...requestData,
+          test_no
+        }
       });
     } else {
       const test_no = await generateTestNo();
@@ -384,16 +422,22 @@ const submitRequest = async (req, res) => {
 const assignRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const { priority } = req.body;
+    const { priority, priority_reason, inspector_id } = req.body;
 
-    if (!priority) {
-      return res.status(400).json({ error: 'Priority is required for assignment' });
+    if (!priority || !inspector_id) {
+      return res.status(400).json({ error: 'Priority and inspector_id are required for assignment' });
+    }
+
+    if (priority === 'Urgent' && (!priority_reason || priority_reason.trim() === '')) {
+      return res.status(400).json({ error: 'Priority reason is required for Urgent priority' });
     }
 
     const updatedRequest = await prisma.labRequest.update({
       where: { id: parseInt(id) },
       data: {
+        inspector: { connect: { id: parseInt(inspector_id) } },
         priority,
+        priority_reason,
         status: 'Assigned' // Status moves to Assigned once prioritised and ready for WO creation
       }
     });
@@ -430,7 +474,7 @@ const uploadFiles = async (req, res) => {
         data: {
           request_id: 0, // temp placeholder
           request_type: 'LAB',
-          file_name: file.originalname,
+          file_name: Buffer.from(file.originalname, 'latin1').toString('utf8'),
           file_url: file.filename
         }
       });
@@ -506,12 +550,48 @@ const deleteDraft = async (req, res) => {
   }
 };
 
+const getInspectors = async (req, res) => {
+  try {
+    const inspectors = await prisma.user.findMany({
+      where: {
+        is_active: true,
+        roles: {
+          some: {
+            role: {
+              is_active: true,
+              permissions: {
+                some: {
+                  is_active: true,
+                  permission: {
+                    name: 'INSPECT_LAB',
+                    is_active: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      select: {
+        id: true,
+        full_name: true,
+        username: true
+      }
+    });
+    res.json({ success: true, data: inspectors });
+  } catch (err) {
+    console.error('getInspectors error:', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+};
+
 module.exports = {
   getRequests,
   getRequestById,
   saveDraft,
   submitRequest,
   assignRequest,
+  getInspectors,
   uploadFiles,
   deleteDraft
 };

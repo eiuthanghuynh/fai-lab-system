@@ -99,8 +99,28 @@ const checkPermission = (permissionName) => {
   };
 };
 
+const checkAnyPermission = (permissionNames) => {
+  return async (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated.' });
+    }
+    
+    const permissions = await getUserPermissions(req.user.id);
+    if (!permissions) {
+      return res.status(403).json({ error: `Permission denied.` });
+    }
+
+    const hasAny = permissionNames.some(p => permissions.includes(p));
+    if (!hasAny) {
+      return res.status(403).json({ error: `Permission denied. Requires one of: ${permissionNames.join(', ')}` });
+    }
+    next();
+  };
+};
+
 module.exports = {
   authenticateToken,
   checkPermission,
+  checkAnyPermission,
   getUserPermissions
 };

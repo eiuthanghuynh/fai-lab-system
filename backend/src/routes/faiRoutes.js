@@ -4,7 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const faiController = require('../controllers/faiController');
-const { authenticateToken } = require('../middlewares/authMiddleware');
+const { authenticateToken, checkPermission } = require('../middlewares/authMiddleware');
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, '../../uploads');
@@ -39,6 +39,6 @@ router.delete('/:id', faiController.deleteDraft);
 router.post('/upload', upload.array('files'), faiController.uploadFiles);
 router.post('/draft', faiController.saveDraft);
 router.post('/', faiController.submitRequest);
-router.post('/:id/assign', faiController.assignRequest);
+router.post('/:id/assign', checkPermission('ASSIGN_FAI'), faiController.assignRequest);
 
 module.exports = router;

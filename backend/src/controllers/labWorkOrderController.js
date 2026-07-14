@@ -152,7 +152,7 @@ const uploadWorkOrderFiles = async (req, res) => {
         data: {
           request_id: 0, // temp placeholder
           request_type: 'LAB_WORK_ORDER',
-          file_name: file.originalname,
+          file_name: Buffer.from(file.originalname, 'latin1').toString('utf8'),
           file_url: file.filename
         }
       });

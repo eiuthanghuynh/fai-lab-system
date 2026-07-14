@@ -3,6 +3,8 @@ import { ref, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
+import { z } from 'zod';
+import { useFormValidation } from '@/composables/useFormValidation';
 import { toast } from 'vue-sonner';
 import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
 import Input from '@/components/ui/Input.vue';
@@ -13,6 +15,22 @@ import Checkbox from '@/components/ui/Checkbox.vue';
 const router = useRouter();
 const route = useRoute();
 const { t } = useI18n();
+
+const { formErrors, validate, clearError, clearAllErrors } = useFormValidation();
+
+const faiRequestSchema = z.object({
+  project_name: z.string().min(1, 'error.required_field'),
+  part_no: z.string().min(1, 'error.required_field'),
+  part_name: z.string().min(1, 'error.required_field'),
+  revision: z.string().min(1, 'error.required_field'),
+  supplier_name: z.string().min(1, 'error.required_field'),
+  address: z.string().min(1, 'error.required_field'),
+  commodity_part: z.union([z.number(), z.string()]).refine(val => val !== '', 'error.required_field'),
+  person_in_charge: z.string().min(1, 'error.required_field'),
+  sample_qty: z.number().min(3, 'error.sample_qty_fai_bounds').max(20, 'error.sample_qty_fai_bounds'),
+  part_type: z.string().min(1, 'error.required_field').refine(val => val !== 'Others:', 'error.required_field'),
+  reason_for_submission: z.string().min(1, 'error.required_field').refine(val => val !== 'Others:' && val !== 'ECO:', 'error.required_field')
+});
 
 // Form Fields
 const requestId = ref<number | null>(null);
@@ -26,7 +44,7 @@ const commodityPart = ref<number | ''>('');
 const commodityPartOptions = ref<{ value: number, label: string }[]>([]);
 const personInCharge = ref('');
 const trackingNo = ref('');
-const sampleQty = ref<number>(1);
+const sampleQty = ref<number>(3);
 const submissionTime = ref<number>(1);
 
 // Checkbox selections
@@ -35,6 +53,7 @@ const partTypeOthersText = ref('');
 
 const reasonForSubmission = ref(''); // initial, eco, process, others
 const reasonOthersText = ref('');
+const ecoText = ref('');
 
 const submissionContents = ref<Record<string, boolean>>({
   psw: false,
@@ -136,8 +155,9 @@ const saveAsDraft = async () => {
       tracking_no: trackingNo.value,
       sample_qty: sampleQty.value,
       submission_time: submissionTime.value,
-      part_type: partType.value === 'Others' ? partTypeOthersText.value : partType.value,
-      reason_for_submission: reasonForSubmission.value === 'Others' ? reasonOthersText.value : reasonForSubmission.value,
+      part_type: partType.value === 'Others' ? (partTypeOthersText.value ? `Others: ${partTypeOthersText.value}` : 'Others:') : partType.value,
+      reason_for_submission: reasonForSubmission.value === 'Others' ? (reasonOthersText.value ? `Others: ${reasonOthersText.value}` : 'Others:') : 
+                             (reasonForSubmission.value === 'ECO' ? (ecoText.value ? `ECO: ${ecoText.value}` : 'ECO:') : reasonForSubmission.value),
       submission_contents: submissionContents.value,
       file_ids: fileIds.value,
       idempotency_key: idempotencyKey.value
@@ -164,8 +184,27 @@ const saveAsDraft = async () => {
 
 // Final Submission
 const submitForm = async () => {
-  if (!partNo.value || !partName.value || !supplierName.value || !revision.value || !address.value || !commodityPart.value || !personInCharge.value) {
-    toast.error('Please fill out all required fields.');
+  clearAllErrors();
+  const finalPartType = partType.value === 'Others' ? (partTypeOthersText.value ? `Others: ${partTypeOthersText.value}` : 'Others:') : partType.value;
+  const finalReason = reasonForSubmission.value === 'Others' ? (reasonOthersText.value ? `Others: ${reasonOthersText.value}` : 'Others:') : 
+                      (reasonForSubmission.value === 'ECO' ? (ecoText.value ? `ECO: ${ecoText.value}` : 'ECO:') : reasonForSubmission.value);
+
+  const validationPayload = {
+    project_name: projectName.value,
+    part_no: partNo.value,
+    part_name: partName.value,
+    revision: revision.value,
+    supplier_name: supplierName.value,
+    address: address.value,
+    commodity_part: commodityPart.value,
+    person_in_charge: personInCharge.value,
+    sample_qty: sampleQty.value,
+    part_type: finalPartType,
+    reason_for_submission: finalReason
+  };
+
+  if (!validate(faiRequestSchema, validationPayload)) {
+    toast.error(t('error.validation_failed'));
     return;
   }
 
@@ -183,8 +222,8 @@ const submitForm = async () => {
       tracking_no: trackingNo.value,
       sample_qty: sampleQty.value,
       submission_time: submissionTime.value,
-      part_type: partType.value === 'Others' ? partTypeOthersText.value : partType.value,
-      reason_for_submission: reasonForSubmission.value === 'Others' ? reasonOthersText.value : reasonForSubmission.value,
+      part_type: finalPartType,
+      reason_for_submission: finalReason,
       submission_contents: submissionContents.value,
       file_ids: fileIds.value,
       idempotency_key: idempotencyKey.value
@@ -195,11 +234,19 @@ const submitForm = async () => {
       toast.success(t('toast.create_success'));
       router.push({ name: 'fai-request-list' });
     } else {
+      if (res.data.error) {
+        toast.error(t(res.data.error));
+      } else {
+        toast.error(t('toast.action_failed'));
+      }
+    }
+  } catch (err: any) {
+    if (err.response?.data?.error) {
+      toast.error(t(err.response.data.error));
+    } else {
       toast.error(t('toast.action_failed'));
     }
-  } catch (err) {
-    console.error('Submit FAI Request failed:', err);
-    toast.error(t('toast.action_failed'));
+    console.error(err);
   }
 };
 
@@ -305,27 +352,27 @@ onMounted(async () => {
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">Project Name: <span class="text-[#ef4444]">*</span></label>
-                <Input type="text" v-model="projectName" :placeholder="t('fai.placeholder.project_name')" required />
+                <Input type="text" v-model="projectName" :placeholder="t('fai.placeholder.project_name')" :error="formErrors.project_name ? t(formErrors.project_name) : undefined" required />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">Part Number: <span class="text-[#ef4444]">*</span></label>
-                <Input type="text" v-model="partNo" :placeholder="t('fai.placeholder.part_no')" required />
+                <Input type="text" v-model="partNo" :placeholder="t('fai.placeholder.part_no')" :error="formErrors.part_no ? t(formErrors.part_no) : undefined" required />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">Part Name: <span class="text-[#ef4444]">*</span></label>
-                <Input type="text" v-model="partName" :placeholder="t('fai.placeholder.part_name')" required />
+                <Input type="text" v-model="partName" :placeholder="t('fai.placeholder.part_name')" :error="formErrors.part_name ? t(formErrors.part_name) : undefined" required />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">Part Rev: <span class="text-[#ef4444]">*</span></label>
-                <Input type="text" v-model="revision" :placeholder="t('fai.placeholder.revision')" required />
+                <Input type="text" v-model="revision" :placeholder="t('fai.placeholder.revision')" :error="formErrors.revision ? t(formErrors.revision) : undefined" required />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">Supplier Name: <span class="text-[#ef4444]">*</span></label>
-                <Input type="text" v-model="supplierName" :placeholder="t('fai.placeholder.supplier_name')" required />
+                <Input type="text" v-model="supplierName" :placeholder="t('fai.placeholder.supplier_name')" :error="formErrors.supplier_name ? t(formErrors.supplier_name) : undefined" required />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">Supplier Address: <span class="text-[#ef4444]">*</span></label>
-                <Input type="text" v-model="address" :placeholder="t('fai.placeholder.address')" required />
+                <Input type="text" v-model="address" :placeholder="t('fai.placeholder.address')" :error="formErrors.address ? t(formErrors.address) : undefined" required />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">Commodity Part: <span class="text-[#ef4444]">*</span></label>
@@ -333,11 +380,12 @@ onMounted(async () => {
                   v-model="commodityPart" 
                   :options="commodityPartOptions" 
                   :placeholder="t('fai.placeholder.commodity_part')" 
+                  :error="formErrors.commodity_part ? t(formErrors.commodity_part) : undefined"
                 />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">R&D Person In Charge: <span class="text-[#ef4444]">*</span></label>
-                <Input type="text" v-model="personInCharge" :placeholder="t('fai.placeholder.person_in_charge')" required />
+                <Input type="text" v-model="personInCharge" :placeholder="t('fai.placeholder.person_in_charge')" :error="formErrors.person_in_charge ? t(formErrors.person_in_charge) : undefined" required />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">Shipment Tracking No.:</label>
@@ -345,7 +393,7 @@ onMounted(async () => {
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">Sample Quantity: <span class="text-[#ef4444]">*</span></label>
-                <Input type="number" v-model="sampleQty" min="1" max="20" required placeholder="1-20" />
+                <Input type="number" v-model="sampleQty" :min="3" :max="20" :error="formErrors.sample_qty ? t(formErrors.sample_qty) : undefined" required />
                 <input type="hidden" v-model="submissionTime" />
               </div>
             </div>
@@ -362,9 +410,10 @@ onMounted(async () => {
                   <Input 
                     v-if="partType === 'Others'" 
                     type="text" 
-                    :value="partTypeOthersText"
-                    @input="partTypeOthersText = ($event.target as HTMLInputElement).value.toUpperCase()"
+                    :modelValue="partTypeOthersText"
+                    @update:modelValue="partTypeOthersText = ($event || '').toString().toUpperCase()"
                     :placeholder="t('fai.placeholder.specify')" 
+                    :error="formErrors.part_type ? t(formErrors.part_type) : undefined"
                     required
                   />
                 </div>
@@ -376,11 +425,14 @@ onMounted(async () => {
               <h3 class="text-base font-semibold mt-0 mb-3 text-text">{{ t('fai.reason') }}:</h3>
               <div class="flex flex-wrap items-center gap-x-6 gap-y-4">
                 <Radio value="Initial Submission" v-model="reasonForSubmission">Initial Submission for This Part Number</Radio>
-                <Radio value="ECO" v-model="reasonForSubmission">ECO</Radio>
+                <div class="flex items-center gap-2">
+                  <Radio value="ECO" v-model="reasonForSubmission">ECO</Radio>
+                  <Input v-if="reasonForSubmission === 'ECO'" type="text" v-model="ecoText" :placeholder="t('fai.placeholder.specify')" :error="formErrors.reason_for_submission ? t(formErrors.reason_for_submission) : undefined" required />
+                </div>
                 <Radio value="Process" v-model="reasonForSubmission">Process: Transfer, replacement, refurbishment etc.</Radio>
                 <div class="flex items-center gap-2">
                   <Radio value="Others" v-model="reasonForSubmission">Others:</Radio>
-                  <Input v-if="reasonForSubmission === 'Others'" type="text" v-model="reasonOthersText" :placeholder="t('fai.placeholder.specify')" required />
+                  <Input v-if="reasonForSubmission === 'Others'" type="text" v-model="reasonOthersText" :placeholder="t('fai.placeholder.specify')" :error="formErrors.reason_for_submission ? t(formErrors.reason_for_submission) : undefined" required />
                 </div>
               </div>
             </div>

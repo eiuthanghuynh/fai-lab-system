@@ -13,6 +13,7 @@ import DataTable, { type DataTableColumn } from '@/components/common/DataTable.v
 import StatusBadge from '@/components/common/StatusBadge.vue';
 import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
 import MultiSelectDropdown from '@/components/common/MultiSelectDropdown.vue';
+import ActionDropdown from '@/components/common/ActionDropdown.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 import Checkbox from '@/components/ui/Checkbox.vue';
@@ -54,7 +55,7 @@ const columns = computed<DataTableColumn[]>(() => [
   { key: 'badge_color', label: t('table.badge_color'), minWidth: '100px' },
   { key: 'permissions', label: t('table.permissions'), minWidth: '300px' },
   { key: 'status', label: t('table.status'), sortable: true, sticky: 'right', minWidth: '170px', width: '170px' },
-  { key: 'actions', label: t('admin.actions'), sticky: 'right', minWidth: '200px', width: '200px' }
+  { key: 'actions', label: t('admin.actions'), sticky: 'right', minWidth: '120px', width: '120px', align: 'center' }
 ]);
 
 const filterPermissionIds = ref<number[]>([]);
@@ -199,20 +200,13 @@ const toggleActive = async (role: any) => {
   }
 };
 
-const togglePermission = (permId: number) => {
-  const index = formData.value.permission_ids.indexOf(permId);
-  if (index === -1) {
-    formData.value.permission_ids.push(permId);
-  } else {
-    formData.value.permission_ids.splice(index, 1);
-  }
-};
+
 </script>
 
 <template>
   <div class="flex flex-col gap-6 h-full p-8 overflow-hidden">
     <div class="flex justify-between items-center">
-      <h1 class="m-0 text-2xl font-semibold text-text">{{ t('admin.roles') }}</h1>
+      <h1 class="text-2xl">{{ t('admin.roles') }}</h1>
     </div>
 
     <DataTableToolbar 
@@ -236,7 +230,7 @@ const togglePermission = (permId: number) => {
           />
         </div>
 
-        <Button variant="secondary" @click="resetFilters" class="px-3" :title="t('action.reset')">
+        <Button variant="secondary" @click="resetFilters" class="px-3 gap-2" :title="t('action.reset')">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
           {{ t('action.reset') }}
         </Button>
@@ -276,11 +270,23 @@ const togglePermission = (permId: number) => {
           <StatusBadge :isActive="item.is_active" :activeText="t('status.active')" :inactiveText="t('status.inactive')" />
         </template>
         <template #cell-actions="{ item }">
-          <div class="flex gap-2">
-            <Button variant="secondary" size="sm" @click="openModal(item)">{{ t('admin.edit_role') }}</Button>
-            <Button :variant="item.is_active ? 'danger' : 'secondary'" size="sm" @click="toggleActive(item)">
-              {{ item.is_active ? t('admin.delete_role') : t('admin.restore_role') }}
-            </Button>
+          <div class="flex justify-center w-full">
+            <ActionDropdown>
+              <button 
+                @click="openModal(item)"
+                class="w-full text-left px-4 py-2 text-sm text-text hover:bg-bg hover:text-primary transition-colors"
+              >
+                {{ t('admin.edit_role') }}
+              </button>
+              <div class="h-px bg-border my-1"></div>
+              <button 
+                @click="toggleActive(item)"
+                class="w-full text-left px-4 py-2 text-sm font-medium transition-colors"
+                :class="item.is_active ? 'text-danger hover:bg-red-50 hover:text-red-700' : 'text-primary hover:bg-bg hover:text-primary-dark'"
+              >
+                {{ item.is_active ? t('admin.delete_role') : t('admin.restore_role') }}
+              </button>
+            </ActionDropdown>
           </div>
         </template>
       </DataTable>
@@ -331,15 +337,15 @@ const togglePermission = (permId: number) => {
           <div class="flex items-center mb-2">
             <label class="font-semibold text-text m-0">{{ t('form.permissions') }}</label>
           </div>
-          <div class="grid grid-cols-3 gap-4 p-5 border border-border rounded-lg bg-bg max-h-[250px] overflow-y-auto">
-            <label v-for="perm in allPermissions" :key="perm.id" class="flex items-start gap-2 cursor-pointer text-[0.95rem] text-text p-1 rounded transition-colors hover:bg-white/5">
-              <Checkbox 
-                :checked="formData.permission_ids.includes(perm.id)"
-                @change="togglePermission(perm.id)"
-                class="mt-1"
-              />
-              <span class="leading-snug">{{ perm.name }}</span>
-            </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 p-5 border border-border rounded-lg bg-bg max-h-[250px] overflow-y-auto">
+            <Checkbox 
+              v-for="perm in allPermissions" 
+              :key="perm.id"
+              v-model="formData.permission_ids"
+              :value="perm.id"
+              :label="perm.name"
+              class="!px-2 !py-1.5 hover:bg-white/5 transition-colors rounded"
+            />
           </div>
         </div>
       </form>

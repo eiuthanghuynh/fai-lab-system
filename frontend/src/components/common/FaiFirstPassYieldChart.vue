@@ -164,6 +164,19 @@ const chartData = computed(() => {
   }
 })
 
+const chartDataInvisible = computed(() => {
+  const base = chartData.value;
+  return {
+    ...base,
+    datasets: base.datasets.map(ds => ({
+      ...ds,
+      borderColor: 'transparent',
+      backgroundColor: 'transparent',
+      datalabels: { display: false }
+    }))
+  }
+})
+
 const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
@@ -188,17 +201,17 @@ const chartOptions = computed(() => ({
       type: 'linear' as const,
       display: true,
       position: 'left' as const,
-      title: { display: true, text: 'Quantity', color: textColor.value },
+      title: { display: true, text: 'Quantity', color: textColor.value, padding: { bottom: 12 } },
       ticks: { color: textColor.value },
       grid: { color: gridColor.value },
       min: 0,
-      suggestedMax: Math.max(...props.data.map(d => d.received)) + 10
+      max: Math.max(...props.data.map(d => d.received)) + 10
     },
     y1: {
       type: 'linear' as const,
       display: true,
       position: 'right' as const,
-      title: { display: true, text: 'Percentage (%)', color: textColor.value },
+      title: { display: true, text: 'Percentage (%)', color: textColor.value, padding: { bottom: 12 } },
       ticks: { color: textColor.value, callback: (v: number) => v + '%' },
       grid: { display: false },
       min: 0,
@@ -206,6 +219,50 @@ const chartOptions = computed(() => ({
     }
   }
 }))
+
+const yAxisLeftBgPlugin = {
+  id: 'yAxisLeftBgPlugin',
+  beforeDraw(chart: any) {
+    const { ctx, chartArea } = chart;
+    if (!chartArea) return;
+    ctx.save();
+    ctx.fillStyle = isDark.value ? '#1f2937' : '#ffffff';
+    ctx.fillRect(0, 0, chartArea.left, chart.height);
+    ctx.restore();
+  }
+};
+
+const yAxisRightBgPlugin = {
+  id: 'yAxisRightBgPlugin',
+  beforeDraw(chart: any) {
+    const { ctx, chartArea } = chart;
+    if (!chartArea) return;
+    ctx.save();
+    ctx.fillStyle = isDark.value ? '#1f2937' : '#ffffff';
+    ctx.fillRect(chartArea.right, 0, chart.width - chartArea.right, chart.height);
+    ctx.restore();
+  }
+};
+
+const chartOptionsSticky = computed(() => {
+  const base = chartOptions.value;
+  return {
+    ...base,
+    animation: false,
+    plugins: {
+      ...base.plugins,
+      tooltip: { enabled: false }
+    },
+    scales: {
+      ...base.scales,
+      x: {
+        ...base.scales.x,
+        ticks: { color: 'transparent' }
+      }
+    }
+  }
+})
+
 </script>
 
 <template>
@@ -216,8 +273,8 @@ const chartOptions = computed(() => ({
         <Input 
           v-model.number="goalRate" 
           type="number" 
-          min="0" 
-          max="100" 
+          :min="0" 
+          :max="100" 
           class="w-20 !py-1 text-center font-bold text-blue-600"
         />
       </div>
@@ -233,10 +290,26 @@ const chartOptions = computed(() => ({
         <div class="flex items-center gap-1.5"><div class="w-4 h-4 bg-yellow-500 rounded-sm"></div> Failure Lots</div>
       </div>
 
-      <!-- Chart Area with Horizontal Scroll -->
-      <div class="overflow-x-auto w-full mb-6 is-scrollbar-idle" ref="chartContainerRef" @scroll="wakeScrollbar" @mousemove="wakeScrollbar">
-        <div style="min-width: 3000px; height: 400px;">
-          <Bar :data="chartData" :options="chartOptions" />
+      <!-- Chart Area with Horizontal Scroll and Sticky Axes -->
+      <div class="relative w-full mb-6">
+        <!-- Sticky Left Axis -->
+        <div class="absolute left-0 top-0 h-[400px] w-[100px] bg-transparent z-10 pointer-events-none overflow-hidden">
+          <div style="min-width: 3000px; height: 400px;">
+            <Bar :data="chartDataInvisible" :options="chartOptionsSticky" :plugins="[yAxisLeftBgPlugin]" />
+          </div>
+        </div>
+        
+        <!-- Sticky Right Axis -->
+        <div class="absolute right-0 top-0 h-[400px] w-[100px] bg-transparent z-10 pointer-events-none overflow-hidden">
+          <div style="min-width: 3000px; height: 400px; position: absolute; right: 0;">
+            <Bar :data="chartDataInvisible" :options="chartOptionsSticky" :plugins="[yAxisRightBgPlugin]" />
+          </div>
+        </div>
+
+        <div class="overflow-x-auto w-full is-scrollbar-idle" ref="chartContainerRef" @scroll="wakeScrollbar" @mousemove="wakeScrollbar">
+          <div style="min-width: 3000px; height: 400px;">
+            <Bar :data="chartData" :options="chartOptions" />
+          </div>
         </div>
       </div>
 
@@ -271,8 +344,8 @@ const chartOptions = computed(() => ({
               <td v-for="d in props.data" :key="d.week" class="py-2 px-3 border-r border-border font-bold text-text">{{ d.passRate }}%</td>
             </tr>
             <tr>
-              <td class="py-2 px-3 border-r border-border font-medium sticky left-0 bg-amber-100 dark:bg-amber-800 z-10 text-left">Pending FAI (qty)</td>
-              <td v-for="d in props.data" :key="d.week" class="py-2 px-3 border-r border-border text-amber-900 dark:text-amber-100 bg-amber-50 dark:bg-amber-900">{{ d.pending || 0 }}</td>
+              <td class="py-2 px-3 border-r border-border font-medium sticky left-0 bg-yellow-200 dark:bg-yellow-600 z-10 text-left">Pending FAI (qty)</td>
+              <td v-for="d in props.data" :key="d.week" class="py-2 px-3 border-r border-border text-center bg-yellow-50 dark:bg-yellow-600">{{ d.pending || 0 }}</td>
             </tr>
           </tbody>
         </table>

@@ -124,10 +124,8 @@ const getDashboardStats = async (req, res) => {
         count: c._count.commodity_part
       })).sort((a, b) => b.count - a.count);
 
-      // Process weekly data for First Pass Yield
-      // We proactively generate 52/53 weeks of the current year (or from the query 'year' filter)
       const currentYearForWeek = year ? parseInt(year.split(',')[0]) : new Date().getFullYear();
-      const numWeeks = 52; // Assuming 52 weeks for standard, could be 53
+      const numWeeks = 53;
       const weeklyYieldMap = {};
       
       for (let i = 1; i <= numWeeks; i++) {
@@ -149,11 +147,8 @@ const getDashboardStats = async (req, res) => {
           const count = d._count.id;
           wObj.received += count;
           
-          if (d.status === 'Closed') {
+          if (['Ongoing', 'Closed'].includes(d.status)) {
             wObj.inspection += count;
-          }
-          if (['Ongoing', 'Assigned', 'Backlog', 'Evaluating'].includes(d.status)) {
-            wObj.pending += count;
           }
           
           if (d.result === 'Fail') {
@@ -166,6 +161,7 @@ const getDashboardStats = async (req, res) => {
       });
 
       const weeklyYield = Object.values(weeklyYieldMap).map(w => {
+        w.pending = w.received - w.inspection;
         w.passRate = (w.pass + w.failure) > 0 ? ((w.pass / (w.pass + w.failure)) * 100).toFixed(2) : '0.00';
         return w;
       });

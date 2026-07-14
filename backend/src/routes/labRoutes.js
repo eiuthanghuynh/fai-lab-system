@@ -6,7 +6,7 @@ const fs = require('fs');
 
 const labController = require('../controllers/labController');
 const labWorkOrderController = require('../controllers/labWorkOrderController');
-const { authenticateToken } = require('../middlewares/authMiddleware');
+const { authenticateToken, checkPermission } = require('../middlewares/authMiddleware');
 
 const uploadsDir = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -32,13 +32,14 @@ const upload = multer({
 router.use(authenticateToken);
 
 // Request endpoints
+router.get('/inspectors/list', labController.getInspectors);
 router.get('/requests', labController.getRequests);
 router.get('/requests/:id', labController.getRequestById);
 router.post('/requests/upload', upload.array('files'), labController.uploadFiles);
 router.post('/requests/draft', labController.saveDraft);
 router.post('/requests', labController.submitRequest);
 router.delete('/requests/:id/draft', labController.deleteDraft);
-router.post('/requests/:id/assign', labController.assignRequest);
+router.post('/requests/:id/assign', checkPermission('ASSIGN_LAB'), labController.assignRequest);
 
 // Work Order endpoints
 router.get('/requests/:requestId/work-orders', labWorkOrderController.getByRequestId);

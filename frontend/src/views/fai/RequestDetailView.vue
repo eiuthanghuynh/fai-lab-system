@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import PdfViewer from '@/components/common/PdfViewer.vue';
+import DetailCard from '@/components/common/DetailCard.vue';
 import StatusBadge from '@/components/common/StatusBadge.vue';
 import Button from '@/components/ui/Button.vue';
 
@@ -97,6 +98,14 @@ const fetchRequestDetails = async () => {
 onMounted(() => {
   fetchRequestDetails();
 });
+
+const goBack = () => {
+  if (window.history.state.back) {
+    router.back();
+  } else {
+    router.push({ name: 'fai-request-list' });
+  }
+};
 </script>
 
 <template>
@@ -106,7 +115,7 @@ onMounted(() => {
       <!-- Header -->
       <div class="flex justify-between items-center border-b border-border pb-4">
         <div class="flex items-center gap-6">
-          <Button variant="secondary" class="gap-2" @click="router.push({ name: 'fai-request-list' })">
+          <Button variant="secondary" class="gap-2" @click="goBack">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
@@ -145,9 +154,12 @@ onMounted(() => {
           <div class="flex flex-col gap-6">
             
             <!-- Card 1: General Information -->
-            <div class="bg-bg-surface border border-border rounded-lg p-6 shadow-sm">
-              <h3 class="mt-0 mb-5 text-[1.15rem] font-semibold text-primary border-b border-border pb-2">{{ t('fai.general_information') }}</h3>
+            <DetailCard :title="t('fai.general_information')">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div class="flex flex-col gap-1.5">
+                  <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Test No.</span>
+                  <span class="text-[0.95rem] font-mono text-primary break-all">{{ request.test_no || '-' }}</span>
+                </div>
                 <div class="flex flex-col gap-1.5">
                   <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Requestor Name</span>
                   <span class="text-[0.95rem] text-text break-all">{{ request.requestor?.full_name || request.requestor?.username || '-' }}</span>
@@ -197,11 +209,10 @@ onMounted(() => {
                   <span class="text-[0.95rem] text-text break-all">{{ request.reason_for_submission || '-' }}</span>
                 </div>
               </div>
-            </div>
+            </DetailCard>
 
             <!-- Card 2: Sample & Schedule Info -->
-            <div class="bg-bg-surface border border-border rounded-lg p-6 shadow-sm">
-              <h3 class="mt-0 mb-5 text-[1.15rem] font-semibold text-primary border-b border-border pb-2">Sample & Schedule</h3>
+            <DetailCard title="Sample & Schedule">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div class="flex flex-col gap-1.5">
                   <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Sample Qty</span>
@@ -211,9 +222,13 @@ onMounted(() => {
                   <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Submission Time</span>
                   <span class="text-[0.95rem] text-text break-all">{{ formatOrdinal(request.submission_time) }}</span>
                 </div>
-                <div class="flex flex-col gap-1.5">
-                  <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Priority</span>
-                  <span class="text-[0.95rem] text-text break-all">{{ request.priority || '-' }}</span>
+                <div class="flex flex-col gap-1">
+                  <label class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">{{ t('fai.priority') }}</label>
+                  <span class="text-[0.95rem] font-medium" :class="{'text-[#ff5555]': request.priority === 'Urgent', 'text-text': request.priority !== 'Urgent'}">{{ request.priority || '-' }}</span>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <label class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">{{ t('fai.priority_reason') }}</label>
+                  <span class="text-[0.95rem] font-medium break-all" :class="{'text-[#ff5555]': request.priority === 'Urgent', 'text-text': request.priority !== 'Urgent'}">{{ request.priority_reason || '-' }}</span>
                 </div>
                 <div class="flex flex-col gap-1.5">
                   <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Week</span>
@@ -240,7 +255,7 @@ onMounted(() => {
                   <span class="text-[0.95rem] text-text break-all">{{ formatDate(request.updated_at) }}</span>
                 </div>
               </div>
-            </div>
+            </DetailCard>
 
           </div>
 
@@ -248,8 +263,7 @@ onMounted(() => {
           <div class="flex flex-col gap-6">
 
             <!-- Card 3: Inspection Result -->
-            <div class="bg-bg-surface border border-border rounded-lg p-6 shadow-sm">
-              <h3 class="mt-0 mb-5 text-[1.15rem] font-semibold text-primary border-b border-border pb-2">Inspection Result</h3>
+            <DetailCard title="Inspection Result">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div class="flex flex-col gap-1.5">
                   <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Inspector Name</span>
@@ -276,11 +290,10 @@ onMounted(() => {
                   <span class="text-[0.95rem] text-text break-all">{{ request.remark || '-' }}</span>
                 </div>
               </div>
-            </div>
+            </DetailCard>
 
             <!-- Card 4: Submission Contents Checklist -->
-            <div class="bg-bg-surface border border-border rounded-lg p-6 shadow-sm">
-              <h3 class="mt-0 mb-5 text-[1.15rem] font-semibold text-primary border-b border-border pb-2">{{ t('fai.submission_contents') }}</h3>
+            <DetailCard :title="t('fai.submission_contents')">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-5">
                 <div 
                   v-for="item in checklistItems" 
@@ -300,7 +313,7 @@ onMounted(() => {
                   <span class="leading-snug">{{ item.label }}</span>
                 </div>
               </div>
-            </div>
+            </DetailCard>
             
           </div>
           

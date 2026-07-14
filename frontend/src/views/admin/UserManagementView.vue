@@ -1,19 +1,22 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { getContrastColor } from '../../utils/color';
 import api from '@/services/api';
 import ConfirmModal from '@/components/ConfirmModal.vue';
+import DataTable, { type DataTableColumn } from '@/components/common/DataTable.vue';
 import Pagination from '@/components/Pagination.vue';
 import StatusBadge from '@/components/common/StatusBadge.vue';
 import RoleBadgeList from '@/components/common/RoleBadgeList.vue';
 import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
 import MultiSelectDropdown from '@/components/common/MultiSelectDropdown.vue';
+import ActionDropdown from '@/components/common/ActionDropdown.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 import { useDataTable } from '@/composables/useDataTable';
 import { useAuthStore } from '@/stores/auth';
+import { useFormValidation } from '@/composables/useFormValidation';
 import { toast } from 'vue-sonner';
+import { z } from 'zod';
 
 const authStore = useAuthStore();
 const { t } = useI18n();
@@ -28,10 +31,18 @@ const isModalOpen = ref(false);
 const isEditing = ref(false);
 
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-const passwordError = computed(() => {
-  if (isEditing.value && !formData.value.password) return false;
-  if (!formData.value.password) return false;
-  return !passwordRegex.test(formData.value.password);
+const { formErrors, validate, setApiError, clearError, clearAllErrors } = useFormValidation();
+
+const getUserSchema = () => z.object({
+  username: z.string().min(1, 'form.required'),
+  email: z.string().min(1, 'form.required').email('error.email_format'),
+  full_name: z.string().min(1, 'form.required'),
+  employee_id: z.string().min(1, 'form.required'),
+  password: isEditing.value 
+    ? z.union([z.string().regex(passwordRegex, 'error.password_format'), z.literal('')])
+    : z.string().regex(passwordRegex, 'error.password_format'),
+  role_ids: z.array(z.number()).min(1, 'error.role_required'),
+  department: z.string().optional()
 });
 
 const confirmModalState = ref({
@@ -71,7 +82,7 @@ const columns = computed<DataTableColumn[]>(() => [
   { key: 'created_at', label: t('filter.created_date'), sortable: true, minWidth: '150px' },
   { key: 'updated_at', label: t('filter.updated_date'), sortable: true, minWidth: '150px' },
   { key: 'status', label: t('user.status'), sortable: true, sticky: 'right', minWidth: '170px', width: '170px' },
-  { key: 'actions', label: t('user.actions'), sticky: 'right', minWidth: '260px', width: '260px' }
+  { key: 'actions', label: t('user.actions'), sticky: 'right', minWidth: '120px', width: '120px', align: 'center' }
 ]);
 
 // Dropdown options
@@ -175,19 +186,13 @@ const openModal = (user: any = null) => {
 
 const closeModal = () => {
   isModalOpen.value = false;
+  clearAllErrors();
 };
 
 const saveUser = async () => {
-  if (passwordError.value) return;
-
-  if (!formData.value.role_ids || formData.value.role_ids.length === 0) {
-    confirmModalState.value = {
-      isOpen: true,
-      message: t('error.role_required') || 'Vui lòng chọn ít nhất 1 quyền (Role).',
-      isDanger: true,
-      onConfirm: () => { confirmModalState.value.isOpen = false; },
-      hideCancel: true
-    };
+  const schema = getUserSchema();
+  if (!validate(schema, formData.value)) {
+    toast.error(t('error.validation_failed') || 'Vui lòng kiểm tra lại thông tin');
     return;
   }
 
@@ -206,13 +211,14 @@ const saveUser = async () => {
     fetchUsers();
   } catch (err: any) {
     console.error(err);
-    let errorCode = err.response?.data?.error || 'save_failed';
-    // If backend returns a string with spaces or unmapped error, fallback to save_failed
-    if (!['password_format', 'username_exists', 'email_exists', 'employee_id_exists'].includes(errorCode)) {
-      errorCode = 'save_failed';
+    const errorCode = err.response?.data?.error || 'save_failed';
+    
+    if (errorCode === 'username_exists') setApiError('username', 'error.username_exists');
+    else if (errorCode === 'email_exists') setApiError('email', 'error.email_exists');
+    else if (errorCode === 'employee_id_exists') setApiError('employee_id', 'error.employee_id_exists');
+    else {
+      toast.error(t(`error.${errorCode}`));
     }
-    const message = t(`error.${errorCode}`);
-    toast.error(message);
   }
 };
 
@@ -249,7 +255,7 @@ const toggleActive = async (user: any) => {
 <template>
   <div class="flex flex-col gap-6 h-full p-8 overflow-hidden">
     <div class="flex justify-between items-center">
-      <h1 class="m-0 text-2xl font-semibold text-text">{{ t('admin.users') }}</h1>
+      <h1 class="text-2xl">{{ t('admin.users') }}</h1>
     </div>
 
     <DataTableToolbar 
@@ -278,7 +284,7 @@ const toggleActive = async (user: any) => {
           </div>
         </div>
         
-        <Button variant="secondary" @click="resetFilters" class="px-3" :title="t('action.reset')">
+        <Button variant="secondary" @click="resetFilters" class="px-3 gap-2" :title="t('action.reset')">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
           {{ t('action.reset') }}
         </Button>
@@ -329,11 +335,23 @@ const toggleActive = async (user: any) => {
           <StatusBadge :isActive="item.is_active" :activeText="t('status.active')" :inactiveText="t('status.inactive')" />
         </template>
         <template #cell-actions="{ item }">
-          <div class="flex gap-2">
-            <Button variant="secondary" size="sm" @click="openModal(item)">{{ t('admin.edit_user') }}</Button>
-            <Button :variant="item.is_active ? 'danger' : 'secondary'" size="sm" @click="toggleActive(item)">
-              {{ item.is_active ? t('admin.delete_user') : t('admin.restore_user') }}
-            </Button>
+          <div class="flex justify-center w-full">
+            <ActionDropdown>
+              <button 
+                @click="openModal(item)"
+                class="w-full text-left px-4 py-2 text-sm text-text hover:bg-bg hover:text-primary transition-colors"
+              >
+                {{ t('admin.edit_user') }}
+              </button>
+              <div class="h-px bg-border my-1"></div>
+              <button 
+                @click="toggleActive(item)"
+                class="w-full text-left px-4 py-2 text-sm font-medium transition-colors"
+                :class="item.is_active ? 'text-danger hover:bg-red-50 hover:text-red-700' : 'text-primary hover:bg-bg hover:text-primary-dark'"
+              >
+                {{ item.is_active ? t('admin.delete_user') : t('admin.restore_user') }}
+              </button>
+            </ActionDropdown>
           </div>
         </template>
       </DataTable>
@@ -352,7 +370,7 @@ const toggleActive = async (user: any) => {
             <p class="text-[0.8rem] text-text-muted m-0 leading-snug">{{ t('form.username_desc') }}</p>
           </div>
           <div class="flex flex-col">
-            <Input v-model="formData.username" required />
+            <Input v-model="formData.username" :error="formErrors.username ? t(formErrors.username) : ''" @clear-error="clearError('username')" />
           </div>
         </div>
 
@@ -371,10 +389,9 @@ const toggleActive = async (user: any) => {
             <Input 
               type="password" 
               v-model="formData.password" 
-              :required="!isEditing" 
-              :class="{ 'border-danger focus:border-danger focus:ring-danger/20': passwordError }"
+              :error="formErrors.password ? t(formErrors.password) : ''" 
+              @clear-error="clearError('password')"
             />
-            <p v-if="passwordError" class="text-[0.8rem] text-danger mt-1 m-0 leading-snug">{{ t('error.password_format') }}</p>
           </div>
         </div>
 
@@ -387,7 +404,7 @@ const toggleActive = async (user: any) => {
             <p class="text-[0.8rem] text-text-muted m-0 leading-snug">{{ t('form.full_name_desc') }}</p>
           </div>
           <div class="flex flex-col">
-            <Input v-model="formData.full_name" :placeholder="t('form.full_name_placeholder')" required />
+            <Input v-model="formData.full_name" :placeholder="t('form.full_name_placeholder')" :error="formErrors.full_name ? t(formErrors.full_name) : ''" @clear-error="clearError('full_name')" />
           </div>
         </div>
 
@@ -400,7 +417,7 @@ const toggleActive = async (user: any) => {
             <p class="text-[0.8rem] text-text-muted m-0 leading-snug">{{ t('form.employee_id_desc') }}</p>
           </div>
           <div class="flex flex-col">
-            <Input v-model="formData.employee_id" :placeholder="t('form.employee_id_placeholder')" required />
+            <Input v-model="formData.employee_id" :placeholder="t('form.employee_id_placeholder')" :error="formErrors.employee_id ? t(formErrors.employee_id) : ''" @clear-error="clearError('employee_id')" />
           </div>
         </div>
 
@@ -413,7 +430,7 @@ const toggleActive = async (user: any) => {
             <p class="text-[0.8rem] text-text-muted m-0 leading-snug">{{ t('form.email_desc') }}</p>
           </div>
           <div class="flex flex-col">
-            <Input type="email" v-model="formData.email" required />
+            <Input type="email" v-model="formData.email" :error="formErrors.email ? t(formErrors.email) : ''" @clear-error="clearError('email')" />
           </div>
         </div>
 
@@ -425,7 +442,7 @@ const toggleActive = async (user: any) => {
             <p class="text-[0.8rem] text-text-muted m-0 leading-snug">{{ t('form.department_desc') }}</p>
           </div>
           <div class="flex flex-col">
-            <Input v-model="formData.department" :placeholder="t('form.department_placeholder')" />
+            <Input v-model="formData.department" :placeholder="t('form.department_placeholder')" :error="formErrors.department ? t(formErrors.department) : ''" @clear-error="clearError('department')" />
           </div>
         </div>
 
@@ -441,8 +458,10 @@ const toggleActive = async (user: any) => {
             <MultiSelectDropdown 
               v-model="formData.role_ids" 
               :options="roles.map((r: any) => ({ value: r.id, label: r.name }))" 
-              variant="form" 
+              variant="form"
+              @update:modelValue="clearError('role_ids')"
             />
+            <p v-if="formErrors.role_ids" class="text-[0.8rem] text-danger mt-1 m-0">{{ t(formErrors.role_ids) }}</p>
           </div>
         </div>
       </form>

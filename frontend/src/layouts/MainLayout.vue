@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useAuthStore } from '../stores/auth';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useDark, useToggle } from '@vueuse/core';
 import { getContrastColor } from '../utils/color';
@@ -14,6 +14,7 @@ import Button from '../components/ui/Button.vue';
 
 const authStore = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 const { t } = useI18n();
 
 const showLogoutConfirm = ref(false);
@@ -74,10 +75,12 @@ const toggleDark = () => {
         <h2 class="text-primary text-xl m-0 text-center font-bold">FAI/LAB System</h2>
       </div>
       <nav class="flex-1 py-6 flex flex-col overflow-y-auto">
-        <router-link to="/" class="px-6 py-3 text-text-muted font-medium border-l-[3px] border-transparent flex justify-between items-center cursor-pointer no-underline hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:text-text [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('nav.home') }}</router-link>
+        <router-link to="/" class="px-6 py-3 text-text-muted font-medium border-l-[3px] border-transparent flex justify-between items-center cursor-pointer no-underline hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('nav.home') }}</router-link>
         
         <div v-if="hasAccess('fai-request-create') || hasAccess('fai-request-list')" class="flex flex-col">
-          <div class="px-6 py-3 text-text-muted font-medium border-l-[3px] border-transparent flex justify-between items-center cursor-pointer select-none hover:text-text hover:bg-white/5 hover:border-primary" @click="toggleFaiMenu">
+          <div class="px-6 py-3 font-medium border-l-[3px] border-transparent flex justify-between items-center cursor-pointer select-none hover:text-text hover:bg-white/5 hover:border-primary transition-colors" 
+               :class="route.path.startsWith('/fai') ? 'text-primary border-primary' : 'text-text-muted'"
+               @click="toggleFaiMenu">
             <span>{{ t('nav.fai_requests') }}</span>
             <span class="text-[0.7rem] transition-transform duration-300" :class="{ 'rotate-180': isFaiMenuOpen }">▼</span>
           </div>
@@ -90,13 +93,15 @@ const toggleDark = () => {
             leave-to-class="max-h-0 opacity-0"
           >
             <div v-show="isFaiMenuOpen" class="flex flex-col bg-black/10 overflow-hidden">
-              <router-link v-if="hasAccess('fai-request-create')" to="/fai/request/create" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:text-text [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('nav.create_request') }}</router-link>
-              <router-link v-if="hasAccess('fai-request-list')" to="/fai/request/list" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:text-text [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('nav.view_requests') }}</router-link>
+              <router-link v-if="hasAccess('fai-request-create')" to="/fai/request/create" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('nav.create_request') }}</router-link>
+              <router-link v-if="hasAccess('fai-request-list')" to="/fai/request/list" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('nav.view_requests') }}</router-link>
             </div>
           </Transition>
         </div>
         <div v-if="hasAccess('lab-request-create') || hasAccess('lab-request-list')" class="flex flex-col">
-          <div class="px-6 py-3 text-text-muted font-medium border-l-[3px] border-transparent flex justify-between items-center cursor-pointer select-none hover:text-text hover:bg-white/5 hover:border-primary" @click="toggleLabMenu">
+          <div class="px-6 py-3 font-medium border-l-[3px] border-transparent flex justify-between items-center cursor-pointer select-none hover:text-text hover:bg-white/5 hover:border-primary transition-colors"
+               :class="route.path.startsWith('/lab') ? 'text-primary border-primary' : 'text-text-muted'"
+               @click="toggleLabMenu">
             <span>{{ t('nav.lab_requests') }}</span>
             <span class="text-[0.7rem] transition-transform duration-300" :class="{ 'rotate-180': isLabMenuOpen }">▼</span>
           </div>
@@ -109,13 +114,15 @@ const toggleDark = () => {
             leave-to-class="max-h-0 opacity-0"
           >
             <div v-show="isLabMenuOpen" class="flex flex-col bg-black/10 overflow-hidden">
-              <router-link v-if="hasAccess('lab-request-create')" to="/lab/request/create" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:text-text [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('nav.create_request') }}</router-link>
-              <router-link v-if="hasAccess('lab-request-list')" to="/lab/request/list" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:text-text [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('nav.view_requests') }}</router-link>
+              <router-link v-if="hasAccess('lab-request-create')" to="/lab/request/create" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('nav.create_request') }}</router-link>
+              <router-link v-if="hasAccess('lab-request-list')" to="/lab/request/list" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('nav.view_requests') }}</router-link>
             </div>
           </Transition>
         </div>
         <div v-if="hasAccess('admin-users') || hasAccess('admin-roles')" class="flex flex-col">
-          <div class="px-6 py-3 text-text-muted font-medium border-l-[3px] border-transparent flex justify-between items-center cursor-pointer select-none hover:text-text hover:bg-white/5 hover:border-primary" @click="toggleDbMenu">
+          <div class="px-6 py-3 font-medium border-l-[3px] border-transparent flex justify-between items-center cursor-pointer select-none hover:text-text hover:bg-white/5 hover:border-primary transition-colors"
+               :class="route.path.startsWith('/admin') ? 'text-primary border-primary' : 'text-text-muted'"
+               @click="toggleDbMenu">
             <span>{{ t('nav.db_management') }}</span>
             <span class="text-[0.7rem] transition-transform duration-300" :class="{ 'rotate-180': isDbMenuOpen }">▼</span>
           </div>
@@ -128,10 +135,10 @@ const toggleDark = () => {
             leave-to-class="max-h-0 opacity-0"
           >
             <div v-show="isDbMenuOpen" class="flex flex-col bg-black/10 overflow-hidden">
-              <router-link v-if="hasAccess('admin-users')" to="/admin/users" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:text-text [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.users') }}</router-link>
-              <router-link v-if="hasAccess('admin-roles')" to="/admin/roles" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:text-text [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.roles') }}</router-link>
-              <router-link v-if="hasAccess('admin-roles')" to="/admin/fai-failure-modes" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:text-text [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.fai_failure_modes', 'FAI Failure Modes') }}</router-link>
-              <router-link v-if="hasAccess('admin-roles')" to="/admin/commodity-parts" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:text-text [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.commodity_parts', 'Commodity Parts') }}</router-link>
+              <router-link v-if="hasAccess('admin-users')" to="/admin/users" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.users') }}</router-link>
+              <router-link v-if="hasAccess('admin-roles')" to="/admin/roles" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.roles') }}</router-link>
+              <router-link v-if="hasAccess('admin-roles')" to="/admin/fai-failure-modes" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.fai_failure_modes', 'FAI Failure Modes') }}</router-link>
+              <router-link v-if="hasAccess('admin-roles')" to="/admin/commodity-parts" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.commodity_parts', 'Commodity Parts') }}</router-link>
             </div>
           </Transition>
         </div>

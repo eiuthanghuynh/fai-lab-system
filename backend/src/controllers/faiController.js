@@ -19,6 +19,33 @@ async function getAttachmentUrl(att) {
 }
 
 
+const generateTestNo = async () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const datePrefix = `FAI${year}${month}${day}-`; // Use FAI prefix to distinguish from LAB if desired, or just same
+
+  const lastRequest = await prisma.faiRequest.findFirst({
+    where: {
+      test_no: {
+        startsWith: datePrefix
+      }
+    },
+    orderBy: {
+      test_no: 'desc'
+    }
+  });
+
+  if (lastRequest && lastRequest.test_no) {
+    const lastNum = parseInt(lastRequest.test_no.split('-')[1], 10);
+    const newNum = String(lastNum + 1).padStart(4, '0');
+    return `${datePrefix}${newNum}`;
+  } else {
+    return `${datePrefix}0001`;
+  }
+};
+
 const getRequests = async (req, res) => {
   try {
     const { 
@@ -56,10 +83,12 @@ const getRequests = async (req, res) => {
 
     if (search) {
       where.OR = [
+        { test_no: { contains: search, mode: 'insensitive' } },
         { part_no: { contains: search, mode: 'insensitive' } },
         { part_name: { contains: search, mode: 'insensitive' } },
         { supplier_name: { contains: search, mode: 'insensitive' } },
-        { tracking_no: { contains: search, mode: 'insensitive' } }
+        { tracking_no: { contains: search, mode: 'insensitive' } },
+        { project_name: { contains: search, mode: 'insensitive' } }
       ];
     }
 
@@ -209,7 +238,7 @@ const uploadFiles = async (req, res) => {
         data: {
           request_id: 0, // temp placeholder
           request_type: 'FAI',
-          file_name: file.originalname,
+          file_name: Buffer.from(file.originalname, 'latin1').toString('utf8'),
           file_url: file.filename
         }
       });
@@ -248,6 +277,11 @@ const saveDraft = async (req, res) => {
       idempotency_key
     } = req.body;
 
+    const parsedSampleQty = sample_qty ? parseInt(sample_qty) : 3;
+    if (parsedSampleQty < 3 || parsedSampleQty > 20) {
+      return res.status(400).json({ error: 'error.sample_qty_fai_bounds' });
+    }
+
     // Idempotency Check using Redis for Draft
     if (idempotency_key) {
       const redisKey = `idempotency:draft:${idempotency_key}`;
@@ -273,7 +307,7 @@ const saveDraft = async (req, res) => {
       part_type: part_type || '',
       reason_for_submission: reason_for_submission || '',
       submission_contents: submission_contents || {},
-      sample_qty: sample_qty ? parseInt(sample_qty) : 1,
+      sample_qty: parsedSampleQty,
       submission_time: submission_time ? parseInt(submission_time) : 1,
       priority: priority || null,
       failure_details: failure_details || null,
@@ -282,17 +316,15 @@ const saveDraft = async (req, res) => {
       project_name: project_name || 'FAI-PROJECT',
       form_data: req.body, // full backup
       status: 'Draft',
-      requestor_id: req.user.id
+      requestor: { connect: { id: req.user.id } }
     };
 
     if (id) {
-      // Update existing draft
       request = await prisma.faiRequest.update({
         where: { id: parseInt(id) },
         data: requestData
       });
     } else {
-      // Create new draft
       request = await prisma.faiRequest.create({
         data: requestData
       });
@@ -350,7 +382,12 @@ const submitRequest = async (req, res) => {
 
     // 1. Validate required fields for final submission
     if (!project_name || !part_no || !part_name || !supplier_name || !revision || !address || !commodity_part || !person_in_charge) {
-      return res.status(400).json({ error: 'Required fields are missing.' });
+      return res.status(400).json({ error: 'error.required_field' });
+    }
+
+    const parsedSampleQty = sample_qty ? parseInt(sample_qty) : 3;
+    if (parsedSampleQty < 3 || parsedSampleQty > 20) {
+      return res.status(400).json({ error: 'error.sample_qty_fai_bounds' });
     }
 
     // 2. Idempotency Check using Redis
@@ -379,7 +416,7 @@ const submitRequest = async (req, res) => {
       part_type: part_type || '',
       reason_for_submission: reason_for_submission || '',
       submission_contents: submission_contents || {},
-      sample_qty: sample_qty ? parseInt(sample_qty) : 1,
+      sample_qty: parsedSampleQty,
       submission_time: submission_time ? parseInt(submission_time) : 1,
       priority: priority || null,
       failure_details: failure_details || null,
@@ -389,19 +426,28 @@ const submitRequest = async (req, res) => {
       form_data: req.body,
       status: 'Backlog',
       idempotency_key,
-      requestor_id: req.user.id
+      requestor: { connect: { id: req.user.id } }
     };
 
     if (id) {
       // Update existing draft to submitted
+      const existingDraft = await prisma.faiRequest.findUnique({ where: { id: parseInt(id) } });
+      const test_no = existingDraft.test_no || await generateTestNo();
       request = await prisma.faiRequest.update({
         where: { id: parseInt(id) },
-        data: requestData
+        data: {
+          ...requestData,
+          test_no
+        }
       });
     } else {
+      const test_no = await generateTestNo();
       // Create new request
       request = await prisma.faiRequest.create({
-        data: requestData
+        data: {
+          ...requestData,
+          test_no
+        }
       });
     }
 
@@ -596,20 +642,23 @@ const getInspectors = async (req, res) => {
 const assignRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const { inspector_id, priority } = req.body;
+    const { inspector_id, priority, priority_reason } = req.body;
 
-    // Optional: could add explicit permission check here if not handled by a middleware
-    // We assume the frontend hides the button, but backend should ideally verify req.user has ASSIGN_FAI
 
     if (!inspector_id || !priority) {
       return res.status(400).json({ error: 'Missing inspector_id or priority' });
     }
 
+    if (priority === 'Urgent' && (!priority_reason || priority_reason.trim() === '')) {
+      return res.status(400).json({ error: 'Priority reason is required for Urgent priority' });
+    }
+
     const updatedRequest = await prisma.faiRequest.update({
       where: { id: parseInt(id) },
       data: {
-        inspector_id: parseInt(inspector_id),
+        inspector: { connect: { id: parseInt(inspector_id) } },
         priority,
+        priority_reason,
         status: 'Ongoing'
       }
     });

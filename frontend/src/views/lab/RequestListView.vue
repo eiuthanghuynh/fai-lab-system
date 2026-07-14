@@ -11,7 +11,9 @@ import StatusBadge from '@/components/common/StatusBadge.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
 import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
 import BaseModal from '@/components/common/BaseModal.vue';
+import ActionDropdown from '@/components/common/ActionDropdown.vue';
 import Button from '@/components/ui/Button.vue';
+import Textarea from '@/components/ui/Textarea.vue';
 import { useDataTable } from '@/composables/useDataTable';
 import { useAuthStore } from '@/stores/auth';
 import { toast } from 'vue-sonner';
@@ -42,6 +44,7 @@ const columns = computed<DataTableColumn[]>(() => [
   { key: 'stage', label: t('lab.columns.stage'), sortable: true, minWidth: '120px' },
   { key: 'priority', label: t('lab.columns.priority'), sortable: true, minWidth: '120px' },
   { key: 'priority_reason', label: 'Priority Reason', sortable: true, minWidth: '150px' },
+  { key: 'week_no', label: 'Week', sortable: true, minWidth: '100px' },
   { key: 'estimated_date', label: t('fai.columns.estimated_date'), sortable: true, minWidth: '150px' },
   { key: 'inspector_name', label: t('fai.inspector', 'Inspector'), sortable: false, minWidth: '150px' },
   { key: 'approved_by', label: 'Approved By', sortable: false, minWidth: '150px' },
@@ -49,7 +52,7 @@ const columns = computed<DataTableColumn[]>(() => [
   { key: 'return_date', label: 'Return Date', sortable: true, minWidth: '150px' },
   { key: 'result', label: t('fai.columns.result'), sortable: true, sticky: 'right', minWidth: '120px' },
   { key: 'status', label: t('lab.columns.status'), sortable: true, sticky: 'right', minWidth: '160px', width: '160px' },
-  { key: 'actions', label: t('lab.columns.actions'), sticky: 'right', minWidth: '220px', width: '220px' }
+  { key: 'actions', label: t('lab.columns.actions'), sticky: 'right', minWidth: '120px', width: '120px', align: 'center' }
 ]);
 
 const getStatusVariant = (status: string) => {
@@ -66,23 +69,47 @@ const getStatusVariant = (status: string) => {
 const assignModalState = ref({
   isOpen: false,
   requestId: null as number | null,
-  priority: 'High'
+  inspectorId: '' as number | string,
+  priority: 'Normal',
+  priorityReason: ''
 });
 const priorityOptions = computed(() => [
-  { value: 'High', label: t('nav.priority_high', 'High') },
-  { value: 'Low', label: t('nav.priority_low', 'Low') }
+  { value: 'Urgent', label: t('fai.priority_urgent') },
+  { value: 'Normal', label: t('fai.priority_normal') }
 ]);
+const inspectorOptions = ref<{value: string|number, label: string}[]>([]);
 
-const openAssignModal = (item: any) => {
+const openAssignModal = async (item: any) => {
   assignModalState.value.requestId = item.id;
-  assignModalState.value.priority = 'High';
+  assignModalState.value.inspectorId = '';
+  assignModalState.value.priority = 'Normal';
+  assignModalState.value.priorityReason = '';
   assignModalState.value.isOpen = true;
+  if (inspectorOptions.value.length === 0) {
+    try {
+      const res = await api.get('/lab/inspectors/list');
+      inspectorOptions.value = res.data.data.map((u: any) => ({
+        value: u.id,
+        label: u.full_name
+      }));
+    } catch (e) {
+      console.error(e);
+    }
+  }
 };
 
 const handleAssign = async () => {
   try {
-    const { requestId, priority } = assignModalState.value;
-    await api.post(`/lab/requests/${requestId}/assign`, { priority });
+    const { requestId, inspectorId, priority, priorityReason } = assignModalState.value;
+    if (!inspectorId || !priority) {
+      toast.error(t('form.required'));
+      return;
+    }
+    if (priority === 'Urgent' && (!priorityReason || priorityReason.trim() === '')) {
+      toast.error(t('form.required'));
+      return;
+    }
+    await api.post(`/lab/requests/${requestId}/assign`, { inspector_id: inspectorId, priority, priority_reason: priorityReason });
     toast.success('Assigned successfully');
     assignModalState.value.isOpen = false;
     fetchRequests();
@@ -94,7 +121,7 @@ const handleAssign = async () => {
 
 const handleAction = (item: any) => {
   if (item.status === 'Draft') {
-    router.push({ name: 'lab-create-request', query: { id: item.id } });
+    router.push({ name: 'lab-request-create', query: { id: item.id } });
   } else {
     router.push({ name: 'lab-request-detail', params: { id: item.id } });
   }
@@ -184,7 +211,7 @@ const formatDateOnly = (dateString: string) => {
 <template>
   <div class="flex flex-col gap-6 h-full p-8 overflow-hidden box-border">
     <div class="flex justify-between items-center">
-      <h1 class="m-0 text-2xl font-semibold text-text">{{ t('lab.list_title') }}</h1>
+      <h1 class="text-2xl">{{ t('lab.list_title') }}</h1>
     </div>
 
     <DataTableToolbar 
@@ -210,16 +237,21 @@ const formatDateOnly = (dateString: string) => {
           {{ item.requestor?.full_name || item.requestor_id || '-' }}
         </template>
 
-        
         <template #cell-priority="{ item }">
-          <span v-if="item.priority" :class="[
-            'badge', 
-            item.priority === 'High' ? 'badge-danger' : 
-            (item.priority === 'Medium' ? 'badge-warning' : 'badge-success')
-          ]">
+          <span v-if="item.priority" :class="item.priority === 'Urgent' ? 'text-danger font-semibold' : ''">
             {{ item.priority }}
           </span>
           <span v-else class="text-muted">-</span>
+        </template>
+
+        <template #cell-priority_reason="{ item }">
+          <span 
+            class="block max-w-[150px] truncate" 
+            :class="item.priority === 'Urgent' ? 'text-danger font-semibold' : ''"
+            :title="item.priority_reason || ''"
+          >
+            {{ item.priority_reason || '-' }}
+          </span>
         </template>
 
         <template #cell-estimated_date="{ item }">
@@ -227,7 +259,7 @@ const formatDateOnly = (dateString: string) => {
         </template>
 
         <template #cell-inspector_name="{ item }">
-          {{ item.workOrders && item.workOrders.length > 0 && item.workOrders[0].technician ? item.workOrders[0].technician.full_name : '-' }}
+          {{ item.inspector?.full_name || (item.workOrders && item.workOrders.length > 0 && item.workOrders[0].technician ? item.workOrders[0].technician.full_name : '-') }}
         </template>
 
         <template #cell-approved_by="{ item }">
@@ -260,36 +292,36 @@ const formatDateOnly = (dateString: string) => {
         </template>
 
         <template #cell-actions="{ item }">
-          <div class="flex gap-2">
-            <Button 
-              size="sm" 
-              :variant="item.status === 'Draft' ? 'primary' : 'secondary'" 
+          <ActionDropdown>
+            <button 
               @click="handleAction(item)"
+              class="w-full text-left px-4 py-2 text-sm text-text hover:bg-bg hover:text-primary transition-colors"
             >
               {{ item.status === 'Draft' ? t('fai.edit_draft') : t('lab.details') }}
-            </Button>
-            <Button 
-              v-if="(item.status === 'Draft' && item.requestor_id === authStore.user?.id) || canManageRequestList"
-              size="sm" variant="danger" 
-              @click="deleteDraft(item.id)"
-            >
-              {{ item.status === 'Draft' ? t('fai.delete_draft') : t('action.delete') }}
-            </Button>
-            <Button 
+            </button>
+            <button 
               v-if="canAssignLab && item.status === 'Backlog'"
-              size="sm" variant="primary" 
               @click="openAssignModal(item)"
+              class="w-full text-left px-4 py-2 text-sm text-text hover:bg-bg hover:text-primary transition-colors"
             >
               {{ t('lab.assign') }}
-            </Button>
-            <Button 
+            </button>
+            <button 
               v-if="canInspectLab && item.status === 'Ongoing'"
-              size="sm" variant="primary" 
               @click="handleAction(item)"
+              class="w-full text-left px-4 py-2 text-sm text-text hover:bg-bg hover:text-primary transition-colors"
             >
               {{ t('fai.make_report') }}
-            </Button>
-          </div>
+            </button>
+            <div v-if="(item.status === 'Draft' && item.requestor_id === authStore.user?.id) || canManageRequestList" class="h-px bg-border my-1"></div>
+            <button 
+              v-if="(item.status === 'Draft' && item.requestor_id === authStore.user?.id) || canManageRequestList"
+              @click="deleteDraft(item.id)"
+              class="w-full text-left px-4 py-2 text-sm text-danger hover:bg-red-50 hover:text-red-700 font-medium transition-colors"
+            >
+              {{ item.status === 'Draft' ? t('fai.delete_draft') : t('action.delete') }}
+            </button>
+          </ActionDropdown>
         </template>
       </DataTable>
     </div>
@@ -297,20 +329,62 @@ const formatDateOnly = (dateString: string) => {
     <Pagination :total="totalRequests" v-model="page" v-model:rowsPerPage="limit" />
 
     <!-- Assign Modal -->
-    <BaseModal :isOpen="assignModalState.isOpen" title="Assign Priority" maxWidth="400px" @close="assignModalState.isOpen = false">
-      <form id="assignForm" @submit.prevent="handleAssign" class="flex flex-col gap-4">
-        <div class="flex flex-col gap-2">
-          <label class="text-[0.85rem] font-semibold text-text">Priority <span class="text-[#ef4444]">*</span></label>
-          <SingleSelectDropdown 
-            v-model="assignModalState.priority" 
-            :options="priorityOptions" 
-            placeholder="Select priority" 
-          />
+    <BaseModal :isOpen="assignModalState.isOpen" :title="t('fai.assign_title')" maxWidth="690px" @close="assignModalState.isOpen = false">
+      <form id="assignForm" @submit.prevent="handleAssign" class="flex flex-col gap-6">
+        <div class="grid grid-cols-[1fr_1.5fr] gap-8 items-center pb-2 border-b border-border">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text m-0">{{ t('fai.inspector', 'Inspector Name') }}</label>
+              <span class="text-[0.7rem] px-1.5 py-0.5 bg-[rgba(99,224,121,0.15)] text-primary rounded font-semibold leading-none">{{ t('form.required') }}</span>
+            </div>
+          </div>
+          <div class="flex flex-col">
+            <SingleSelectDropdown 
+              v-model="assignModalState.inspectorId" 
+              :options="inspectorOptions" 
+              :placeholder="t('form.required')" 
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-[1fr_1.5fr] gap-8 items-center pb-2">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text m-0">{{ t('fai.priority') }}</label>
+              <span class="text-[0.7rem] px-1.5 py-0.5 bg-[rgba(99,224,121,0.15)] text-primary rounded font-semibold leading-none">{{ t('form.required') }}</span>
+            </div>
+            <p class="text-[0.8rem] text-text-muted m-0 leading-[1.4]">{{ t('fai.assign_desc') }}</p>
+          </div>
+          <div class="flex flex-col">
+            <SingleSelectDropdown 
+              v-model="assignModalState.priority" 
+              :options="priorityOptions" 
+              :placeholder="t('form.required')" 
+            />
+          </div>
+        </div>
+        
+        <div v-if="assignModalState.priority === 'Urgent'" class="grid grid-cols-[1fr_1.5fr] gap-8 items-start pb-2">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text m-0">{{ t('fai.priority_reason') }}</label>
+              <span class="text-[0.7rem] px-1.5 py-0.5 bg-[rgba(99,224,121,0.15)] text-primary rounded font-semibold leading-none">{{ t('form.required') }}</span>
+            </div>
+          </div>
+          <div class="flex flex-col">
+            <Textarea 
+              v-model="assignModalState.priorityReason"
+              :placeholder="t('form.required')"
+              :rows="3"
+            />
+          </div>
         </div>
       </form>
       <template #footer>
-        <Button type="button" variant="ghost" @click="assignModalState.isOpen = false">{{ t('action.cancel') }}</Button>
-        <Button type="submit" form="assignForm" :loading="isLoading">Save</Button>
+        <Button type="button" variant="secondary" @click="assignModalState.isOpen = false">{{ t('action.cancel') }}</Button>
+        <Button type="submit" form="assignForm" :loading="isLoading">
+          {{ t('action.save') }}
+        </Button>
       </template>
     </BaseModal>
 

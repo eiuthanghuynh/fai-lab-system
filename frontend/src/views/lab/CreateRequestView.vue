@@ -4,6 +4,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import { toast } from 'vue-sonner';
+import { z } from 'zod';
+import { useFormValidation } from '@/composables/useFormValidation';
 import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
 import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
@@ -11,6 +13,29 @@ import Button from '@/components/ui/Button.vue';
 const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
+
+const { formErrors, validate, clearError, clearAllErrors } = useFormValidation();
+
+const labRequestSchema = z.object({
+  model_no: z.string().min(1, 'error.required_field'),
+  model_description: z.string().min(1, 'error.required_field'),
+  quantity: z.number().min(1, 'error.sample_qty_lab_bounds').max(20, 'error.sample_qty_lab_bounds'),
+  product_sn: z.string().min(1, 'error.required_field'),
+  project_name: z.string().min(1, 'error.required_field'),
+  revision: z.string().min(1, 'error.required_field'),
+  stage: z.string(),
+  prototype_number: z.number().optional()
+}).superRefine((data, ctx) => {
+  if (data.stage === 'Prototype') {
+    if (data.prototype_number === undefined || data.prototype_number < 1 || data.prototype_number > 20) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['prototype_number'],
+        message: 'error.sample_qty_lab_bounds'
+      });
+    }
+  }
+});
 
 const formData = ref({
   id: undefined as number | undefined,
@@ -142,11 +167,25 @@ const saveAsDraft = async () => {
 };
 
 const submitRequest = async () => {
+  clearAllErrors();
+  
+  const validationPayload = {
+    model_no: formData.value.model_no,
+    model_description: formData.value.model_description,
+    quantity: formData.value.quantity,
+    product_sn: formData.value.product_sn,
+    project_name: formData.value.project_name,
+    revision: formData.value.revision,
+    stage: formData.value.stage,
+    prototype_number: formData.value.prototype_number
+  };
+
+  if (!validate(labRequestSchema, validationPayload)) {
+    toast.error(t('error.validation_failed'));
+    return;
+  }
+
   try {
-    if (!formData.value.model_no || !formData.value.quantity) {
-      toast.error('Please fill all required fields');
-      return;
-    }
 
     isSubmitting.value = true;
     const fileIds = await uploadFiles();
@@ -173,7 +212,11 @@ const submitRequest = async () => {
     toast.success(t('toast.create_success'));
     router.push('/lab/request/list');
   } catch (err: any) {
-    toast.error(err.response?.data?.error || t('toast.error'));
+    if (err.response?.data?.error) {
+      toast.error(t(err.response.data.error));
+    } else {
+      toast.error(t('toast.error'));
+    }
   } finally {
     isSubmitting.value = false;
   }
@@ -207,27 +250,27 @@ const submitRequest = async () => {
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">{{ t('lab.columns.model_no') }}: <span class="text-[#ef4444]">*</span></label>
-                <Input type="text" v-model="formData.model_no" :placeholder="t('lab.columns.model_no')" required />
+                <Input type="text" v-model="formData.model_no" :placeholder="t('lab.columns.model_no')" :error="formErrors.model_no ? t(formErrors.model_no) : undefined" required />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">{{ t('lab.columns.model_description') }}: <span class="text-[#ef4444]">*</span></label>
-                <Input type="text" v-model="formData.model_description" :placeholder="t('lab.columns.model_description')" required />
+                <Input type="text" v-model="formData.model_description" :placeholder="t('lab.columns.model_description')" :error="formErrors.model_description ? t(formErrors.model_description) : undefined" required />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">{{ t('lab.columns.quantity') }}: <span class="text-[#ef4444]">*</span></label>
-                <Input type="number" v-model.number="formData.quantity" min="1" :placeholder="t('lab.columns.quantity')" required />
+                <Input type="number" v-model.number="formData.quantity" :min="1" :max="20" :placeholder="t('lab.columns.quantity')" :error="formErrors.quantity ? t(formErrors.quantity) : undefined" required />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">{{ t('lab.columns.product_sn') }}: <span class="text-[#ef4444]">*</span></label>
-                <Input type="text" v-model="formData.product_sn" :placeholder="t('lab.columns.product_sn')" required />
+                <Input type="text" v-model="formData.product_sn" :placeholder="t('lab.columns.product_sn')" :error="formErrors.product_sn ? t(formErrors.product_sn) : undefined" autocomplete="new-password" data-lpignore="true" required />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">{{ t('lab.columns.project_name') }}: <span class="text-[#ef4444]">*</span></label>
-                <Input type="text" v-model="formData.project_name" :placeholder="t('lab.columns.project_name')" required />
+                <Input type="text" v-model="formData.project_name" :placeholder="t('lab.columns.project_name')" :error="formErrors.project_name ? t(formErrors.project_name) : undefined" required />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">{{ t('fai.columns.revision') }}: <span class="text-[#ef4444]">*</span></label>
-                <Input type="text" v-model="formData.revision" :placeholder="t('fai.placeholder.revision')" required />
+                <Input type="text" v-model="formData.revision" :placeholder="t('fai.placeholder.revision')" :error="formErrors.revision ? t(formErrors.revision) : undefined" required />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="font-semibold text-base text-text">{{ t('lab.columns.stage') }}: <span class="text-[#ef4444]">*</span></label>
@@ -243,9 +286,10 @@ const submitRequest = async () => {
                     <Input 
                       v-model.number="formData.prototype_number" 
                       type="number" 
-                      min="1" 
-                      max="20"
+                      :min="1" 
+                      :max="20"
                       :placeholder="t('fai.columns.quantity')"
+                      :error="formErrors.prototype_number ? t(formErrors.prototype_number) : undefined"
                       required
                       class="w-full"
                     />
