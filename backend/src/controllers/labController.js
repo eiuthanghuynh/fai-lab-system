@@ -405,13 +405,6 @@ const submitRequest = async (req, res) => {
       await redis.set(redisKey, request.id.toString(), "EX", 600);
     }
 
-    // Add Notification Job to BullMQ Queue
-    await emailQueue.add("labRequestCreated", {
-      requestId: request.id,
-      email: req.user.email || "unknown@domain.com",
-      requestor: req.user.full_name || "System User",
-    });
-
     if (req.app.get('io')) {
       req.app.get('io').emit("lab-request-created", request);
     }

@@ -11,10 +11,6 @@ const initEmailWorker = () => {
         console.log(`[Worker] Processing sendResetPassword for ${email}...`);
         await sendResetPasswordEmail(email, resetLink);
         console.log(`[Worker] Completed sendResetPassword for ${email}`);
-      } else if (job.name === 'faiRequestCreated') {
-        const { requestId, email, requestor } = job.data;
-        console.log(`[Worker] Processing faiRequestCreated for Request ID ${requestId}...`);
-        console.log(`[Worker] Notification Success: FAI Request Created! Request ID: ${requestId}, Requestor: ${requestor} (${email}). Note: SMTP configuration can be integrated here later.`);
       }
     },
     {

@@ -10,7 +10,17 @@ const connection = new IORedis(redisUrl, {
 });
 
 // Queue instance for sending emails
-const emailQueue = new Queue('emailQueue', { connection });
+const emailQueue = new Queue('emailQueue', { 
+  connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 1000,
+    },
+    removeOnComplete: true, // Cleanup successful jobs
+  }
+});
 
 module.exports = {
   emailQueue,

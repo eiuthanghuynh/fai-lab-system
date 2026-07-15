@@ -460,13 +460,6 @@ const submitRequest = async (req, res) => {
       await redis.set(redisKey, request.id.toString(), 'EX', 600);
     }
 
-    // 5. Add Notification Job to BullMQ Queue
-    await emailQueue.add('faiRequestCreated', {
-      requestId: request.id,
-      email: req.user.email || 'unknown@domain.com',
-      requestor: req.user.full_name || 'System User'
-    });
-
     if (req.app.get('io')) {
       req.app.get('io').emit('fai-request-created', request);
       req.app.get('io').emit('fai_dashboard_updated');
