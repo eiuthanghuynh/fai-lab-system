@@ -1,17 +1,18 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, nextTick } from 'vue'
+import { onClickOutside, useEventListener } from '@vueuse/core'
 
 const props = defineProps<{
-  modelValue: string | number
   options: { label: string | number; value: string | number }[]
   placeholder?: string
   error?: string
 }>()
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: string | number): void
   (e: 'clear-error'): void
 }>()
+
+const modelValue = defineModel<string | number>({ required: true })
 
 const isOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
@@ -52,13 +53,7 @@ const toggleDropdown = async () => {
   }
 }
 
-const closeDropdown = (e: MouseEvent) => {
-  const target = e.target as Node;
-  const isClickInside = dropdownRef.value?.contains(target) || menuRef.value?.contains(target);
-  if (!isClickInside) {
-    isOpen.value = false;
-  }
-}
+
 
 const onScroll = (e: Event) => {
   if (!isOpen.value) return;
@@ -70,26 +65,23 @@ const onScroll = (e: Event) => {
   isOpen.value = false;
 };
 
-onMounted(() => {
-  document.addEventListener('click', closeDropdown)
-  document.addEventListener('scroll', onScroll, true)
-  window.addEventListener('resize', onScroll)
-})
+useEventListener(document, 'scroll', onScroll, true)
+useEventListener(window, 'resize', onScroll)
 
-onUnmounted(() => {
-  document.removeEventListener('click', closeDropdown)
-  document.removeEventListener('scroll', onScroll, true)
-  window.removeEventListener('resize', onScroll)
-})
+onClickOutside(
+  dropdownRef,
+  () => { isOpen.value = false; },
+  { ignore: [menuRef] }
+)
 
 const selectOption = (value: string | number) => {
-  emit('update:modelValue', value)
+  modelValue.value = value
   emit('clear-error')
   isOpen.value = false
 }
 
 const displayValue = computed(() => {
-  const opt = props.options.find(o => o.value === props.modelValue)
+  const opt = props.options.find(o => o.value === modelValue.value)
   return opt ? opt.label : props.placeholder || 'Select...'
 })
 </script>

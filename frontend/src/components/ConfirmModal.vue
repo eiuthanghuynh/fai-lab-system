@@ -21,9 +21,14 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <Transition name="modal">
+  <Transition 
+    enter-active-class="transition-opacity duration-300 ease-out"
+    leave-active-class="transition-opacity duration-300 ease-in"
+    enter-from-class="opacity-0"
+    leave-to-class="opacity-0"
+  >
     <div v-if="isOpen" class="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]" @mousedown.self="emit('cancel')">
-      <div class="bg-bg-surface p-6 rounded-lg w-[90%] max-w-[400px] border border-border shadow-[0_4px_15px_rgba(0,0,0,0.3)] confirm-modal-content">
+      <div class="bg-bg-surface p-6 rounded-lg w-[90%] max-w-[400px] border border-border shadow-[0_4px_15px_rgba(0,0,0,0.3)] transition-transform duration-300 scale-100">
         <h3 :class="['m-0 mb-4 text-xl font-semibold', isDanger ? 'text-[#ff5555]' : 'text-primary']">
           {{ title || t('common.warning') }}
         </h3>
@@ -45,26 +50,3 @@ const emit = defineEmits<{
   </Transition>
 </template>
 
-<style scoped>
-/* Vue Transition Classes */
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.modal-enter-active .confirm-modal-content,
-.modal-leave-active .confirm-modal-content {
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-from .confirm-modal-content,
-.modal-leave-to .confirm-modal-content {
-  transform: translateY(20px) scale(0.95);
-  opacity: 0;
-}
-</style>

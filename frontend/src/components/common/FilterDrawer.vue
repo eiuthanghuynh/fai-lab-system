@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, nextTick } from 'vue';
+import { onClickOutside, useEventListener } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 import Button from '@/components/ui/Button.vue';
 
@@ -35,13 +36,7 @@ const toggle = async () => {
   }
 };
 
-const close = (e: MouseEvent) => {
-  const target = e.target as Element;
-  const isClickInside = triggerRef.value?.contains(target) || popupRef.value?.contains(target) || target.closest('.dropdown-menu-teleport') !== null;
-  if (!isClickInside) {
-    isOpen.value = false;
-  }
-};
+
 
 const onScroll = (e: Event) => {
   if (!isOpen.value) return;
@@ -53,17 +48,14 @@ const onScroll = (e: Event) => {
   updatePosition();
 };
 
-onMounted(() => {
-  document.addEventListener('mousedown', close);
-  document.addEventListener('scroll', onScroll, true);
-  window.addEventListener('resize', onScroll);
-});
+useEventListener(document, 'scroll', onScroll, true);
+useEventListener(window, 'resize', onScroll);
 
-onUnmounted(() => {
-  document.removeEventListener('mousedown', close);
-  document.removeEventListener('scroll', onScroll, true);
-  window.removeEventListener('resize', onScroll);
-});
+onClickOutside(
+  popupRef,
+  () => { isOpen.value = false; },
+  { ignore: [triggerRef, '.dropdown-menu-teleport'] }
+);
 
 defineExpose({
   close: () => isOpen.value = false

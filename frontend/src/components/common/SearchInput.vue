@@ -2,13 +2,10 @@
 
 
 defineProps<{
-  modelValue: string;
   placeholder?: string;
 }>();
 
-defineEmits<{
-  (e: 'update:modelValue', value: string): void;
-}>();
+const modelValue = defineModel<string>({ required: true });
 </script>
 
 <template>
@@ -16,8 +13,7 @@ defineEmits<{
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-text-muted shrink-0"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
     <input 
       type="text" 
-      :value="modelValue" 
-      @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)" 
+      v-model="modelValue" 
       :placeholder="placeholder || 'Search...'" 
       class="bg-transparent border-none outline-none w-full p-0 m-0 placeholder:text-text-muted" 
     />

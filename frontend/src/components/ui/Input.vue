@@ -4,7 +4,6 @@ import { computed } from 'vue';
 defineOptions({ inheritAttrs: false });
 
 interface Props {
-  modelValue: string | number | null;
   type?: string;
   placeholder?: string;
   disabled?: boolean;
@@ -19,11 +18,10 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
 });
 
-const emit = defineEmits(['update:modelValue', 'clear-error']);
+const emit = defineEmits(['clear-error']);
+const modelValue = defineModel<string | number | null>();
 
-const onInput = (e: Event) => {
-  const target = e.target as HTMLInputElement;
-  emit('update:modelValue', target.value);
+const onInput = () => {
   emit('clear-error');
 };
 
@@ -33,7 +31,7 @@ const onBlur = (e: Event) => {
     if (!isNaN(val)) {
       if (props.min !== undefined && val < props.min) val = props.min;
       if (props.max !== undefined && val > props.max) val = props.max;
-      emit('update:modelValue', val);
+      modelValue.value = val;
       (e.target as HTMLInputElement).value = String(val);
     }
   }
@@ -54,7 +52,7 @@ const inputClasses = computed(() => {
   <div class="w-full">
     <input
       :type="type"
-      :value="modelValue"
+      v-model="modelValue"
       :placeholder="placeholder"
       :disabled="disabled"
       :min="min"

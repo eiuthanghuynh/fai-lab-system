@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
+import { useAsyncState } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
+import { formatDate } from '@/utils/dateFormatter';
 import api from '@/services/api';
 import ConfirmModal from '@/components/ConfirmModal.vue';
 import DataTable, { type DataTableColumn } from '@/components/common/DataTable.vue';
@@ -25,7 +27,7 @@ const { page, limit, sortBy, sortDesc, searchQuery, toggleSort } = useDataTable(
 const users = ref<any[]>([]);
 const totalUsers = ref(0);
 const roles = ref<any[]>([]);
-const isLoading = ref(false);
+
 
 const isModalOpen = ref(false);
 const isEditing = ref(false);
@@ -125,38 +127,26 @@ const resetFilters = () => {
   sortDesc.value = false;
 };
 
-const formatDate = (dateString: string) => {
-  if (!dateString) return '-';
-  const d = new Date(dateString);
-  return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
 
-const fetchUsers = async () => {
-  isLoading.value = true;
-  try {
-    const params = new URLSearchParams({
-      page: page.value.toString(),
-      limit: limit.value.toString(),
-      sort_by: sortBy.value,
-      sort_desc: sortDesc.value.toString()
-    });
+const { isLoading, execute: fetchUsers } = useAsyncState(async () => {
+  const params = new URLSearchParams({
+    page: page.value.toString(),
+    limit: limit.value.toString(),
+    sort_by: sortBy.value,
+    sort_desc: sortDesc.value.toString()
+  });
 
-    if (searchQuery.value) params.append('search', searchQuery.value);
-    if (filterRoleIds.value.length > 0) params.append('role_ids', filterRoleIds.value.join(','));
-    if (filterStatus.value !== '') params.append('is_active', filterStatus.value);
-    if (filterStartDate.value) params.append('start_date', filterStartDate.value);
-    if (filterEndDate.value) params.append('end_date', filterEndDate.value);
-    if (filterDateType.value) params.append('date_type', filterDateType.value);
+  if (searchQuery.value) params.append('search', searchQuery.value);
+  if (filterRoleIds.value.length > 0) params.append('role_ids', filterRoleIds.value.join(','));
+  if (filterStatus.value !== '') params.append('is_active', filterStatus.value);
+  if (filterStartDate.value) params.append('start_date', filterStartDate.value);
+  if (filterEndDate.value) params.append('end_date', filterEndDate.value);
+  if (filterDateType.value) params.append('date_type', filterDateType.value);
 
-    const res = await api.get(`/users?${params.toString()}`);
-    users.value = res.data?.data || (Array.isArray(res.data) ? res.data : []);
-    totalUsers.value = res.data?.total || (Array.isArray(res.data) ? res.data.length : 0);
-  } catch (err) {
-    console.error(err);
-  } finally {
-    isLoading.value = false;
-  }
-};
+  const res = await api.get(`/users?${params.toString()}`);
+  users.value = res.data?.data || (Array.isArray(res.data) ? res.data : []);
+  totalUsers.value = res.data?.total || (Array.isArray(res.data) ? res.data.length : 0);
+}, null, { immediate: false });
 
 const fetchRoles = async () => {
   try {

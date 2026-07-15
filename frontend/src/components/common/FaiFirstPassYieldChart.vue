@@ -294,20 +294,20 @@ const chartOptionsSticky = computed(() => {
       <div class="relative w-full mb-6">
         <!-- Sticky Left Axis -->
         <div class="absolute left-0 top-0 h-[400px] w-[100px] bg-transparent z-10 pointer-events-none overflow-hidden">
-          <div style="min-width: 3000px; height: 400px;">
+          <div class="min-w-[3000px] h-[400px]">
             <Bar :data="chartDataInvisible" :options="chartOptionsSticky" :plugins="[yAxisLeftBgPlugin]" />
           </div>
         </div>
         
         <!-- Sticky Right Axis -->
         <div class="absolute right-0 top-0 h-[400px] w-[100px] bg-transparent z-10 pointer-events-none overflow-hidden">
-          <div style="min-width: 3000px; height: 400px; position: absolute; right: 0;">
+          <div class="min-w-[3000px] h-[400px] absolute right-0">
             <Bar :data="chartDataInvisible" :options="chartOptionsSticky" :plugins="[yAxisRightBgPlugin]" />
           </div>
         </div>
 
         <div class="overflow-x-auto w-full is-scrollbar-idle" ref="chartContainerRef" @scroll="wakeScrollbar" @mousemove="wakeScrollbar">
-          <div style="min-width: 3000px; height: 400px;">
+          <div class="min-w-[3000px] h-[400px]">
             <Bar :data="chartData" :options="chartOptions" />
           </div>
         </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
+import { useAsyncState } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import ConfirmModal from '@/components/ConfirmModal.vue';
@@ -19,7 +20,7 @@ const { page, limit, sortBy, sortDesc, searchQuery, toggleSort } = useDataTable(
 
 const items = ref<any[]>([]);
 const totalItems = ref(0);
-const isLoading = ref(false);
+
 
 const isModalOpen = ref(false);
 const isEditing = ref(false);
@@ -46,26 +47,19 @@ watch([searchQuery, page, limit, sortBy, sortDesc], () => {
   fetchItems();
 }, { deep: true });
 
-const fetchItems = async () => {
-  isLoading.value = true;
-  try {
-    const params: any = {
-      page: page.value,
-      limit: limit.value,
-      sort_by: sortBy.value,
-      sort_desc: sortDesc.value
-    };
-    if (searchQuery.value) params.search = searchQuery.value;
+const { isLoading, execute: fetchItems } = useAsyncState(async () => {
+  const params: any = {
+    page: page.value,
+    limit: limit.value,
+    sort_by: sortBy.value,
+    sort_desc: sortDesc.value
+  };
+  if (searchQuery.value) params.search = searchQuery.value;
 
-    const res = await api.get(`/fai-failure-modes`, { params });
-    items.value = res.data?.data || (Array.isArray(res.data) ? res.data : []);
-    totalItems.value = res.data?.total || (res.data?.data ? res.data.data.length : 0);
-  } catch (err) {
-    console.error(err);
-  } finally {
-    isLoading.value = false;
-  }
-};
+  const res = await api.get(`/fai-failure-modes`, { params });
+  items.value = res.data?.data || (Array.isArray(res.data) ? res.data : []);
+  totalItems.value = res.data?.total || (res.data?.data ? res.data.data.length : 0);
+}, null, { immediate: false });
 
 onMounted(() => {
   fetchItems();

@@ -10,21 +10,14 @@ const props = defineProps({
     type: Number,
     required: true
   },
-  modelValue: {
-    type: Number,
-    required: true
-  },
-  rowsPerPage: {
-    type: Number,
-    required: true
-  },
   rowsPerPageOptions: {
     type: Array as () => number[],
     default: () => [10, 25, 50, 100]
   }
 });
 
-const emit = defineEmits(['update:modelValue', 'update:rowsPerPage']);
+const modelValue = defineModel<number>({ required: true });
+const rowsPerPage = defineModel<number>('rowsPerPage', { required: true });
 
 const dropdownOptions = computed(() => {
   return props.rowsPerPageOptions.map(opt => ({
@@ -33,21 +26,21 @@ const dropdownOptions = computed(() => {
   }));
 });
 
-const totalPages = computed(() => Math.ceil(props.total / props.rowsPerPage) || 1);
+const totalPages = computed(() => Math.ceil(props.total / rowsPerPage.value) || 1);
 
 const onRowsPerPageChange = (newLimit: number) => {
-  emit('update:rowsPerPage', newLimit);
-  emit('update:modelValue', 1);
+  rowsPerPage.value = newLimit;
+  modelValue.value = 1;
 };
 
 const changePage = (page: number | string) => {
   if (typeof page === 'number' && page >= 1 && page <= totalPages.value) {
-    emit('update:modelValue', page);
+    modelValue.value = page;
   }
 };
 
 const pages = computed(() => {
-  const current = props.modelValue;
+  const current = modelValue.value;
   const total = totalPages.value;
   const delta = 2; // How many pages to show around current page
   

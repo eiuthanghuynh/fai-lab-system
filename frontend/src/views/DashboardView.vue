@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useAsyncState } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
+import { formatDate, formatDateOnly } from '@/utils/dateFormatter'
 import api from '@/services/api'
 import { socketService } from '@/services/socket'
 import { useAuthStore } from '@/stores/auth'
@@ -88,17 +90,6 @@ const formatOrdinal = (n: number) => {
   return n + (s[(v - 20) % 10] || s[v] || s[0])
 }
 
-const formatDate = (dateString: string) => {
-  if (!dateString) return '-'
-  const d = new Date(dateString)
-  return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
-const formatDateOnly = (dateString: string) => {
-  if (!dateString) return '-'
-  const d = new Date(dateString)
-  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
 
 // Global states
 const initSystemFilter = (): 'FAI' | 'LAB' => {
@@ -134,7 +125,6 @@ const setToCurrentWeek = () => {
 }
 
 // Dashboard data
-const isLoading = ref(false)
 const stats = ref<any>({
   kpi: { total: 0, closed: 0, ongoing: 0, backlogAssigned: 0, passRate: 0 },
   charts: {
@@ -147,8 +137,6 @@ const stats = ref<any>({
 })
 const recentRequests = ref<any[]>([])
 const totalRecentRequests = ref(0)
-const isRecentLoading = ref(false)
-
 const { page, limit, sortBy, sortDesc, toggleSort } = useDataTable('created_at', true)
 limit.value = 25 // Default rows per page
 
@@ -201,41 +189,30 @@ const systemOptions = computed(() => {
   return options
 })
 
-const fetchDashboardStats = async (refresh = false) => {
-  isLoading.value = true
-  try {
-    const query = new URLSearchParams()
-    query.append('system', systemFilter.value)
-    if (yearFilter.value.length > 0) query.append('year', yearFilter.value.join(','))
-    if (weekFilter.value.length > 0) query.append('week', weekFilter.value.join(','))
-    if (refresh) query.append('refresh', 'true')
+const { isLoading, execute: executeFetchDashboardStats } = useAsyncState(async (refresh = false) => {
+  const query = new URLSearchParams()
+  query.append('system', systemFilter.value)
+  if (yearFilter.value.length > 0) query.append('year', yearFilter.value.join(','))
+  if (weekFilter.value.length > 0) query.append('week', weekFilter.value.join(','))
+  if (refresh) query.append('refresh', 'true')
 
-    const res = await api.get(`/dashboard/stats?${query.toString()}`)
-    stats.value = res.data
+  const res = await api.get(`/dashboard/stats?${query.toString()}`)
+  stats.value = res.data
 
-    showNewDataToast.value = false
-  } catch (error) {
-    console.error('Failed to fetch dashboard stats', error)
-    toast.error('Failed to fetch dashboard statistics')
-  } finally {
-    isLoading.value = false
-  }
-}
+  showNewDataToast.value = false
+}, null, { immediate: false })
 
-const fetchRecentRequests = async () => {
+const fetchDashboardStats = (refresh = false) => executeFetchDashboardStats(0, refresh)
+
+const { isLoading: isRecentLoading, execute: executeFetchRecentRequests } = useAsyncState(async () => {
   if (!authStore.hasPermission('MANAGE_REQUEST_LIST')) return
-  isRecentLoading.value = true
-  try {
-    const endpoint = systemFilter.value === 'FAI' ? '/fai' : '/lab'
-    const res = await api.get(`${endpoint}?page=${page.value}&limit=${limit.value}&sort_by=${sortBy.value}&sort_desc=${sortDesc.value}`)
-    recentRequests.value = res.data.data
-    totalRecentRequests.value = res.data.total
-  } catch (error) {
-    console.error('Failed to fetch recent requests', error)
-  } finally {
-    isRecentLoading.value = false
-  }
-}
+  const endpoint = systemFilter.value === 'FAI' ? '/fai' : '/lab'
+  const res = await api.get(`${endpoint}?page=${page.value}&limit=${limit.value}&sort_by=${sortBy.value}&sort_desc=${sortDesc.value}`)
+  recentRequests.value = res.data.data
+  totalRecentRequests.value = res.data.total
+}, null, { immediate: false })
+
+const fetchRecentRequests = () => executeFetchRecentRequests()
 
 watch([page, limit, sortBy, sortDesc, systemFilter], () => {
   fetchRecentRequests()
@@ -636,7 +613,7 @@ const paretoOptions = computed(() => ({
         </Button>
       </div>
       
-      <div class="p-4" style="height: 600px; display: flex; flex-direction: column;">
+      <div class="p-4 h-[600px] flex flex-col">
         <DataTable 
           :columns="recentColumns" 
           :data="recentRequests" 

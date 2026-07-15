@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useAsyncState } from '@vueuse/core';
 import { useRouter } from 'vue-router';
+import { formatDateOnly } from '@/utils/dateFormatter';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import { socketService } from '@/services/socket';
@@ -29,7 +31,7 @@ const { page, limit, sortBy, sortDesc, searchQuery, toggleSort } = useDataTable(
 
 const requests = ref<any[]>([]);
 const totalRequests = ref(0);
-const isLoading = ref(false);
+
 
 const columns = computed<DataTableColumn[]>(() => [
   { key: 'id', label: 'ID', sortable: true, sticky: 'left', width: '60px' },
@@ -127,50 +129,45 @@ const handleAction = (item: any) => {
   }
 };
 
-const fetchRequests = async () => {
-  isLoading.value = true;
-  try {
-    const params = new URLSearchParams({
-      page: page.value.toString(),
-      limit: limit.value.toString(),
-      sort_by: sortBy.value,
-      sort_desc: sortDesc.value.toString()
-    });
+const { isLoading, execute: fetchRequests } = useAsyncState(async () => {
+  const params = new URLSearchParams({
+    page: page.value.toString(),
+    limit: limit.value.toString(),
+    sort_by: sortBy.value,
+    sort_desc: sortDesc.value.toString()
+  });
 
-    if (searchQuery.value) {
-      params.append('search', searchQuery.value);
-    }
-
-    const response = await api.get('/lab/requests', { params });
-    requests.value = response.data.data;
-    totalRequests.value = response.data.total;
-  } catch (error) {
-    console.error('Failed to fetch lab requests:', error);
-  } finally {
-    isLoading.value = false;
+  if (searchQuery.value) {
+    params.append('search', searchQuery.value);
   }
-};
+
+  const response = await api.get('/lab/requests', { params });
+  requests.value = response.data.data;
+  totalRequests.value = response.data.total;
+}, null, { immediate: false });
+
+const handleFetchRequests = () => fetchRequests();
 
 watch([searchQuery, page, limit, sortBy, sortDesc], () => {
-  fetchRequests();
+  handleFetchRequests();
 });
 
 onMounted(() => {
-  fetchRequests();
+  handleFetchRequests();
   const socket = socketService.getSocket();
   if (socket) {
-    socket.on('lab-request-created', fetchRequests);
-    socket.on('lab-request-updated', fetchRequests);
-    socket.on('lab-request-deleted', fetchRequests);
+    socket.on('lab-request-created', handleFetchRequests);
+    socket.on('lab-request-updated', handleFetchRequests);
+    socket.on('lab-request-deleted', handleFetchRequests);
   }
 });
 
 onUnmounted(() => {
   const socket = socketService.getSocket();
   if (socket) {
-    socket.off('lab-request-created', fetchRequests);
-    socket.off('lab-request-updated', fetchRequests);
-    socket.off('lab-request-deleted', fetchRequests);
+    socket.off('lab-request-created', handleFetchRequests);
+    socket.off('lab-request-updated', handleFetchRequests);
+    socket.off('lab-request-deleted', handleFetchRequests);
   }
 });
 
@@ -201,11 +198,7 @@ const deleteDraft = (id: number) => {
   };
 };
 
-const formatDateOnly = (dateString: string) => {
-  if (!dateString) return '-';
-  const d = new Date(dateString);
-  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-};
+
 </script>
 
 <template>

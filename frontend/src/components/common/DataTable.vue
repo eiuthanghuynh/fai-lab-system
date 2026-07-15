@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue';
+import { ref, onMounted, nextTick, watch, computed } from 'vue';
+import { useEventListener } from '@vueuse/core';
 import Checkbox from '@/components/ui/Checkbox.vue';
 
 export interface DataTableColumn {
@@ -132,8 +133,9 @@ watch(() => props.data, () => {
   });
 }, { deep: true });
 
+useEventListener(window, 'resize', updateStickyOffsets);
+
 onMounted(() => {
-  window.addEventListener('resize', updateStickyOffsets);
   if (tableContainerRef.value) {
     tableContainerRef.value.classList.add('is-scrollbar-idle');
   }
@@ -145,9 +147,6 @@ onMounted(() => {
   });
 });
 
-onUnmounted(() => {
-  window.removeEventListener('resize', updateStickyOffsets);
-});
 
 const getSortIcon = (columnKey: string) => {
   if (props.sortBy !== columnKey) return '↕';

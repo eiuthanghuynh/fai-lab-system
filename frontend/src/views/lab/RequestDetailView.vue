@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
+import { useAsyncState } from '@vueuse/core';
 import { useRoute, useRouter } from 'vue-router';
+import { formatDate } from '@/utils/dateFormatter';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import DataTable, { type DataTableColumn } from '@/components/common/DataTable.vue';
@@ -23,26 +25,24 @@ const requestId = route.params.id as string;
 const request = ref<any>(null);
 const attachments = ref<any[]>([]);
 const workOrders = ref<any[]>([]);
-const isLoading = ref(true);
+
 
 const canInspectLab = computed(() => authStore.hasPermission('INSPECT_LAB'));
 
-const fetchDetail = async () => {
-  try {
-    isLoading.value = true;
-    const res = await api.get(`/lab/requests/${requestId}`);
-    request.value = res.data.data;
-    attachments.value = res.data.data.attachments || [];
+const { isLoading, execute: fetchDetail } = useAsyncState(async () => {
+  const res = await api.get(`/lab/requests/${requestId}`);
+  request.value = res.data.data;
+  attachments.value = res.data.data.attachments || [];
 
-    const woRes = await api.get(`/lab/requests/${requestId}/work-orders`);
-    workOrders.value = woRes.data.data || [];
-  } catch (err: any) {
+  const woRes = await api.get(`/lab/requests/${requestId}/work-orders`);
+  workOrders.value = woRes.data.data || [];
+}, null, { 
+  immediate: false,
+  onError: (err: any) => {
     console.error('Fetch detail failed:', err);
     toast.error('Failed to load request detail');
-  } finally {
-    isLoading.value = false;
   }
-};
+});
 
 onMounted(() => {
   fetchDetail();
@@ -155,11 +155,7 @@ const getResultClass = (res: string) => {
   return '';
 };
 
-const formatDate = (dateString: string) => {
-  if (!dateString) return '-';
-  const d = new Date(dateString);
-  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
+
 </script>
 
 <template>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
+import { useAsyncState, onClickOutside } from '@vueuse/core';
 import { useRouter, onBeforeRouteLeave } from 'vue-router';
+import { formatDate, formatDateOnly } from '@/utils/dateFormatter';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import DataTableToolbar from '@/components/common/DataTableToolbar.vue';
@@ -31,6 +33,7 @@ const stateStore = useRequestListStateStore();
 // Advanced Filters Popover State
 const showFiltersPopover = ref(false); // Can be kept or removed if not used elsewhere, but not needed for FilterDrawer itself
 const filterDrawerRef = ref<any>(null);
+const popoverRef = ref<HTMLElement | null>(null);
 
 const localFilters = ref({
   projectName: '',
@@ -84,21 +87,11 @@ const activeFiltersCount = computed(() => {
   return count;
 });
 
-const onDocumentClick = (e: MouseEvent) => {
-  if (popoverRef.value && !popoverRef.value.contains(e.target as Node)) {
-    const trigger = document.querySelector('.filter-trigger');
-    if (trigger && trigger.contains(e.target as Node)) return;
-    showFiltersPopover.value = false;
-  }
-};
-
-watch(showFiltersPopover, (newVal) => {
-  if (newVal) {
-    document.addEventListener('click', onDocumentClick);
-  } else {
-    document.removeEventListener('click', onDocumentClick);
-  }
-});
+onClickOutside(
+  popoverRef,
+  () => { showFiltersPopover.value = false; },
+  { ignore: ['.filter-trigger'] }
+);
 
 // DataTable composable
 const { page, limit, sortBy, sortDesc, searchQuery, toggleSort } = useDataTable('id', false);
@@ -124,7 +117,7 @@ onBeforeRouteLeave((to) => {
 
 const requests = ref<any[]>([]);
 const totalRequests = ref(0);
-const isLoading = ref(false);
+
 
 const columns = computed<DataTableColumn[]>(() => [
   { key: 'id', label: 'ID', sortable: true, sticky: 'left', width: '60px' },
@@ -271,46 +264,39 @@ const handleMakeReport = (item: any) => {
   toast.info('Make report action coming soon');
 };
 
-const fetchRequests = async () => {
-  isLoading.value = true;
-  try {
-    const params = new URLSearchParams({
-      page: page.value.toString(),
-      limit: limit.value.toString(),
-      sort_by: sortBy.value,
-      sort_desc: sortDesc.value.toString()
-    });
+const { isLoading, execute: fetchRequests } = useAsyncState(async () => {
+  const params = new URLSearchParams({
+    page: page.value.toString(),
+    limit: limit.value.toString(),
+    sort_by: sortBy.value,
+    sort_desc: sortDesc.value.toString()
+  });
 
-    if (searchQuery.value) {
-      params.append('search', searchQuery.value);
-    }
-
-    // Append advanced filters
-    const lf = localFilters.value;
-    if (lf.projectName) params.append('project_name', lf.projectName);
-    if (lf.partNo) params.append('part_no', lf.partNo);
-    if (lf.commodityPart) params.append('commodity_part', lf.commodityPart.toString());
-    if (lf.supplierId) params.append('supplier_id', lf.supplierId.toString());
-    if (lf.trackingNo) params.append('tracking_no', lf.trackingNo);
-    if (lf.receiveDateFrom) params.append('receive_date_from', lf.receiveDateFrom);
-    if (lf.receiveDateTo) params.append('receive_date_to', lf.receiveDateTo);
-    if (lf.completeDateFrom) params.append('complete_date_from', lf.completeDateFrom);
-    if (lf.completeDateTo) params.append('complete_date_to', lf.completeDateTo);
-    if (lf.estDateFrom) params.append('est_date_from', lf.estDateFrom);
-    if (lf.estDateTo) params.append('est_date_to', lf.estDateTo);
-    if (lf.inspectorId) params.append('inspector_id', lf.inspectorId.toString());
-    if (lf.status) params.append('status', lf.status);
-    if (lf.result) params.append('result', lf.result);
-
-    const res = await api.get(`/fai?${params.toString()}`);
-    requests.value = res.data.data;
-    totalRequests.value = res.data.total;
-  } catch (err) {
-    console.error('Fetch FAI requests failed:', err);
-  } finally {
-    isLoading.value = false;
+  if (searchQuery.value) {
+    params.append('search', searchQuery.value);
   }
-};
+
+  // Append advanced filters
+  const lf = localFilters.value;
+  if (lf.projectName) params.append('project_name', lf.projectName);
+  if (lf.partNo) params.append('part_no', lf.partNo);
+  if (lf.commodityPart) params.append('commodity_part', lf.commodityPart.toString());
+  if (lf.supplierId) params.append('supplier_id', lf.supplierId.toString());
+  if (lf.trackingNo) params.append('tracking_no', lf.trackingNo);
+  if (lf.receiveDateFrom) params.append('receive_date_from', lf.receiveDateFrom);
+  if (lf.receiveDateTo) params.append('receive_date_to', lf.receiveDateTo);
+  if (lf.completeDateFrom) params.append('complete_date_from', lf.completeDateFrom);
+  if (lf.completeDateTo) params.append('complete_date_to', lf.completeDateTo);
+  if (lf.estDateFrom) params.append('est_date_from', lf.estDateFrom);
+  if (lf.estDateTo) params.append('est_date_to', lf.estDateTo);
+  if (lf.inspectorId) params.append('inspector_id', lf.inspectorId.toString());
+  if (lf.status) params.append('status', lf.status);
+  if (lf.result) params.append('result', lf.result);
+
+  const res = await api.get(`/fai?${params.toString()}`);
+  requests.value = res.data.data;
+  totalRequests.value = res.data.total;
+}, null, { immediate: false });
 
 watch([searchQuery, page, limit, sortBy, sortDesc], () => {
   fetchRequests();
@@ -359,17 +345,6 @@ onMounted(async () => {
   }
 });
 
-const formatDate = (dateString: string) => {
-  if (!dateString) return '-';
-  const d = new Date(dateString);
-  return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
-
-const formatDateOnly = (dateString: string) => {
-  if (!dateString) return '-';
-  const d = new Date(dateString);
-  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-};
 
 const handleAction = (item: any) => {
   if (item.status === 'Draft') {

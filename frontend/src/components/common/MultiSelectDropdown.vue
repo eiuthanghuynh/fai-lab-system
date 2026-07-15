@@ -1,15 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, nextTick } from 'vue'
+import { onClickOutside, useEventListener } from '@vueuse/core'
 
 const props = defineProps<{
-  modelValue: (string | number)[]
   options: { label: string | number; value: string | number }[]
   placeholder?: string
 }>()
 
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: (string | number)[]): void
-}>()
+const modelValue = defineModel<(string | number)[]>({ required: true })
 
 const isOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
@@ -50,14 +48,6 @@ const toggleDropdown = async () => {
   }
 }
 
-const closeDropdown = (e: MouseEvent) => {
-  const target = e.target as Node;
-  const isClickInside = dropdownRef.value?.contains(target) || menuRef.value?.contains(target);
-  if (!isClickInside) {
-    isOpen.value = false;
-  }
-}
-
 const onScroll = (e: Event) => {
   if (!isOpen.value) return;
   const target = e.target as HTMLElement;
@@ -67,41 +57,38 @@ const onScroll = (e: Event) => {
   isOpen.value = false;
 };
 
-onMounted(() => {
-  document.addEventListener('click', closeDropdown)
-  document.addEventListener('scroll', onScroll, true)
-  window.addEventListener('resize', onScroll)
-})
+useEventListener(document, 'scroll', onScroll, true)
+useEventListener(window, 'resize', onScroll)
 
-onUnmounted(() => {
-  document.removeEventListener('click', closeDropdown)
-  document.removeEventListener('scroll', onScroll, true)
-  window.removeEventListener('resize', onScroll)
-})
+onClickOutside(
+  dropdownRef,
+  () => { isOpen.value = false; },
+  { ignore: [menuRef] }
+)
 
 const isSelected = (value: string | number) => {
-  return props.modelValue.includes(value)
+  return modelValue.value.includes(value)
 }
 
 const toggleSelection = (value: string | number) => {
-  const newValue = [...props.modelValue]
+  const newValue = [...modelValue.value]
   const index = newValue.indexOf(value)
   if (index === -1) {
     newValue.push(value)
   } else {
     newValue.splice(index, 1)
   }
-  emit('update:modelValue', newValue)
+  modelValue.value = newValue
 }
 
 import Checkbox from '../ui/Checkbox.vue'
 
 const displayValue = computed(() => {
-  if (props.modelValue.length === 0) {
+  if (modelValue.value.length === 0) {
     return props.placeholder || 'Select...'
   }
   // Map values back to labels
-  const selectedLabels = props.modelValue.map(val => {
+  const selectedLabels = modelValue.value.map(val => {
     const opt = props.options.find(o => o.value === val)
     return opt ? opt.label : val
   })

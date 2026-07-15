@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useAsyncState } from '@vueuse/core';
 import { useRoute, useRouter } from 'vue-router';
+import { formatDate } from '@/utils/dateFormatter';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import PdfViewer from '@/components/common/PdfViewer.vue';
@@ -13,7 +15,7 @@ const router = useRouter();
 const { t } = useI18n();
 
 const request = ref<any>(null);
-const isLoading = ref(true);
+
 const errorMsg = ref('');
 
 const checklistItems = [
@@ -59,11 +61,6 @@ const getStatusText = (status: string) => {
   }
 };
 
-const formatDate = (dateString: string) => {
-  if (!dateString) return '-';
-  const d = new Date(dateString);
-  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
 
 const formatOrdinal = (n: number) => {
   if (!n) return '-';
@@ -72,28 +69,26 @@ const formatOrdinal = (n: number) => {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 };
 
-const fetchRequestDetails = async () => {
-  isLoading.value = true;
+const { isLoading, execute: fetchRequestDetails } = useAsyncState(async () => {
   errorMsg.value = '';
-  try {
-    const id = route.params.id;
-    const res = await api.get(`/fai/${id}`);
-    if (res.data && res.data.success) {
-      request.value = res.data.data;
-    } else {
-      errorMsg.value = 'Failed to load request details.';
-    }
-  } catch (err: any) {
+  const id = route.params.id;
+  const res = await api.get(`/fai/${id}`);
+  if (res.data && res.data.success) {
+    request.value = res.data.data;
+  } else {
+    errorMsg.value = 'Failed to load request details.';
+  }
+}, null, { 
+  immediate: false,
+  onError: (err: any) => {
     console.error('Fetch request detail error:', err);
     if (err.response?.status === 404) {
       router.push({ name: 'not-found' });
     } else {
       errorMsg.value = err.response?.data?.error || 'Failed to load request details.';
     }
-  } finally {
-    isLoading.value = false;
   }
-};
+});
 
 onMounted(() => {
   fetchRequestDetails();

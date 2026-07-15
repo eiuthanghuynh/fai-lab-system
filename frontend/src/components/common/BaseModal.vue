@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue';
+import { ref } from 'vue';
+import { useEventListener, onClickOutside } from '@vueuse/core';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -21,13 +22,10 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 };
 
-onMounted(() => {
-  window.addEventListener('keydown', handleKeydown);
-});
+const modalContentRef = ref<HTMLElement | null>(null);
 
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown);
-});
+useEventListener(window, 'keydown', handleKeydown);
+onClickOutside(modalContentRef, handleClose);
 </script>
 
 <template>
@@ -37,8 +35,8 @@ onUnmounted(() => {
     enter-from-class="opacity-0"
     leave-to-class="opacity-0"
   >
-    <div v-if="isOpen" class="fixed inset-0 bg-black/70 flex items-center justify-center z-[100]" @mousedown.self="handleClose">
-      <div class="bg-bg-surface rounded-lg w-full border border-border shadow-xl flex flex-col transition-transform duration-300 scale-100 max-h-[95vh]" :style="{ maxWidth: maxWidth || '600px' }">
+    <div v-if="isOpen" class="fixed inset-0 bg-black/70 flex items-center justify-center z-[100]">
+      <div ref="modalContentRef" class="bg-bg-surface rounded-lg w-full border border-border shadow-xl flex flex-col transition-transform duration-300 scale-100 max-h-[95vh]" :style="{ maxWidth: maxWidth || '600px' }">
         <div class="px-8 pt-6 pb-4 flex justify-between items-center border-b border-border shrink-0">
           <h2 class="m-0 text-xl font-bold text-text">{{ title }}</h2>
           <button type="button" class="bg-transparent border-none text-text-muted cursor-pointer p-1 rounded hover:bg-white/10 hover:text-text transition-colors flex items-center justify-center" @click="handleClose">

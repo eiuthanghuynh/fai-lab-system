@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, nextTick } from 'vue'
+import { onClickOutside, useEventListener } from '@vueuse/core'
 
 const isOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
@@ -40,13 +41,6 @@ const toggleDropdown = async () => {
   }
 }
 
-const closeDropdown = (e: MouseEvent) => {
-  const target = e.target as Node;
-  if (!dropdownRef.value?.contains(target) && !menuRef.value?.contains(target)) {
-    isOpen.value = false;
-  }
-}
-
 const onScroll = (e: Event) => {
   if (!isOpen.value) return;
   const target = e.target as HTMLElement;
@@ -54,17 +48,14 @@ const onScroll = (e: Event) => {
   isOpen.value = false;
 }
 
-onMounted(() => {
-  document.addEventListener('click', closeDropdown)
-  document.addEventListener('scroll', onScroll, true)
-  window.addEventListener('resize', onScroll)
-})
+useEventListener(document, 'scroll', onScroll, true)
+useEventListener(window, 'resize', onScroll)
 
-onUnmounted(() => {
-  document.removeEventListener('click', closeDropdown)
-  document.removeEventListener('scroll', onScroll, true)
-  window.removeEventListener('resize', onScroll)
-})
+onClickOutside(
+  dropdownRef,
+  () => { isOpen.value = false; },
+  { ignore: [menuRef] }
+)
 </script>
 
 <template>

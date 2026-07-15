@@ -2,7 +2,6 @@
 import { computed } from 'vue';
 
 interface Props {
-  modelValue: string | null;
   placeholder?: string;
   disabled?: boolean;
   error?: string;
@@ -15,11 +14,10 @@ const props = withDefaults(defineProps<Props>(), {
   rows: 3,
 });
 
-const emit = defineEmits(['update:modelValue', 'clear-error']);
+const emit = defineEmits(['clear-error']);
+const modelValue = defineModel<string | null>();
 
-const onInput = (e: Event) => {
-  const target = e.target as HTMLTextAreaElement;
-  emit('update:modelValue', target.value);
+const onInput = () => {
   emit('clear-error');
 };
 
@@ -37,7 +35,7 @@ const textareaClasses = computed(() => {
 <template>
   <div class="w-full flex flex-col gap-1">
     <textarea
-      :value="modelValue"
+      v-model="modelValue"
       :placeholder="placeholder"
       :disabled="disabled"
       :rows="rows"

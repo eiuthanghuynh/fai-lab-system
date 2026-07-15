@@ -64,9 +64,15 @@ const closeAlertAndRedirect = () => {
 <template>
   <Toaster position="top-center" richColors />
   <router-view v-slot="{ Component }">
-    <transition name="page-fade" mode="out-in">
+    <Transition 
+      mode="out-in"
+      enter-active-class="transition-all duration-200 ease-out"
+      leave-active-class="transition-all duration-200 ease-in"
+      enter-from-class="opacity-0 translate-y-2"
+      leave-to-class="opacity-0 translate-y-2"
+    >
       <component :is="Component" />
-    </transition>
+    </Transition>
   </router-view>
   
   <ConfirmModal
@@ -80,16 +86,4 @@ const closeAlertAndRedirect = () => {
   />
 </template>
 
-<style>
-/* Global Page Transition */
-.page-fade-enter-active,
-.page-fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
 
-.page-fade-enter-from,
-.page-fade-leave-to {
-  opacity: 0;
-  transform: translateY(10px);
-}
-</style>

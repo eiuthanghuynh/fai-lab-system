@@ -3,14 +3,11 @@
 import SearchInput from './SearchInput.vue';
 
 defineProps<{
-  searchQuery: string;
   searchPlaceholder?: string;
   hideSearch?: boolean;
 }>();
 
-defineEmits<{
-  (e: 'update:searchQuery', value: string): void;
-}>();
+const searchQuery = defineModel<string>('searchQuery', { required: true });
 </script>
 
 <template>
@@ -18,8 +15,7 @@ defineEmits<{
     <div class="flex items-center gap-3 flex-wrap">
       <SearchInput 
         v-if="!hideSearch"
-        :modelValue="searchQuery" 
-        @update:modelValue="$emit('update:searchQuery', $event)" 
+        v-model="searchQuery" 
         :placeholder="searchPlaceholder" 
       />
       <slot name="left"></slot>

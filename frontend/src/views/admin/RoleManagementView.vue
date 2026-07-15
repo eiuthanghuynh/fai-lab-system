@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
+import { useAsyncState } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 import { getContrastColor } from '../../utils/color';
 import api from '@/services/api';
@@ -26,7 +27,7 @@ const { page, limit, sortBy, sortDesc, searchQuery, toggleSort } = useDataTable(
 const roles = ref<any[]>([]);
 const totalRoles = ref(0);
 const allPermissions = ref<any[]>([]);
-const isLoading = ref(false);
+
 
 const isModalOpen = ref(false);
 const isEditing = ref(false);
@@ -86,30 +87,23 @@ const resetFilters = () => {
   sortDesc.value = false;
 };
 
-const fetchRoles = async () => {
-  isLoading.value = true;
-  try {
-    const params = new URLSearchParams({
-      page: page.value.toString(),
-      limit: limit.value.toString(),
-      sort_by: sortBy.value,
-      sort_desc: sortDesc.value.toString()
-    });
-    if (searchQuery.value) params.append('search', searchQuery.value);
-    if (filterStatus.value !== '') params.append('is_active', filterStatus.value);
-    if (filterPermissionIds.value.length > 0) {
-      params.append('permission_ids', filterPermissionIds.value.join(','));
-    }
-
-    const res = await api.get(`/roles?${params.toString()}`);
-    roles.value = res.data?.data || (Array.isArray(res.data) ? res.data : []);
-    totalRoles.value = res.data?.total || (Array.isArray(res.data) ? res.data.length : 0);
-  } catch (err) {
-    console.error(err);
-  } finally {
-    isLoading.value = false;
+const { isLoading, execute: fetchRoles } = useAsyncState(async () => {
+  const params = new URLSearchParams({
+    page: page.value.toString(),
+    limit: limit.value.toString(),
+    sort_by: sortBy.value,
+    sort_desc: sortDesc.value.toString()
+  });
+  if (searchQuery.value) params.append('search', searchQuery.value);
+  if (filterStatus.value !== '') params.append('is_active', filterStatus.value);
+  if (filterPermissionIds.value.length > 0) {
+    params.append('permission_ids', filterPermissionIds.value.join(','));
   }
-};
+
+  const res = await api.get(`/roles?${params.toString()}`);
+  roles.value = res.data?.data || (Array.isArray(res.data) ? res.data : []);
+  totalRoles.value = res.data?.total || (Array.isArray(res.data) ? res.data.length : 0);
+}, null, { immediate: false });
 
 const fetchPermissions = async () => {
   try {

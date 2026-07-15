@@ -55,9 +55,14 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <Transition name="modal">
-    <div v-if="isOpen" class="fixed inset-0 w-screen h-screen bg-black/60 backdrop-blur-[4px] flex justify-center items-center z-[1000]" @mousedown.self="handleClose">
-      <div class="bg-bg-surface rounded-xl w-[90%] max-w-[450px] shadow-[0_10px_25px_rgba(0,0,0,0.15)] forgot-modal-content">
+  <Transition 
+    enter-active-class="transition-opacity duration-300 ease-out"
+    leave-active-class="transition-opacity duration-300 ease-in"
+    enter-from-class="opacity-0"
+    leave-to-class="opacity-0"
+  >
+    <div v-if="isOpen" class="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]" @mousedown.self="handleClose">
+      <div class="bg-bg-surface rounded-lg w-[90%] max-w-[450px] shadow-xl overflow-hidden transition-transform duration-300 scale-100">
         <div class="px-6 py-4 border-b border-border flex justify-between items-center">
           <h3 class="m-0 text-text text-[1.2rem] font-semibold">{{ t('login.forgot_password_title') }}</h3>
           <button type="button" @click="handleClose" class="bg-transparent border-none text-[1.5rem] cursor-pointer text-text-muted hover:text-text transition-colors">&times;</button>
@@ -95,27 +100,3 @@ const handleSubmit = async () => {
     </div>
   </Transition>
 </template>
-
-<style scoped>
-/* Vue Transition Classes */
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.modal-enter-active .forgot-modal-content,
-.modal-leave-active .forgot-modal-content {
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-from .forgot-modal-content,
-.modal-leave-to .forgot-modal-content {
-  transform: translateY(-20px) scale(0.95);
-  opacity: 0;
-}
-</style>
