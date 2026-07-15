@@ -21,9 +21,9 @@ const cleanupOrphanedAttachments = async (requestId, requestType, keptFileIds = 
     });
 
     if (removedAttachments.length > 0) {
-      for (const att of removedAttachments) {
-        await minioClient.removeObject(MINIO_BUCKET, att.file_url).catch(e => console.error('MinIO cleanup error:', e));
-      }
+      const fileUrls = removedAttachments.map(att => att.file_url);
+      await minioClient.removeObjects(MINIO_BUCKET, fileUrls).catch(e => console.error('MinIO bulk cleanup error:', e));
+
       await prisma.requestAttachment.deleteMany({
         where: { id: { in: removedAttachments.map(a => a.id) } }
       });
