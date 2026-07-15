@@ -2,11 +2,9 @@ const prisma = require('../config/db');
 
 exports.getAll = async (req, res) => {
   {
-    const { page = 1, limit = 10, search = '', sort_by = 'id', sort_desc = 'false' } = req.query;
+    const { search = '', sort_by = 'id', sort_desc = 'false' } = req.query;
 
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
+    const { limitNumber, skip } = req.pagination;
 
     const where = search ? {
       name: { contains: search, mode: 'insensitive' }
@@ -25,12 +23,12 @@ exports.getAll = async (req, res) => {
         where,
         orderBy,
         skip,
-        take: limitNum
+        take: limitNumber
       }),
       prisma.commodityPart.count({ where })
     ]);
 
-    res.json({ success: true, data, total });
+    return res.paginate(data, total);
   }
 };
 
@@ -48,7 +46,7 @@ exports.create = async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ success: false, error: 'Name already exists.' });
     }
-    res.status(500).json({ success: false, error: 'Internal server error.' });
+    throw error;
   }
 };
 
@@ -72,7 +70,7 @@ exports.update = async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ success: false, error: 'Name already exists.' });
     }
-    res.status(500).json({ success: false, error: 'Internal server error.' });
+    throw error;
   }
 };
 
@@ -92,6 +90,6 @@ exports.delete = async (req, res) => {
     if (error.code === 'P2003') {
       return res.status(400).json({ success: false, error: 'Cannot delete because it is in use.' });
     }
-    res.status(500).json({ success: false, error: 'Internal server error.' });
+    throw error;
   }
 };

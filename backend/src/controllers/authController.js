@@ -109,7 +109,7 @@ const login = async (req, res) => {
         username: user.username,
         permissions
       },
-      process.env.JWT_SECRET || 'secret',
+      process.env.JWT_SECRET,
       { expiresIn: '15m' }
     );
 
@@ -191,7 +191,7 @@ const me = async (req, res) => {
         username: user.username,
         permissions
       },
-      process.env.JWT_SECRET || 'secret',
+      process.env.JWT_SECRET,
       { expiresIn: '15m' }
     );
 
@@ -220,9 +220,9 @@ const logout = async (req, res) => {
     if (userId) {
       await prisma.user.update({
         where: { id: userId },
-        data: { remember_token: null }
+        data: { remember_token: null, last_logout_at: new Date() }
       });
-      await delCache(`user_permissions:${userId}`);
+      await delCache(`user:${userId}:session`);
     } else if (rememberToken) {
       await prisma.user.updateMany({
         where: { remember_token: rememberToken },
@@ -348,9 +348,7 @@ const getCurrentPermissions = async (req, res) => {
     if (!userId) {
       return res.status(401).json({ error: 'Not authenticated.' });
     }
-    // We import it on-demand to avoid potential circular dependencies if any are added later
-    const { getUserPermissions } = require('../middlewares/authMiddleware');
-    const permissions = await getUserPermissions(userId);
+    const permissions = req.user?.permissions || [];
     res.json({ permissions });
   }
 };

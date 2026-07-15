@@ -1,4 +1,9 @@
 require('dotenv').config();
+
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET environment variable is missing.');
+  process.exit(1);
+}
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
@@ -11,6 +16,8 @@ const commodityPartRoutes = require('./src/routes/commodityPartRoutes');
 const supplierRoutes = require('./src/routes/supplierRoutes');
 const labRoutes = require('./src/routes/labRoutes');
 const dashboardRoutes = require('./src/routes/dashboardRoutes');
+
+const paginationMiddleware = require('./src/middlewares/paginationMiddleware');
 
 const path = require('path');
 const http = require('http');
@@ -27,20 +34,30 @@ const io = new Server(server, {
   }
 });
 
-// Middleware to authenticate socket connections could be added here
+const jwt = require('jsonwebtoken');
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  if (!token) {
+    return next(new Error('Authentication error: Token required'));
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = decoded;
+    next();
+  } catch (err) {
+    return next(new Error('Authentication error: Invalid token'));
+  }
+});
+
 io.on('connection', (socket) => {
-  // console.log(`Socket connected: ${socket.id}`);
-  
   socket.on('disconnect', () => {
-    // console.log(`Socket disconnected: ${socket.id}`);
   });
 });
 
-// Expose io globally so controllers can emit events easily
-global.io = io;
+// Attach io to Express app for dependency injection
+app.set('io', io);
 
-// Serve static files from uploads folder
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 
 // Initialize cron jobs
 const initCronJobs = require('./src/config/cron');
@@ -48,7 +65,7 @@ initCronJobs();
 
 // Clear cached permissions on startup to ensure sync with database migrations/seed
 const { delCache } = require('./src/utils/redisHelper');
-delCache('permissions:all').catch(err => console.error('Failed to clear permissions cache on start:', err.message));
+
 
 // Initialize Workers
 const initEmailWorker = require('./src/workers/emailWorker');
@@ -75,6 +92,7 @@ app.use(cookieParser());
 app.use('/api', apiLimiter); // Apply rate limiting to all /api routes
 
 // Routes
+app.use(paginationMiddleware);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/roles', roleRoutes);

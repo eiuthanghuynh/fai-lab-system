@@ -4,39 +4,6 @@ const prisma = require('../config/db');
 
 const { getCache, setCache } = require('../utils/redisHelper');
 
-const getUserPermissions = async (userId) => {
-  const cacheKey = `user:${userId}:permissions`;
-  let permissions = await getCache(cacheKey);
-
-  if (!permissions) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        roles: {
-          include: {
-            role: {
-              include: {
-                permissions: {
-                  include: { permission: true }
-                }
-              }
-            }
-          }
-        }
-      }
-    });
-
-    if (user) {
-      permissions = Array.from(new Set(
-        user.roles.flatMap(ur => ur.role.permissions.map(rp => rp.permission.name))
-      ));
-      await setCache(cacheKey, permissions, 3600); // Cache for 1 hour
-    } else {
-      permissions = [];
-    }
-  }
-  return permissions;
-};
 
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -45,7 +12,7 @@ const authenticateToken = async (req, res, next) => {
   if (!token) return res.status(401).json({ error: 'Access token required.' });
 
   try {
-    const user = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    const user = jwt.verify(token, process.env.JWT_SECRET);
     
     // Check last_logout_at using Cache
     const cacheKey = `user:${user.id}:session`;
@@ -73,11 +40,9 @@ const authenticateToken = async (req, res, next) => {
       }
     }
 
-    // Fetch real-time permissions and attach them to request user object
-    const permissions = await getUserPermissions(user.id);
     req.user = {
       ...dbUser,
-      permissions
+      permissions: user.permissions || []
     };
     next();
   } catch (err) {
@@ -91,8 +56,7 @@ const checkPermission = (permissionName) => {
       return res.status(401).json({ error: 'Not authenticated.' });
     }
     
-    const permissions = await getUserPermissions(req.user.id);
-    if (!permissions || !permissions.includes(permissionName)) {
+    if (!req.user.permissions || !req.user.permissions.includes(permissionName)) {
       return res.status(403).json({ error: `Permission denied. Requires: ${permissionName}` });
     }
     next();
@@ -105,12 +69,11 @@ const checkAnyPermission = (permissionNames) => {
       return res.status(401).json({ error: 'Not authenticated.' });
     }
     
-    const permissions = await getUserPermissions(req.user.id);
-    if (!permissions) {
+    if (!req.user.permissions) {
       return res.status(403).json({ error: `Permission denied.` });
     }
 
-    const hasAny = permissionNames.some(p => permissions.includes(p));
+    const hasAny = permissionNames.some(p => req.user.permissions.includes(p));
     if (!hasAny) {
       return res.status(403).json({ error: `Permission denied. Requires one of: ${permissionNames.join(', ')}` });
     }
@@ -121,6 +84,5 @@ const checkAnyPermission = (permissionNames) => {
 module.exports = {
   authenticateToken,
   checkPermission,
-  checkAnyPermission,
-  getUserPermissions
+  checkAnyPermission
 };

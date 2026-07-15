@@ -13,9 +13,7 @@ const getRoles = async (req, res) => {
       sort_desc = 'false'
     } = req.query;
 
-    const pageNumber = parseInt(page);
-    const limitNumber = parseInt(limit);
-    const skip = (pageNumber - 1) * limitNumber;
+    const { limitNumber, skip } = req.pagination;
 
     const where = {};
     if (search) {
@@ -75,13 +73,7 @@ const getRoles = async (req, res) => {
     const total = roles.length;
     roles = roles.slice(skip, skip + limitNumber);
 
-    res.json({
-      data: roles,
-      total,
-      page: pageNumber,
-      limit: limitNumber,
-      totalPages: Math.ceil(total / limitNumber)
-    });
+    return res.paginate(roles, total);
   }
 };
 
@@ -105,8 +97,8 @@ const createRole = async (req, res) => {
       }
     });
 
-    if (global.io) {
-      global.io.emit('role-created', newRole);
+    if (req.app.get('io')) {
+      req.app.get('io').emit('role-created', newRole);
     }
 
     res.status(201).json(newRole);
@@ -158,13 +150,13 @@ const updateRole = async (req, res) => {
       const { delCache } = require('../utils/redisHelper');
       for (const u of affectedUsers) {
         await delCache(`user:${u.id}:session`);
-        await delCache(`user:${u.id}:permissions`);
+
       }
     }
-    await delCache(`user:${req.user.id}:permissions`);
 
-    if (global.io) {
-      global.io.emit('role-updated', updatedRole);
+
+    if (req.app.get('io')) {
+      req.app.get('io').emit('role-updated', updatedRole);
     }
 
     res.json(updatedRole);
@@ -195,13 +187,13 @@ const deleteRole = async (req, res) => {
       const { delCache } = require('../utils/redisHelper');
       for (const u of affectedUsers) {
         await delCache(`user:${u.id}:session`);
-        await delCache(`user:${u.id}:permissions`);
+
       }
     }
-    await delCache(`user:${req.user.id}:permissions`);
 
-    if (global.io) {
-      global.io.emit('role-deleted', parseInt(id));
+
+    if (req.app.get('io')) {
+      req.app.get('io').emit('role-deleted', parseInt(id));
     }
 
     res.json(deletedRole);
@@ -215,9 +207,9 @@ const restoreRole = async (req, res) => {
       where: { id: parseInt(id) },
       data: { is_active: true }
     });
-    await clearAllUserPermissionsCache();
-    if (global.io) {
-      global.io.emit('role-restored', restoredRole);
+
+    if (req.app.get('io')) {
+      req.app.get('io').emit('role-restored', restoredRole);
     }
     res.json(restoredRole);
   }

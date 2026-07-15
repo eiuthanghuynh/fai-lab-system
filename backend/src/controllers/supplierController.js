@@ -1,40 +1,35 @@
 const prisma = require('../config/db');
 
 exports.getAll = async (req, res) => {
-  {
-    const { page = 1, limit = 10, search = '', sort_by = 'id', sort_desc = 'false' } = req.query;
+  const { search = '', sort_by = 'id', sort_desc = 'false' } = req.query;
+  const { limitNumber, skip } = req.pagination;
 
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
+  const where = search ? {
+    OR: [
+      { name: { contains: search, mode: 'insensitive' } },
+      { full_name: { contains: search, mode: 'insensitive' } }
+    ]
+  } : {};
 
-    const where = search ? {
-      OR: [
-        { name: { contains: search, mode: 'insensitive' } },
-        { full_name: { contains: search, mode: 'insensitive' } }
-      ]
-    } : {};
-
-    const orderBy = {};
-    if (sort_by) {
-      const direction = sort_desc === 'true' ? 'desc' : 'asc';
-      orderBy[sort_by] = direction;
-    } else {
-      orderBy.id = 'asc';
-    }
-
-    const [data, total] = await Promise.all([
-      prisma.supplier.findMany({
-        where,
-        orderBy,
-        skip,
-        take: limitNum
-      }),
-      prisma.supplier.count({ where })
-    ]);
-
-    res.json({ success: true, data, total });
+  const orderBy = {};
+  if (sort_by) {
+    const direction = sort_desc === 'true' ? 'desc' : 'asc';
+    orderBy[sort_by] = direction;
+  } else {
+    orderBy.id = 'asc';
   }
+
+  const [data, total] = await Promise.all([
+    prisma.supplier.findMany({
+      where,
+      orderBy,
+      skip,
+      take: limitNumber
+    }),
+    prisma.supplier.count({ where })
+  ]);
+
+  return res.paginate(data, total);
 };
 
 exports.create = async (req, res) => {
@@ -51,7 +46,7 @@ exports.create = async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ success: false, error: 'Name already exists.' });
     }
-    res.status(500).json({ success: false, error: 'Internal server error.' });
+    throw error;
   }
 };
 
@@ -75,7 +70,7 @@ exports.update = async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ success: false, error: 'Name already exists.' });
     }
-    res.status(500).json({ success: false, error: 'Internal server error.' });
+    throw error;
   }
 };
 
@@ -95,6 +90,6 @@ exports.delete = async (req, res) => {
     if (error.code === 'P2003') {
       return res.status(400).json({ success: false, error: 'Cannot delete because it is in use.' });
     }
-    res.status(500).json({ success: false, error: 'Internal server error.' });
+    throw error;
   }
 };

@@ -1,26 +1,26 @@
 const Minio = require('minio');
-const dotenv = require('dotenv');
 
-dotenv.config();
+const useSSL = process.env.MINIO_USE_SSL === 'true';
+const port = process.env.MINIO_PORT ? parseInt(process.env.MINIO_PORT, 10) : undefined;
 
 const minioClient = new Minio.Client({
   endPoint: process.env.MINIO_ENDPOINT || 'localhost',
-  port: parseInt(process.env.MINIO_PORT || '9000', 10),
-  useSSL: false,
-  accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
-  secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin123'
+  port,
+  useSSL,
+  accessKey: process.env.MINIO_ACCESS_KEY,
+  secretKey: process.env.MINIO_SECRET_KEY
 });
 
 const minioClientPublic = new Minio.Client({
-  endPoint: 'localhost', // Hardcode to localhost for frontend
-  port: parseInt(process.env.MINIO_PORT || '9000', 10),
-  useSSL: false,
-  accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
-  secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin123',
-  region: 'us-east-1' // Required to prevent network call
+  endPoint: process.env.MINIO_PUBLIC_ENDPOINT || process.env.MINIO_ENDPOINT || 'localhost',
+  port,
+  useSSL,
+  accessKey: process.env.MINIO_ACCESS_KEY,
+  secretKey: process.env.MINIO_SECRET_KEY,
+  region: process.env.MINIO_REGION || 'us-east-1'
 });
 
-const MINIO_BUCKET = process.env.MINIO_BUCKET || 'requests';
+const MINIO_BUCKET = process.env.MINIO_BUCKET;
 
 module.exports = {
   minioClient,

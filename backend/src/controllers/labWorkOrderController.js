@@ -67,8 +67,8 @@ const createWorkOrder = async (req, res) => {
       }
     });
 
-    if (global.io) {
-      global.io.emit('lab-work-order-created', workOrder);
+    if (req.app.get('io')) {
+      req.app.get('io').emit('lab-work-order-created', workOrder);
     }
 
     const { connection: redis } = require('../config/queue');
@@ -120,8 +120,8 @@ const updateStatus = async (req, res) => {
       await cleanupOrphanedAttachments(id, 'LAB_WORK_ORDER', keptFileIds);
     }
 
-    if (global.io) {
-      global.io.emit('lab-work-order-updated', updated);
+    if (req.app.get('io')) {
+      req.app.get('io').emit('lab-work-order-updated', updated);
     }
 
     const { connection: redis } = require('../config/queue');

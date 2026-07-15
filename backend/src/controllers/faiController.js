@@ -70,9 +70,7 @@ const getRequests = async (req, res) => {
       sort_by = 'created_at',
       sort_desc = 'true'
     } = req.query;
-    const pageNumber = parseInt(page);
-    const limitNumber = parseInt(limit);
-    const skip = (pageNumber - 1) * limitNumber;
+    const { limitNumber, skip } = req.pagination;
 
     const where = {
       is_active: true
@@ -210,13 +208,7 @@ const getRequests = async (req, res) => {
       };
     }));
 
-    res.json({
-      data: mappedRequests,
-      total,
-      page: pageNumber,
-      limit: limitNumber,
-      totalPages: Math.ceil(total / limitNumber)
-    });
+    return res.paginate(mappedRequests, total);
   }
 };
 
@@ -475,9 +467,9 @@ const submitRequest = async (req, res) => {
       requestor: req.user.full_name || 'System User'
     });
 
-    if (global.io) {
-      global.io.emit('fai-request-created', request);
-      global.io.emit('fai_dashboard_updated');
+    if (req.app.get('io')) {
+      req.app.get('io').emit('fai-request-created', request);
+      req.app.get('io').emit('fai_dashboard_updated');
     }
 
     res.json({ success: true, data: request });
@@ -584,9 +576,9 @@ const deleteDraft = async (req, res) => {
       }
     }
 
-    if (global.io && request.status !== 'Draft') {
-      global.io.emit('fai-request-deleted', parseInt(id));
-      global.io.emit('fai_dashboard_updated');
+    if (req.app.get('io') && request.status !== 'Draft') {
+      req.app.get('io').emit('fai-request-deleted', parseInt(id));
+      req.app.get('io').emit('fai_dashboard_updated');
     }
 
     res.json({ success: true, message: 'Draft deleted successfully.' });
@@ -650,9 +642,9 @@ const assignRequest = async (req, res) => {
       }
     });
 
-    if (global.io) {
-      global.io.emit('fai-request-updated', updatedRequest);
-      global.io.emit('fai_dashboard_updated');
+    if (req.app.get('io')) {
+      req.app.get('io').emit('fai-request-updated', updatedRequest);
+      req.app.get('io').emit('fai_dashboard_updated');
     }
 
     res.json({ success: true, data: updatedRequest });

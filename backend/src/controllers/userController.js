@@ -32,9 +32,7 @@ const getUsers = async (req, res) => {
       sort_desc = 'false'
     } = req.query;
 
-    const pageNumber = parseInt(page);
-    const limitNumber = parseInt(limit);
-    const skip = (pageNumber - 1) * limitNumber;
+    const { limitNumber, skip } = req.pagination;
 
     // Build where clause
     const where = {};
@@ -121,13 +119,7 @@ const getUsers = async (req, res) => {
       };
     });
 
-    res.json({
-      data: safeUsers,
-      total,
-      page: pageNumber,
-      limit: limitNumber,
-      totalPages: Math.ceil(total / limitNumber)
-    });
+    return res.paginate(safeUsers, total);
   }
 };
 
@@ -161,8 +153,8 @@ const createUser = async (req, res) => {
     });
 
     const { password_hash: _hash, ...safeUser } = newUser;
-    if (global.io) {
-      global.io.emit('user-created', safeUser);
+    if (req.app.get('io')) {
+      req.app.get('io').emit('user-created', safeUser);
     }
     res.status(201).json(safeUser);
   } catch (error) {
@@ -219,11 +211,11 @@ const updateUser = async (req, res) => {
     if (updateData.last_logout_at) {
       await delCache(`user:${id}:session`);
     }
-    await delCache(`user:${id}:permissions`);
+
 
     const { password_hash: _hash, ...safeUser } = updatedUser;
-    if (global.io) {
-      global.io.emit('user-updated', safeUser);
+    if (req.app.get('io')) {
+      req.app.get('io').emit('user-updated', safeUser);
     }
     res.json(safeUser);
   } catch (error) {
@@ -243,9 +235,9 @@ const deleteUser = async (req, res) => {
       }
     });
     await delCache(`user:${id}:session`);
-    await delCache(`user:${id}:permissions`);
-    if (global.io) {
-      global.io.emit('user-deleted', parseInt(id));
+
+    if (req.app.get('io')) {
+      req.app.get('io').emit('user-deleted', parseInt(id));
     }
     res.json({ message: 'User soft deleted and sessions invalidated.', id: deletedUser.id });
   }
@@ -258,9 +250,9 @@ const restoreUser = async (req, res) => {
       where: { id: parseInt(id) },
       data: { is_active: true }
     });
-    await delCache(`user:${id}:permissions`);
-    if (global.io) {
-      global.io.emit('user-restored', restoredUser);
+
+    if (req.app.get('io')) {
+      req.app.get('io').emit('user-restored', restoredUser);
     }
     res.json({ message: 'User restored.', id: restoredUser.id });
   }

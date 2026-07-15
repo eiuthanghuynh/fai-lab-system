@@ -28,18 +28,13 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function autoLogin() {
     try {
-      const res = await fetch('http://localhost:3000/api/auth/me', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include' // Important for sending the cookie
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAuth(data.token, data.user, data.user.permissions);
-        return true;
+      const res = await api.get('/auth/me');
+      setAuth(res.data.token, res.data.user, res.data.user.permissions);
+      return true;
+    } catch (e: any) {
+      if (e.response?.status !== 401) {
+        console.error('Auto-login failed', e);
       }
-    } catch (e) {
-      console.error('Auto-login failed', e);
     }
     return false;
   }
