@@ -4,7 +4,7 @@ const { cleanupOrphanedAttachments } = require('../utils/attachmentHelper');
 const fs = require('fs').promises;
 
 const getByRequestId = async (req, res) => {
-  try {
+  {
     const { requestId } = req.params;
     const workOrders = await prisma.labWorkOrder.findMany({
       where: {
@@ -19,14 +19,11 @@ const getByRequestId = async (req, res) => {
     });
 
     res.json({ success: true, data: workOrders });
-  } catch (err) {
-    console.error('getByRequestId error:', err);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const createWorkOrder = async (req, res) => {
-  try {
+  {
     const { requestId } = req.params;
     const {
       quantity,
@@ -79,14 +76,11 @@ const createWorkOrder = async (req, res) => {
     if (keys.length > 0) await redis.del(keys);
 
     res.json({ success: true, data: workOrder });
-  } catch (err) {
-    console.error('createWorkOrder error:', err);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const updateStatus = async (req, res) => {
-  try {
+  {
     const { id } = req.params;
     const {
       status,
@@ -135,14 +129,11 @@ const updateStatus = async (req, res) => {
     if (keys.length > 0) await redis.del(keys);
 
     res.json({ success: true, data: updated });
-  } catch (err) {
-    console.error('updateStatus error:', err);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const uploadWorkOrderFiles = async (req, res) => {
-  try {
+  {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'No files uploaded.' });
     }
@@ -161,9 +152,6 @@ const uploadWorkOrderFiles = async (req, res) => {
     }
 
     res.json({ files: attachments });
-  } catch (error) {
-    console.error('uploadWorkOrderFiles error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 

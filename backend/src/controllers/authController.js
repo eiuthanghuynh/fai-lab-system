@@ -6,7 +6,7 @@ const { emailQueue } = require('../config/queue');
 const { delCache } = require('../utils/redisHelper');
 
 const register = async (req, res) => {
-  try {
+  {
     const { username, password, email, full_name, role_id } = req.body;
 
     // Validate inputs
@@ -48,14 +48,11 @@ const register = async (req, res) => {
         full_name: newUser.full_name
       }
     });
-  } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const login = async (req, res) => {
-  try {
+  {
     const { username, password, keep_logged_in } = req.body;
 
     if (!username || !password) {
@@ -147,14 +144,11 @@ const login = async (req, res) => {
         permissions
       }
     });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error.', details: error.message, stack: error.stack });
   }
 };
 
 const me = async (req, res) => {
-  try {
+  {
     const rememberToken = req.cookies?.remember_token;
     if (!rememberToken) {
       return res.status(401).json({ error: 'No remember token provided.' });
@@ -214,14 +208,11 @@ const me = async (req, res) => {
         permissions
       }
     });
-  } catch (error) {
-    console.error('Auto-login error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const logout = async (req, res) => {
-  try {
+  {
     res.clearCookie('remember_token');
     const userId = req.user?.id;
     const rememberToken = req.cookies?.remember_token;
@@ -240,14 +231,11 @@ const logout = async (req, res) => {
     }
 
     res.json({ message: 'Logged out successfully.' });
-  } catch (error) {
-    console.error('Logout error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const forgotPassword = async (req, res) => {
-  try {
+  {
     const { email, employee_id } = req.body;
 
     // Phản hồi "Security-first": Luôn báo thành công nếu format không sai
@@ -282,14 +270,11 @@ const forgotPassword = async (req, res) => {
 
     // Luôn trả về 200 để chống dò quét email
     res.json({ message: 'If the information is correct, an email has been sent.' });
-  } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const resetPassword = async (req, res) => {
-  try {
+  {
     const { email, token, new_password } = req.body;
 
     if (!email || !token || !new_password) {
@@ -327,14 +312,11 @@ const resetPassword = async (req, res) => {
     });
 
     res.json({ message: 'Mật khẩu đã được thiết lập lại thành công.' });
-  } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const verifyResetToken = async (req, res) => {
-  try {
+  {
     const { email, token } = req.query;
 
     if (!email || !token) {
@@ -357,14 +339,11 @@ const verifyResetToken = async (req, res) => {
     }
 
     res.json({ valid: true });
-  } catch (error) {
-    console.error('Verify token error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const getCurrentPermissions = async (req, res) => {
-  try {
+  {
     const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: 'Not authenticated.' });
@@ -373,9 +352,6 @@ const getCurrentPermissions = async (req, res) => {
     const { getUserPermissions } = require('../middlewares/authMiddleware');
     const permissions = await getUserPermissions(userId);
     res.json({ permissions });
-  } catch (error) {
-    console.error('getCurrentPermissions error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 

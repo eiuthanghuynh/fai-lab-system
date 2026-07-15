@@ -1,20 +1,20 @@
 const prisma = require('../config/db');
 
 exports.getAll = async (req, res) => {
-  try {
+  {
     const { page = 1, limit = 10, search = '', sort_by = 'id', sort_desc = 'false' } = req.query;
-    
+
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
-    
+
     const where = search ? {
       OR: [
         { name: { contains: search, mode: 'insensitive' } },
         { full_name: { contains: search, mode: 'insensitive' } }
       ]
     } : {};
-    
+
     const orderBy = {};
     if (sort_by) {
       const direction = sort_desc === 'true' ? 'desc' : 'asc';
@@ -34,9 +34,6 @@ exports.getAll = async (req, res) => {
     ]);
 
     res.json({ success: true, data, total });
-  } catch (error) {
-    console.error('supplier getAll error:', error);
-    res.status(500).json({ success: false, error: 'Internal server error.' });
   }
 };
 

@@ -18,7 +18,7 @@ const handlePrismaError = (error, res) => {
 };
 
 const getUsers = async (req, res) => {
-  try {
+  {
     const { 
       page = 1, 
       limit = 25, 
@@ -80,7 +80,7 @@ const getUsers = async (req, res) => {
     const orderBy = {};
     const isDesc = sort_desc === 'true';
     const direction = isDesc ? 'desc' : 'asc';
-    
+
     if (sort_by === 'role') {
       orderBy.id = direction;
     } else if (sort_by === 'status') {
@@ -108,10 +108,10 @@ const getUsers = async (req, res) => {
     }
 
     const total = users.length;
-    
+
     // Pagination in memory
     users = users.slice(skip, skip + limitNumber);
-    
+
     // Omit password hash for safety
     const safeUsers = users.map(user => {
       const { password_hash, _matchCount, roles, ...safeUser } = user;
@@ -128,9 +128,6 @@ const getUsers = async (req, res) => {
       limit: limitNumber,
       totalPages: Math.ceil(total / limitNumber)
     });
-  } catch (error) {
-    console.error('getUsers error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
@@ -236,7 +233,7 @@ const updateUser = async (req, res) => {
 };
 
 const deleteUser = async (req, res) => {
-  try {
+  {
     const { id } = req.params;
     const deletedUser = await prisma.user.update({
       where: { id: parseInt(id) },
@@ -251,14 +248,11 @@ const deleteUser = async (req, res) => {
       global.io.emit('user-deleted', parseInt(id));
     }
     res.json({ message: 'User soft deleted and sessions invalidated.', id: deletedUser.id });
-  } catch (error) {
-    console.error('deleteUser error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const restoreUser = async (req, res) => {
-  try {
+  {
     const { id } = req.params;
     const restoredUser = await prisma.user.update({
       where: { id: parseInt(id) },
@@ -269,9 +263,6 @@ const restoreUser = async (req, res) => {
       global.io.emit('user-restored', restoredUser);
     }
     res.json({ message: 'User restored.', id: restoredUser.id });
-  } catch (error) {
-    console.error('restoreUser error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 

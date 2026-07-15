@@ -6,7 +6,7 @@ const { minioClient, minioClientPublic, MINIO_BUCKET } = require('../config/mini
 const fs = require('fs').promises;
 
 const getRequests = async (req, res) => {
-  try {
+  {
     const { 
       page = 1, 
       limit = 25, 
@@ -111,14 +111,11 @@ const getRequests = async (req, res) => {
     await redis.set(cacheKey, JSON.stringify(responseData), 'EX', 300); // 5 mins cache
 
     res.json(responseData);
-  } catch (error) {
-    console.error('getRequests error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const getRequestById = async (req, res) => {
-  try {
+  {
     const { id } = req.params;
     const request = await prisma.labRequest.findUnique({
       where: { id: parseInt(id) },
@@ -161,9 +158,6 @@ const getRequestById = async (req, res) => {
         attachments
       }
     });
-  } catch (error) {
-    console.error('getRequestById error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
@@ -195,7 +189,7 @@ const generateTestNo = async () => {
 };
 
 const saveDraft = async (req, res) => {
-  try {
+  {
     const {
       id,
       model_no,
@@ -290,14 +284,11 @@ const saveDraft = async (req, res) => {
     }
 
     res.json({ success: true, data: request });
-  } catch (error) {
-    console.error('saveDraft error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const submitRequest = async (req, res) => {
-  try {
+  {
     const {
       id,
       model_no,
@@ -321,7 +312,7 @@ const submitRequest = async (req, res) => {
     if (parsedQuantity < 1 || parsedQuantity > 20) {
       return res.status(400).json({ error: 'error.sample_qty_lab_bounds' });
     }
-    
+
     if (stage && stage.startsWith('Prototype')) {
       const parts = stage.split(' ');
       if (parts.length > 1) {
@@ -367,7 +358,7 @@ const submitRequest = async (req, res) => {
     if (id) {
       // Edit mode (if it was draft or we allow editing)
       const existingDraft = await prisma.labRequest.findUnique({ where: { id: parseInt(id) } });
-      const test_no = existingDraft.test_no || await generateTestNo();
+      const test_no = existingDraft.test_no || (await generateTestNo());
       request = await prisma.labRequest.update({
         where: { id: parseInt(id) },
         data: {
@@ -418,20 +409,17 @@ const submitRequest = async (req, res) => {
     if (global.io) {
       global.io.emit('lab-request-created', request);
     }
-    
+
     // Clear cache
     const keys = await redis.keys('lab_requests:*');
     if (keys.length > 0) await redis.del(keys);
 
     res.json({ success: true, data: request });
-  } catch (error) {
-    console.error('submitRequest error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const assignRequest = async (req, res) => {
-  try {
+  {
     const { id } = req.params;
     const { priority, priority_reason, inspector_id } = req.body;
 
@@ -462,14 +450,11 @@ const assignRequest = async (req, res) => {
     if (keys.length > 0) await redis.del(keys);
 
     res.json({ success: true, data: updatedRequest });
-  } catch (err) {
-    console.error('assignRequest error:', err);
-    res.status(500).json({ error: 'Internal server error' });
   }
 };
 
 const uploadFiles = async (req, res) => {
-  try {
+  {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'No files uploaded.' });
     }
@@ -488,14 +473,11 @@ const uploadFiles = async (req, res) => {
     }
 
     res.json({ files: attachments });
-  } catch (error) {
-    console.error('uploadFiles error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const deleteDraft = async (req, res) => {
-  try {
+  {
     const { id } = req.params;
     const request = await prisma.labRequest.findUnique({
       where: { id: parseInt(id) }
@@ -550,14 +532,11 @@ const deleteDraft = async (req, res) => {
     if (keys.length > 0) await redis.del(keys);
 
     res.json({ success: true, message: 'Draft deleted successfully.' });
-  } catch (error) {
-    console.error('deleteDraft error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const getInspectors = async (req, res) => {
-  try {
+  {
     const inspectors = await prisma.user.findMany({
       where: {
         is_active: true,
@@ -585,9 +564,6 @@ const getInspectors = async (req, res) => {
       }
     });
     res.json({ success: true, data: inspectors });
-  } catch (err) {
-    console.error('getInspectors error:', err);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 

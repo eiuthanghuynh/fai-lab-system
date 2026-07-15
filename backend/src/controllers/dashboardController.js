@@ -2,7 +2,7 @@ const prisma = require('../config/db');
 const { getCache, setCache } = require('../utils/redisHelper');
 
 const getDashboardStats = async (req, res) => {
-  try {
+  {
     const { system = 'FAI', year, week, refresh } = req.query;
 
     // Normalize and sort parameters for consistent cache keys
@@ -193,10 +193,6 @@ const getDashboardStats = async (req, res) => {
     }
 
     res.status(400).json({ error: 'Invalid system parameter' });
-
-  } catch (error) {
-    console.error('[Dashboard API Error]', error);
-    res.status(500).json({ error: 'Failed to fetch dashboard stats' });
   }
 };
 

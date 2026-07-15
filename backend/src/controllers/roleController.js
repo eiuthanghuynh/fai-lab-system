@@ -2,7 +2,7 @@ const prisma = require('../config/db');
 const { getCache, setCache, delCache, clearAllUserPermissionsCache } = require('../utils/redisHelper');
 
 const getRoles = async (req, res) => {
-  try {
+  {
     const { 
       page = 1, 
       limit = 25, 
@@ -12,7 +12,7 @@ const getRoles = async (req, res) => {
       sort_by = 'id',
       sort_desc = 'false'
     } = req.query;
-    
+
     const pageNumber = parseInt(page);
     const limitNumber = parseInt(limit);
     const skip = (pageNumber - 1) * limitNumber;
@@ -24,11 +24,11 @@ const getRoles = async (req, res) => {
         { description: { contains: search, mode: 'insensitive' } }
       ];
     }
-    
+
     if (is_active !== undefined && is_active !== '') {
       where.is_active = is_active === 'true';
     }
-    
+
     let pIds = [];
     if (permission_ids) {
       pIds = permission_ids.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
@@ -44,7 +44,7 @@ const getRoles = async (req, res) => {
     const orderBy = {};
     const isDesc = sort_desc === 'true';
     const direction = isDesc ? 'desc' : 'asc';
-    
+
     if (sort_by === 'permissions') {
        orderBy.id = direction; 
     } else if (sort_by === 'status') {
@@ -82,16 +82,13 @@ const getRoles = async (req, res) => {
       limit: limitNumber,
       totalPages: Math.ceil(total / limitNumber)
     });
-  } catch (error) {
-    console.error('getRoles error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const createRole = async (req, res) => {
-  try {
+  {
     const { name, description, badge_color, permission_ids } = req.body;
-    
+
     if (!name) return res.status(400).json({ error: 'Role name is required.' });
 
     const newRole = await prisma.role.create({
@@ -113,14 +110,11 @@ const createRole = async (req, res) => {
     }
 
     res.status(201).json(newRole);
-  } catch (error) {
-    console.error('createRole error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const updateRole = async (req, res) => {
-  try {
+  {
     const { id } = req.params;
     const { name, description, badge_color, permission_ids } = req.body;
 
@@ -174,14 +168,11 @@ const updateRole = async (req, res) => {
     }
 
     res.json(updatedRole);
-  } catch (error) {
-    console.error('updateRole error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const deleteRole = async (req, res) => {
-  try {
+  {
     const { id } = req.params;
     const deletedRole = await prisma.role.update({
       where: { id: parseInt(id) },
@@ -214,14 +205,11 @@ const deleteRole = async (req, res) => {
     }
 
     res.json(deletedRole);
-  } catch (error) {
-    console.error('deleteRole error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const restoreRole = async (req, res) => {
-  try {
+  {
     const { id } = req.params;
     const restoredRole = await prisma.role.update({
       where: { id: parseInt(id) },
@@ -232,15 +220,12 @@ const restoreRole = async (req, res) => {
       global.io.emit('role-restored', restoredRole);
     }
     res.json(restoredRole);
-  } catch (error) {
-    console.error('restoreRole error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 // Also need a way to get all permissions to show in the checkbox table
 const getPermissions = async (req, res) => {
-  try {
+  {
     const cacheKey = 'permissions:all';
     let permissions = await getCache(cacheKey);
 
@@ -250,11 +235,8 @@ const getPermissions = async (req, res) => {
       });
       await setCache(cacheKey, permissions, 86400); // cache 24h
     }
-    
+
     res.json(permissions);
-  } catch (error) {
-    console.error('getPermissions error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 

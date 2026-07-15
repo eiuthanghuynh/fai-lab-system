@@ -48,7 +48,7 @@ const generateTestNo = async () => {
 };
 
 const getRequests = async (req, res) => {
-  try {
+  {
     const { 
       page = 1, 
       limit = 25, 
@@ -150,7 +150,7 @@ const getRequests = async (req, res) => {
     // Build order by
     const orderBy = {};
     const direction = sort_desc === 'true' ? 'desc' : 'asc';
-    
+
     // Handle relation sorting
     if (sort_by === 'requestor_id') {
       orderBy.requestor = { full_name: direction };
@@ -217,14 +217,11 @@ const getRequests = async (req, res) => {
       limit: limitNumber,
       totalPages: Math.ceil(total / limitNumber)
     });
-  } catch (error) {
-    console.error('getRequests error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const uploadFiles = async (req, res) => {
-  try {
+  {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'No files uploaded.' });
     }
@@ -243,14 +240,11 @@ const uploadFiles = async (req, res) => {
     }
 
     res.json({ files: attachments });
-  } catch (error) {
-    console.error('uploadFiles error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const saveDraft = async (req, res) => {
-  try {
+  {
     const {
       id,
       part_no,
@@ -351,14 +345,11 @@ const saveDraft = async (req, res) => {
     }
 
     res.json({ success: true, data: request });
-  } catch (error) {
-    console.error('saveDraft error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const submitRequest = async (req, res) => {
-  try {
+  {
     const {
       id,
       part_no,
@@ -434,7 +425,7 @@ const submitRequest = async (req, res) => {
     if (id) {
       // Update existing draft to submitted
       const existingDraft = await prisma.faiRequest.findUnique({ where: { id: parseInt(id) } });
-      const test_no = existingDraft.test_no || await generateTestNo();
+      const test_no = existingDraft.test_no || (await generateTestNo());
       request = await prisma.faiRequest.update({
         where: { id: parseInt(id) },
         data: {
@@ -490,14 +481,11 @@ const submitRequest = async (req, res) => {
     }
 
     res.json({ success: true, data: request });
-  } catch (error) {
-    console.error('submitRequest error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const getRequestById = async (req, res) => {
-  try {
+  {
     const { id } = req.params;
     const request = await prisma.faiRequest.findUnique({
       where: { id: parseInt(id) },
@@ -544,14 +532,11 @@ const getRequestById = async (req, res) => {
         attachments: attsWithUrls
       }
     });
-  } catch (error) {
-    console.error('getRequestById error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const deleteDraft = async (req, res) => {
-  try {
+  {
     const { id } = req.params;
     const request = await prisma.faiRequest.findUnique({
       where: { id: parseInt(id) }
@@ -605,14 +590,11 @@ const deleteDraft = async (req, res) => {
     }
 
     res.json({ success: true, message: 'Draft deleted successfully.' });
-  } catch (error) {
-    console.error('deleteDraft error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const getInspectors = async (req, res) => {
-  try {
+  {
     const inspectors = await prisma.user.findMany({
       where: {
         is_active: true,
@@ -641,14 +623,11 @@ const getInspectors = async (req, res) => {
       }
     });
     res.json({ success: true, data: inspectors });
-  } catch (err) {
-    console.error('getInspectors error:', err);
-    res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
 const assignRequest = async (req, res) => {
-  try {
+  {
     const { id } = req.params;
     const { inspector_id, priority, priority_reason } = req.body;
 
@@ -677,9 +656,6 @@ const assignRequest = async (req, res) => {
     }
 
     res.json({ success: true, data: updatedRequest });
-  } catch (err) {
-    console.error('assignRequest error:', err);
-    res.status(500).json({ error: 'Internal server error' });
   }
 };
 
