@@ -57,7 +57,10 @@ import 'vue-sonner/style.css'
 
 const closeAlertAndRedirect = () => {
   showSessionAlert.value = false;
-  router.push({ name: 'login' });
+  router.push({ 
+    name: 'login',
+    query: { redirect: router.currentRoute.value.fullPath }
+  });
 };
 </script>
 
