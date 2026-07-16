@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { useDark, useToggle } from '@vueuse/core';
+import { useDark, useToggle, useLocalStorage } from '@vueuse/core';
 import XpLogo from '../assets/XP-logo-white.svg';
 import LanguageSwitcher from '../components/LanguageSwitcher.vue';
 import ConfirmModal from '../components/ConfirmModal.vue';
@@ -17,6 +17,8 @@ const route = useRoute();
 const { t } = useI18n();
 
 const showLogoutConfirm = ref(false);
+const showSettings = useLocalStorage('sidebar_settings_expanded', true);
+const isSidebarCollapsed = useLocalStorage('sidebar_collapsed', false);
 
 const handleLogout = async () => {
   try {
@@ -62,12 +64,39 @@ const toggleDark = () => {
   if (!document.startViewTransition) return rawToggle();
   document.startViewTransition(() => rawToggle());
 };
+
+const touchStartX = ref(0);
+const touchStartY = ref(0);
+
+const onTouchStart = (e: TouchEvent) => {
+  touchStartX.value = e.touches[0].clientX;
+  touchStartY.value = e.touches[0].clientY;
+};
+
+const onTouchEnd = (e: TouchEvent) => {
+  const touchEndX = e.changedTouches[0].clientX;
+  const touchEndY = e.changedTouches[0].clientY;
+  
+  const diffX = touchStartX.value - touchEndX;
+  const diffY = touchStartY.value - touchEndY;
+  
+  if (Math.abs(diffX) > 40 && Math.abs(diffY) < 40) {
+    if (diffX > 0 && !isSidebarCollapsed.value) {
+      isSidebarCollapsed.value = true;
+    } else if (diffX < 0 && isSidebarCollapsed.value) {
+      if (touchStartX.value < 40) {
+        isSidebarCollapsed.value = false;
+      }
+    }
+  }
+};
 </script>
 
 <template>
-  <div class="flex h-screen overflow-hidden">
-    <aside class="w-[260px] bg-bg-surface border-r border-border flex flex-col">
-      <div class="p-6 border-b border-border flex flex-col gap-4">
+  <div class="flex h-screen overflow-hidden relative" @touchstart="onTouchStart" @touchend="onTouchEnd">
+    <aside :class="['bg-bg-surface border-border flex flex-col shrink-0 transition-all duration-300 relative z-20 overflow-hidden', isSidebarCollapsed ? 'w-0 border-r-0' : 'w-[260px] border-r']">
+      <div class="w-[260px] h-full flex flex-col transition-opacity duration-300" :class="isSidebarCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'">
+        <div class="p-6 border-b border-border flex flex-col gap-4">
         <div class="bg-black rounded p-2.5 flex justify-center items-center">
           <img :src="XpLogo" alt="XP Power Logo" class="max-w-[150px] h-auto" />
         </div>
@@ -139,6 +168,7 @@ const toggleDark = () => {
               <router-link v-if="hasAccess('admin-fai-failure-modes')" to="/admin/fai-failure-modes" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.fai_failure_modes', 'FAI Failure Modes') }}</router-link>
               <router-link v-if="hasAccess('admin-commodity-parts')" to="/admin/commodity-parts" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.commodity_parts', 'Commodity Parts') }}</router-link>
               <router-link v-if="hasAccess('admin-suppliers')" to="/admin/suppliers" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">{{ t('admin.suppliers', 'Suppliers') }}</router-link>
+              <router-link v-if="hasAccess('admin-item-tests')" to="/admin/item-tests" class="py-2 pr-6 pl-10 text-text-muted text-sm font-normal no-underline border-l-[3px] border-transparent hover:text-text hover:bg-white/5 hover:border-primary [&.router-link-exact-active]:!text-primary [&.router-link-exact-active]:bg-white/5 [&.router-link-exact-active]:border-primary">Item Tests</router-link>
             </div>
           </Transition>
         </div>
@@ -146,21 +176,51 @@ const toggleDark = () => {
       
       <div class="p-6 border-t border-border flex flex-col gap-4">
         <div class="flex flex-col gap-1 pb-2 mb-2 border-b border-border">
-          <LanguageSwitcher />
-          
-          <div class="flex justify-between items-center px-1 py-2">
-            <span class="text-sm text-text font-medium">{{ t('common.dark_mode') }}</span>
-            <div 
-              class="relative inline-block w-[44px] h-[24px] rounded-full cursor-pointer transition-colors duration-300"
-              :class="isDark ? 'bg-[#34C759]' : 'bg-[#ccc]'"
-              @click="toggleDark()"
+          <div class="flex justify-between items-center px-1 mb-1">
+            <span class="text-xs font-semibold text-text-muted uppercase tracking-wider">{{ t('common.settings') }}</span>
+            <button 
+              @click="showSettings = !showSettings" 
+              class="p-1 rounded border border-border bg-bg-surface hover:bg-bg transition-colors flex items-center justify-center text-text-muted hover:text-text"
             >
-              <div 
-                class="absolute h-[20px] w-[20px] left-[2px] bottom-[2px] bg-white rounded-full shadow-[0_2px_4px_rgba(0,0,0,0.2)] transition-all duration-300"
-                :class="isDark ? 'translate-x-[20px]' : 'translate-x-0'"
-              ></div>
-            </div>
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                class="h-3.5 w-3.5 transition-transform duration-300"
+                :class="showSettings ? 'rotate-180' : ''"
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
           </div>
+          
+          <Transition
+            enter-active-class="transition-all duration-300 ease-in-out origin-top overflow-hidden"
+            leave-active-class="transition-all duration-300 ease-in-out origin-top overflow-hidden"
+            enter-from-class="opacity-0 scale-y-95 max-h-0"
+            leave-to-class="opacity-0 scale-y-95 max-h-0"
+            enter-to-class="opacity-100 scale-y-100 max-h-[150px]"
+            leave-from-class="opacity-100 scale-y-100 max-h-[150px]"
+          >
+            <div v-show="showSettings" class="flex flex-col gap-1">
+              <LanguageSwitcher />
+              
+              <div class="flex justify-between items-center px-1 py-2">
+                <span class="text-sm text-text font-medium">{{ t('common.dark_mode') }}</span>
+                <div 
+                  class="relative inline-block w-[44px] h-[24px] rounded-full cursor-pointer transition-colors duration-300"
+                  :class="isDark ? 'bg-[#34C759]' : 'bg-[#ccc]'"
+                  @click="toggleDark()"
+                >
+                  <div 
+                    class="absolute h-[20px] w-[20px] left-[2px] bottom-[2px] bg-white rounded-full shadow-[0_2px_4px_rgba(0,0,0,0.2)] transition-all duration-300"
+                    :class="isDark ? 'translate-x-[20px]' : 'translate-x-0'"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </Transition>
         </div>
         
         <div class="flex flex-col gap-1">
@@ -176,9 +236,20 @@ const toggleDark = () => {
           {{ t('nav.logout') }}
         </Button>
       </div>
+      </div>
     </aside>
     
-    <main class="flex-1 bg-bg h-screen overflow-y-auto overflow-x-hidden flex flex-col">
+    <button 
+      @click="isSidebarCollapsed = !isSidebarCollapsed"
+      class="absolute top-1/2 -translate-y-1/2 z-[60] p-1 rounded border border-border bg-bg-surface hover:bg-bg transition-all duration-300 flex items-center justify-center text-text-muted hover:text-text shadow-sm"
+      :style="{ left: isSidebarCollapsed ? '16px' : '246px' }"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 transition-transform duration-300" :class="isSidebarCollapsed ? 'rotate-180' : 'rotate-0'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+    </button>
+
+    <main class="flex-1 bg-bg h-screen overflow-y-auto overflow-x-hidden flex flex-col relative z-10">
       <router-view v-slot="{ Component }">
         <transition 
           enter-active-class="transition-opacity duration-200"

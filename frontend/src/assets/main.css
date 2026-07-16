@@ -23,6 +23,7 @@
 
 html.dark {
   /* Dark Theme */
+  color-scheme: dark;
   --color-primary: #63e079;
   --color-primary-dark: #4ac760;
   --color-primary-text: #000000;
