@@ -58,6 +58,12 @@ const router = createRouter({
           component: () => import('../views/admin/SupplierManagementView.vue'),
         },
         {
+          path: 'admin/item-tests',
+          name: 'admin-item-tests',
+          meta: { permission: 'ADMINISTRATOR' },
+          component: () => import('../views/admin/ItemTestManagementView.vue'),
+        },
+        {
           path: 'unauthorized',
           name: 'unauthorized',
           component: () => import('../views/UnauthorizedView.vue'),

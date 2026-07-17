@@ -200,7 +200,7 @@ const { isLoading, execute: executeFetchDashboardStats } = useAsyncState(async (
   stats.value = res.data
 
   showNewDataToast.value = false
-}, null, { immediate: false })
+}, null, { immediate: false, resetOnExecute: false })
 
 const fetchDashboardStats = (refresh = false) => executeFetchDashboardStats(0, refresh)
 
@@ -210,7 +210,7 @@ const { isLoading: isRecentLoading, execute: executeFetchRecentRequests } = useA
   const res = await api.get(`${endpoint}?page=${page.value}&limit=${limit.value}&sort_by=${sortBy.value}&sort_desc=${sortDesc.value}`)
   recentRequests.value = res.data.data
   totalRecentRequests.value = res.data.total
-}, null, { immediate: false })
+}, null, { immediate: false, resetOnExecute: false })
 
 const fetchRecentRequests = () => executeFetchRecentRequests()
 

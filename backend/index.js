@@ -14,6 +14,7 @@ const faiRoutes = require('./src/routes/faiRoutes');
 const faiFailureModeRoutes = require('./src/routes/faiFailureModeRoutes');
 const commodityPartRoutes = require('./src/routes/commodityPartRoutes');
 const supplierRoutes = require('./src/routes/supplierRoutes');
+const itemTestRoutes = require('./src/routes/itemTestRoutes');
 const labRoutes = require('./src/routes/labRoutes');
 const dashboardRoutes = require('./src/routes/dashboardRoutes');
 
@@ -59,9 +60,7 @@ app.set('io', io);
 
 
 
-// Initialize cron jobs
-const initCronJobs = require('./src/config/cron');
-initCronJobs();
+// Cron jobs replaced by BullMQ (cleanupWorker.js)
 
 // Clear cached permissions on startup to ensure sync with database migrations/seed
 const { delCache } = require('./src/utils/redisHelper');
@@ -70,6 +69,9 @@ const { delCache } = require('./src/utils/redisHelper');
 // Initialize Workers
 const initEmailWorker = require('./src/workers/emailWorker');
 initEmailWorker();
+
+const initCleanupWorker = require('./src/workers/cleanupWorker');
+initCleanupWorker();
 
 const rateLimit = require('express-rate-limit');
 
@@ -100,6 +102,7 @@ app.use('/api/fai', faiRoutes);
 app.use('/api/fai-failure-modes', faiFailureModeRoutes);
 app.use('/api/commodity-parts', commodityPartRoutes);
 app.use('/api/suppliers', supplierRoutes);
+app.use('/api/item-tests', itemTestRoutes);
 app.use('/api/lab', labRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 

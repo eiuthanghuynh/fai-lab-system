@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { useFormValidation } from '@/composables/useFormValidation';
 import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
 import Input from '@/components/ui/Input.vue';
+import DirectUpload from '@/components/common/DirectUpload.vue';
 import Button from '@/components/ui/Button.vue';
 
 const { t } = useI18n();
@@ -51,14 +52,11 @@ const formData = ref({
 
 const isSubmitting = ref(false);
 const attachedFiles = ref<any[]>([]);
-const fileInputRef = ref<HTMLInputElement | null>(null);
 
 const stageOptions = computed(() => [
   { value: 'Prototype', label: 'Prototype' },
   { value: 'Mass Production', label: 'Mass Production' }
 ]);
-const isUploading = ref(false);
-const uploadProgress = ref(0);
 const saveStatus = ref(''); // 'saving', 'saved', 'error', ''
 const idempotencyKey = ref('');
 
@@ -95,47 +93,12 @@ onMounted(async () => {
   }
 });
 
-const handleFileUpload = (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  if (target.files) {
-    const filesArray = Array.from(target.files);
-    attachedFiles.value = [...attachedFiles.value, ...filesArray];
-  }
-};
-
-const removeFile = (index: number) => {
-  attachedFiles.value.splice(index, 1);
-};
-
-const uploadFiles = async () => {
-  if (attachedFiles.value.length === 0) return [];
-  const uploadData = new FormData();
-  attachedFiles.value.forEach(file => {
-    uploadData.append('files', file);
-  });
-  
-  isUploading.value = true;
-  uploadProgress.value = 30;
-  
-  const res = await api.post('/lab/requests/upload', uploadData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    onUploadProgress: (progressEvent) => {
-      if (progressEvent.total) {
-        uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-      }
-    }
-  });
-  
-  uploadProgress.value = 100;
-  isUploading.value = false;
-  
-  return res.data.files.map((f: any) => f.id);
-};
+// Upload logic is now handled entirely by DirectUpload component
 
 const saveAsDraft = async () => {
   try {
     saveStatus.value = 'saving';
-    const fileIds = await uploadFiles();
+    const fileIds = attachedFiles.value.map(f => f.id);
     
     let finalStage = formData.value.stage;
     if (finalStage === 'Prototype') {
@@ -188,7 +151,7 @@ const submitRequest = async () => {
   try {
 
     isSubmitting.value = true;
-    const fileIds = await uploadFiles();
+    const fileIds = attachedFiles.value.map(f => f.id);
     
     let finalStage = formData.value.stage;
     if (finalStage === 'Prototype') {
@@ -301,25 +264,14 @@ const submitRequest = async () => {
 
           <!-- Right Column (Attach Files) -->
           <div class="flex flex-col gap-5">
-            <div class="pb-0">
-              <h3 class="text-base font-semibold mt-0 mb-3 text-text">{{ t('fai.attach_files') }}:</h3>
-              <div class="flex items-center gap-3 border border-border py-2 px-3 rounded bg-bg">
-                <input type="file" multiple @change="handleFileUpload" id="file-input" class="hidden" />
-                <label for="file-input" class="bg-bg-surface border border-border text-text py-1.5 px-3.5 rounded text-[0.85rem] font-medium cursor-pointer shadow-sm hover:bg-border">{{ t('fai.choose_files') }}</label>
-                <span class="text-[0.85rem] text-text-muted" v-if="attachedFiles.length === 0">{{ t('fai.no_file') }}</span>
-                <div v-else class="flex flex-wrap gap-1.5">
-                  <div v-for="(file, idx) in attachedFiles" :key="idx" class="flex items-center gap-1.5 bg-border py-1 px-2 rounded text-[0.8rem]">
-                    <span>{{ file.name }}</span>
-                    <button type="button" @click="removeFile(idx)" class="bg-transparent border-none text-[#ef4444] cursor-pointer text-[0.8rem]">✕</button>
-                  </div>
-                </div>
-              </div>
-              <p class="text-[0.75rem] text-text-muted mt-1.5 mb-0">{{ t('fai.multiple_files') }}</p>
-
-              <!-- Progress bar -->
-              <div v-if="isUploading" class="mt-2 bg-border h-1 rounded-sm overflow-hidden">
-                <div class="bg-primary h-full transition-[width] duration-200" :style="{ width: uploadProgress + '%' }"></div>
-              </div>
+            <div class="col-span-1 sm:col-span-2 mt-4">
+              <label class="block text-sm font-medium mb-1">Attachments</label>
+              <DirectUpload 
+                v-model="attachedFiles" 
+                uploadUrl="/lab/requests/upload" 
+                :uploadParams="{ request_type: 'LAB' }" 
+                :multiple="true" 
+              />
             </div>
           </div>
           

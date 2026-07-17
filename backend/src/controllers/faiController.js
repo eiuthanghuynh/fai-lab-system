@@ -5,19 +5,7 @@ const { emailQueue } = require('../config/queue');
 const { getWeek, startOfWeek, format } = require('date-fns');
 const { connection: redis } = require('../config/queue');
 const { minioClient, minioClientPublic, MINIO_BUCKET } = require('../config/minioClient');
-const { cleanupOrphanedAttachments } = require('../utils/attachmentHelper');
-
-async function getAttachmentUrl(att) {
-  // Generate presigned URL valid for 1 hour using the public client
-  // which hashes the signature with 'localhost'
-  try {
-    const url = await minioClientPublic.presignedGetObject(MINIO_BUCKET, att.file_url, 60 * 60);
-    return url;
-  } catch (err) {
-    console.error('Error generating presigned URL:', err);
-    return att.file_url;
-  }
-}
+const { cleanupOrphanedAttachments, getAttachmentUrl, processUploads } = require('../utils/attachmentHelper');
 
 
 const generateTestNo = async () => {
@@ -188,7 +176,7 @@ const getRequests = async (req, res) => {
     if (requestIds.length > 0) {
       attachments = await prisma.requestAttachment.findMany({
         where: {
-          request_id: { in: requestIds },
+          parent_id: { in: requestIds },
           request_type: 'FAI',
           is_active: true
         }
@@ -197,10 +185,10 @@ const getRequests = async (req, res) => {
 
     // Map attachments to requests and generate URLs
     const mappedRequests = await Promise.all(requests.map(async req => {
-      const reqAttachments = attachments.filter(att => att.request_id === req.id);
+      const reqAttachments = attachments.filter(att => att.parent_id === req.id);
       const attsWithUrls = await Promise.all(reqAttachments.map(async att => ({
         ...att,
-        file_url: await getAttachmentUrl(att)
+        file_url: await getAttachmentUrl(att.file_url)
       })));
       return {
         ...req,
@@ -213,26 +201,23 @@ const getRequests = async (req, res) => {
 };
 
 const uploadFiles = async (req, res) => {
-  {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: 'No files uploaded.' });
-    }
-
-    const attachments = [];
-    for (const file of req.files) {
-      const att = await prisma.requestAttachment.create({
-        data: {
-          request_id: 0, // temp placeholder
-          request_type: 'FAI',
-          file_name: Buffer.from(file.originalname, 'latin1').toString('utf8'),
-          file_url: file.filename
-        }
-      });
-      attachments.push(att);
-    }
-
-    res.json({ files: attachments });
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).json({ error: 'No files uploaded.' });
   }
+
+  const attachments = await processUploads(req.files, (file) => {
+    return prisma.requestAttachment.create({
+      data: {
+        parent_id: null,
+        request_type: 'FAI',
+        file_name: Buffer.from(file.originalname, 'latin1').toString('utf8'),
+        file_url: file.filename,
+        bucket_name: file.bucket
+      }
+    });
+  });
+
+  res.json({ files: attachments });
 };
 
 const saveDraft = async (req, res) => {
@@ -321,7 +306,7 @@ const saveDraft = async (req, res) => {
           request_type: 'FAI'
         },
         data: {
-          request_id: request.id
+          parent_id: request.id
         }
       });
     }
@@ -444,7 +429,7 @@ const submitRequest = async (req, res) => {
           request_type: 'FAI'
         },
         data: {
-          request_id: request.id
+          parent_id: request.id
         }
       });
     }
@@ -494,12 +479,12 @@ const getRequestById = async (req, res) => {
     const isManager = req.user.permissions && req.user.permissions.includes('MANAGE_REQUEST_LIST');
 
     if (!isRequestor && !isManager) {
-      return res.status(404).json({ error: 'Request not found.' });
+      return res.status(403).json({ error: 'Access denied.' });
     }
 
     const attachments = await prisma.requestAttachment.findMany({
       where: {
-        request_id: request.id,
+        parent_id: request.id,
         request_type: 'FAI',
         is_active: true
       }
@@ -544,13 +529,13 @@ const deleteDraft = async (req, res) => {
 
     // Fetch attachments before deleting database records
     const attachments = await prisma.requestAttachment.findMany({
-      where: { request_id: request.id, request_type: 'FAI' }
+      where: { parent_id: request.id, request_type: 'FAI' }
     });
 
     // Permanently delete draft and attachments from database
     await prisma.$transaction([
       prisma.requestAttachment.deleteMany({
-        where: { request_id: request.id, request_type: 'FAI' }
+        where: { parent_id: request.id, request_type: 'FAI' }
       }),
       prisma.faiRequest.delete({
         where: { id: request.id }

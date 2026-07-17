@@ -59,7 +59,7 @@ const { isLoading, execute: fetchItems } = useAsyncState(async () => {
   const res = await api.get(`/commodity-parts`, { params });
   items.value = res.data?.data || (Array.isArray(res.data) ? res.data : []);
   totalItems.value = res.data?.total || (res.data?.data ? res.data.data.length : 0);
-}, null, { immediate: false });
+}, null, { immediate: false, resetOnExecute: false });
 
 onMounted(() => {
   fetchItems();

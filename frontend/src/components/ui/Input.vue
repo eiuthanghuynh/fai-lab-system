@@ -8,6 +8,7 @@ interface Props {
   placeholder?: string;
   disabled?: boolean;
   error?: string;
+  hideErrorText?: boolean;
   min?: number;
   max?: number;
 }
@@ -62,6 +63,6 @@ const inputClasses = computed(() => {
       @input="onInput"
       @blur="onBlur"
     />
-    <p v-if="error" class="mt-1 text-sm text-danger">{{ error }}</p>
+    <p v-if="error && !hideErrorText" class="mt-1 text-sm text-danger">{{ error }}</p>
   </div>
 </template>

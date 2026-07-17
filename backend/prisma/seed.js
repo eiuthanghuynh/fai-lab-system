@@ -232,6 +232,22 @@ async function main() {
   }
   console.log('Suppliers seeded.');
 
+  const items = [
+    { name: 'Drop Test' },
+    { name: 'Vibration Test' },
+    { name: 'Shock Test' }
+  ];
+
+  for (const item of items) {
+    const existing = await prisma.itemTest.findFirst({ where: { name: item.name } });
+    if (!existing) {
+      await prisma.itemTest.create({ data: item });
+      console.log(`Created item test: ${item.name}`);
+    } else {
+      console.log(`Item test already exists: ${item.name}`);
+    }
+  }
+
   console.log('Database seeded successfully!');
 }
 

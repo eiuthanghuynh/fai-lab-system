@@ -6,7 +6,6 @@ import api from '@/services/api';
 import ConfirmModal from '@/components/ConfirmModal.vue';
 import Pagination from '@/components/Pagination.vue';
 
-// Refactored Common Components
 import BaseModal from '@/components/common/BaseModal.vue';
 import DataTableToolbar from '@/components/common/DataTableToolbar.vue';
 import DataTable, { type DataTableColumn } from '@/components/common/DataTable.vue';
@@ -21,7 +20,6 @@ const { page, limit, sortBy, sortDesc, searchQuery, toggleSort } = useDataTable(
 const items = ref<any[]>([]);
 const totalItems = ref(0);
 
-
 const isModalOpen = ref(false);
 const isEditing = ref(false);
 
@@ -34,12 +32,14 @@ const confirmModalState = ref({
 
 const formData = ref({
   id: 0,
-  issue: ''
+  name: '',
+  description: ''
 });
 
 const columns = computed<DataTableColumn[]>(() => [
-  { key: 'id', label: t('table.id', 'ID'), sortable: true, sticky: 'left', width: '80px' },
-  { key: 'issue', label: 'Failure Mode', sortable: true, sticky: 'left', minWidth: '150px' },
+  { key: 'id', label: 'ID', sortable: true, sticky: 'left', width: '80px' },
+  { key: 'name', label: t('form.name', 'Name'), sortable: true, sticky: 'left', minWidth: '200px' },
+  { key: 'description', label: 'Description', sortable: true, minWidth: '300px' },
   { key: 'actions', label: t('admin.actions', 'Actions'), sticky: 'right', minWidth: '150px', width: '150px' }
 ]);
 
@@ -56,7 +56,7 @@ const { isLoading, execute: fetchItems } = useAsyncState(async () => {
   };
   if (searchQuery.value) params.search = searchQuery.value;
 
-  const res = await api.get(`/fai-failure-modes`, { params });
+  const res = await api.get(`/item-tests`, { params });
   items.value = res.data?.data || (Array.isArray(res.data) ? res.data : []);
   totalItems.value = res.data?.total || (res.data?.data ? res.data.data.length : 0);
 }, null, { immediate: false, resetOnExecute: false });
@@ -70,13 +70,15 @@ const openModal = (item: any = null) => {
     isEditing.value = true;
     formData.value = { 
       id: item.id,
-      issue: item.issue
+      name: item.name,
+      description: item.description || ''
     };
   } else {
     isEditing.value = false;
     formData.value = {
       id: 0,
-      issue: ''
+      name: '',
+      description: ''
     };
   }
   isModalOpen.value = true;
@@ -89,10 +91,10 @@ const closeModal = () => {
 const saveItem = async () => {
   try {
     if (isEditing.value) {
-      await api.put(`/fai-failure-modes/${formData.value.id}`, formData.value);
+      await api.put(`/item-tests/${formData.value.id}`, formData.value);
       toast.success(t('toast.edit_success', 'Updated successfully'));
     } else {
-      await api.post('/fai-failure-modes', formData.value);
+      await api.post('/item-tests', formData.value);
       toast.success(t('toast.create_success', 'Created successfully'));
     }
     closeModal();
@@ -110,7 +112,7 @@ const deleteItem = async (item: any) => {
     isDanger: true,
     onConfirm: async () => {
       try {
-        await api.delete(`/fai-failure-modes/${item.id}`);
+        await api.delete(`/item-tests/${item.id}`);
         toast.success(t('toast.delete_success', 'Deleted successfully'));
         fetchItems();
       } catch (err) {
@@ -127,17 +129,17 @@ const deleteItem = async (item: any) => {
 <template>
   <div class="flex flex-col gap-6 h-full p-8 overflow-hidden">
     <div class="flex justify-between items-center">
-      <h1 class="text-2xl">{{ t('admin.fai_failure_modes', 'FAI Failure Modes') }}</h1>
+      <h1 class="text-2xl">Item Tests Management</h1>
     </div>
 
     <DataTableToolbar 
       v-model:searchQuery="searchQuery" 
-      :searchPlaceholder="t('action.search', 'Search')"
+      :searchPlaceholder="t('action.search', 'Search...')"
     >
       <template #actions>
         <Button class="gap-2" @click="openModal(null)">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          {{ t('action.create', 'Add') }}
+          {{ t('action.add', 'Add') }}
         </Button>
       </template>
     </DataTableToolbar>
@@ -165,17 +167,26 @@ const deleteItem = async (item: any) => {
     
     <Pagination :total="totalItems" v-model="page" v-model:rowsPerPage="limit" />
 
-    <BaseModal :isOpen="isModalOpen" :title="isEditing ? t('action.edit', 'Edit') : t('action.create', 'Add')" maxWidth="600px" @close="closeModal">
+    <BaseModal :isOpen="isModalOpen" :title="isEditing ? t('action.edit', 'Edit') : t('action.add', 'Add')" maxWidth="600px" @close="closeModal">
       <form id="itemForm" @submit.prevent="saveItem" class="flex flex-col gap-4">
         <div class="grid grid-cols-[1fr_2fr] gap-8 items-center">
           <div class="flex flex-col gap-1">
             <div class="flex items-center gap-2">
-              <label class="font-semibold text-text">{{ t('form.issue', 'Issue') }}</label>
+              <label class="font-semibold text-text">{{ t('form.name', 'Name') }}</label>
               <span class="text-[0.7rem] bg-primary/15 text-primary px-1.5 py-0.5 rounded font-bold leading-none">{{ t('form.required', 'Required') }}</span>
             </div>
           </div>
           <div class="flex flex-col">
-            <Input v-model="formData.issue" required />
+            <Input v-model="formData.name" required />
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text">Description</label>
+            </div>
+          </div>
+          <div class="flex flex-col">
+            <Input v-model="formData.description" />
           </div>
         </div>
       </form>
@@ -188,5 +199,3 @@ const deleteItem = async (item: any) => {
     <ConfirmModal :is-open="confirmModalState.isOpen" :message="confirmModalState.message" :is-danger="confirmModalState.isDanger" @confirm="confirmModalState.onConfirm" @cancel="confirmModalState.isOpen = false" />
   </div>
 </template>
-
-

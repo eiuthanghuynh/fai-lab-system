@@ -80,9 +80,12 @@ const { isLoading, execute: fetchRequestDetails } = useAsyncState(async () => {
   }
 }, null, { 
   immediate: false,
+  resetOnExecute: false,
   onError: (err: any) => {
     console.error('Fetch request detail error:', err);
-    if (err.response?.status === 404) {
+    if (err.response?.status === 403) {
+      router.push({ name: 'unauthorized' });
+    } else if (err.response?.status === 404) {
       router.push({ name: 'not-found' });
     } else {
       errorMsg.value = err.response?.data?.error || 'Failed to load request details.';
@@ -131,7 +134,7 @@ const goBack = () => {
       </div>
 
       <!-- Loading and Error States -->
-      <div v-if="isLoading" class="flex flex-col items-center justify-center p-20 bg-bg-surface border border-border rounded-lg text-text-muted">
+      <div v-if="isLoading && !request" class="flex flex-col items-center justify-center p-20 bg-bg-surface border border-border rounded-lg text-text-muted">
         <div class="w-10 h-10 border-4 border-border border-t-primary rounded-full animate-spin mb-4"></div>
         <p>Loading request details...</p>
       </div>

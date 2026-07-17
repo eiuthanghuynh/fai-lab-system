@@ -1,7 +1,7 @@
 const prisma = require("../config/db");
 const { emailQueue, connection: redis } = require("../config/queue");
 const { getWeek } = require("date-fns");
-const { cleanupOrphanedAttachments } = require("../utils/attachmentHelper");
+const { cleanupOrphanedAttachments, getAttachmentUrl, processUploads } = require("../utils/attachmentHelper");
 const {
   minioClient,
   minioClientPublic,
@@ -95,6 +95,9 @@ const getRequests = async (req, res) => {
             technician: {
               select: { full_name: true },
             },
+            itemTest: {
+              select: { name: true }
+            }
           },
         },
       },
@@ -124,6 +127,9 @@ const getRequestById = async (req, res) => {
             technician: {
               select: { id: true, full_name: true },
             },
+            itemTest: {
+              select: { id: true, name: true }
+            }
           },
         },
       },
@@ -133,21 +139,38 @@ const getRequestById = async (req, res) => {
       return res.status(404).json({ error: "Request not found." });
     }
 
+    if (
+      !req.user.permissions ||
+      (!req.user.permissions.includes("INSPECT_LAB") &&
+        !req.user.permissions.includes("ASSIGN_LAB") &&
+        !req.user.permissions.includes("MANAGE_REQUEST_LIST"))
+    ) {
+      if (request.requestor_id !== req.user.id) {
+        return res.status(403).json({ error: "Access denied." });
+      }
+    }
+
     // Attachments
     const attachments = await prisma.requestAttachment.findMany({
       where: {
-        request_id: request.id,
+        parent_id: request.id,
         request_type: "LAB",
         is_active: true,
       },
     });
 
-    // We can also generate presigned urls here if using Minio, but let's just return basic for now
+    const attsWithUrls = await Promise.all(
+      attachments.map(async (att) => ({
+        ...att,
+        file_url: await getAttachmentUrl(att.file_url),
+      }))
+    );
+
     res.json({
       success: true,
       data: {
         ...request,
-        attachments,
+        attachments: attsWithUrls,
       },
     });
   }
@@ -253,7 +276,7 @@ const saveDraft = async (req, res) => {
           request_type: "LAB",
         },
         data: {
-          request_id: request.id,
+          parent_id: request.id,
         },
       });
     }
@@ -263,12 +286,8 @@ const saveDraft = async (req, res) => {
       await cleanupOrphanedAttachments(id, "LAB", keptFileIds);
     }
 
-    if (req.app.get('io')) {
-      if (id) {
-        req.app.get('io').emit("lab-request-updated", request);
-      } else {
-        req.app.get('io').emit("lab-request-created", request);
-      }
+    if (req.app.get('io') && !id) {
+      req.app.get('io').emit("lab-request-created", request);
     }
 
     if (idempotency_key) {
@@ -389,7 +408,7 @@ const submitRequest = async (req, res) => {
           request_type: "LAB",
         },
         data: {
-          request_id: request.id,
+          parent_id: request.id,
         },
       });
     }
@@ -443,35 +462,32 @@ const assignRequest = async (req, res) => {
       },
     });
 
-    if (req.app.get('io')) {
-      req.app.get('io').emit("lab-request-updated", updatedRequest);
-    }
 
     res.json({ success: true, data: updatedRequest });
   }
 };
 
 const uploadFiles = async (req, res) => {
-  {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: "No files uploaded." });
-    }
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).json({ error: "No files uploaded." });
+  }
 
-    const attachments = [];
-    for (const file of req.files) {
-      const att = await prisma.requestAttachment.create({
+  const attachments = await processUploads(
+    req.files,
+    (file) => {
+      return prisma.requestAttachment.create({
         data: {
-          request_id: 0, // temp placeholder
+          parent_id: null,
           request_type: "LAB",
           file_name: Buffer.from(file.originalname, "latin1").toString("utf8"),
           file_url: file.filename,
+          bucket_name: file.bucket
         },
       });
-      attachments.push(att);
-    }
-
-    res.json({ files: attachments });
-  }
+    },
+    "file_url"
+  );
+  res.json({ files: attachments });
 };
 
 const deleteDraft = async (req, res) => {
@@ -501,12 +517,12 @@ const deleteDraft = async (req, res) => {
     }
 
     const attachments = await prisma.requestAttachment.findMany({
-      where: { request_id: request.id, request_type: "LAB" },
+      where: { parent_id: request.id, request_type: "LAB" },
     });
 
     await prisma.$transaction([
       prisma.requestAttachment.deleteMany({
-        where: { request_id: request.id, request_type: "LAB" },
+        where: { parent_id: request.id, request_type: "LAB" },
       }),
       prisma.labWorkOrder.deleteMany({
         where: { lab_request_id: request.id },
@@ -569,6 +585,76 @@ const getInspectors = async (req, res) => {
   }
 };
 
+const startInspection = async (req, res) => {
+  const { id } = req.params;
+  const { estimated_date } = req.body;
+
+  if (!estimated_date) {
+    return res.status(400).json({ success: false, error: "Estimated complete date is required" });
+  }
+
+  const request = await prisma.labRequest.findUnique({
+    where: { id: parseInt(id) }
+  });
+
+  if (!request) {
+    return res.status(404).json({ success: false, error: "Request not found" });
+  }
+
+  if (request.status !== "Assigned") {
+    return res.status(400).json({ success: false, error: "Only Assigned requests can start inspection" });
+  }
+
+  const updatedRequest = await prisma.labRequest.update({
+    where: { id: parseInt(id) },
+    data: {
+      status: "Ongoing",
+      estimated_date: new Date(estimated_date),
+    }
+  });
+
+  // Also update related work orders status to Ongoing
+  await prisma.labWorkOrder.updateMany({
+    where: { lab_request_id: parseInt(id), status: "Backlog" },
+    data: { status: "Ongoing" }
+  });
+
+
+  res.json({ success: true, data: updatedRequest });
+};
+
+const adjustSchedule = async (req, res) => {
+  const { id } = req.params;
+  const { sample_received_date, sample_return_date } = req.body;
+
+  if (sample_received_date && sample_return_date) {
+    const received = new Date(sample_received_date);
+    const returned = new Date(sample_return_date);
+    if (returned < received) {
+      return res.status(400).json({ success: false, error: "Return date must be after receive date" });
+    }
+  }
+
+  const request = await prisma.labRequest.findUnique({
+    where: { id: parseInt(id) }
+  });
+
+  if (!request) {
+    return res.status(404).json({ success: false, error: "Request not found" });
+  }
+
+  const updatedRequest = await prisma.labRequest.update({
+    where: { id: parseInt(id) },
+    data: {
+      sample_received_date: sample_received_date ? new Date(sample_received_date) : null,
+      sample_return_date: sample_return_date ? new Date(sample_return_date) : null
+    }
+  });
+
+
+  res.json({ success: true, data: updatedRequest });
+};
+
 module.exports = {
   getRequests,
   getRequestById,
@@ -578,4 +664,6 @@ module.exports = {
   getInspectors,
   uploadFiles,
   deleteDraft,
+  startInspection,
+  adjustSchedule,
 };

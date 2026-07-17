@@ -20,10 +20,41 @@ const minioClientPublic = new Minio.Client({
   region: process.env.MINIO_REGION || 'us-east-1'
 });
 
-const MINIO_BUCKET = process.env.MINIO_BUCKET;
+const MINIO_REQUEST_BUCKET = process.env.MINIO_REQUEST_BUCKET || 'requests';
+const MINIO_REPORT_BUCKET = process.env.MINIO_REPORT_BUCKET || 'reports';
+
+// Initialize buckets
+const initializeBucket = async (bucketName) => {
+  try {
+    const exists = await minioClient.bucketExists(bucketName);
+    if (!exists) {
+      await minioClient.makeBucket(bucketName);
+      console.log(`Bucket ${bucketName} created successfully.`);
+      
+      const policy = {
+        Version: '2012-10-17',
+        Statement: [
+          {
+            Action: ['s3:GetObject'],
+            Effect: 'Allow',
+            Principal: '*',
+            Resource: [`arn:aws:s3:::${bucketName}/*`]
+          }
+        ]
+      };
+      await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
+    }
+  } catch (error) {
+    console.error(`Error initializing bucket ${bucketName}:`, error);
+  }
+};
+
+initializeBucket(MINIO_REQUEST_BUCKET);
+initializeBucket(MINIO_REPORT_BUCKET);
 
 module.exports = {
   minioClient,
   minioClientPublic,
-  MINIO_BUCKET
+  MINIO_REQUEST_BUCKET,
+  MINIO_REPORT_BUCKET
 };

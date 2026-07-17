@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useAsyncState } from '@vueuse/core';
 import { useRouter } from 'vue-router';
-import { formatDateOnly } from '@/utils/dateFormatter';
+import { formatDate } from '@/utils/dateFormatter';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import { socketService } from '@/services/socket';
@@ -15,6 +15,7 @@ import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
 import BaseModal from '@/components/common/BaseModal.vue';
 import ActionDropdown from '@/components/common/ActionDropdown.vue';
 import Button from '@/components/ui/Button.vue';
+import Input from '@/components/ui/Input.vue';
 import Textarea from '@/components/ui/Textarea.vue';
 import { useDataTable } from '@/composables/useDataTable';
 import { useAuthStore } from '@/stores/auth';
@@ -62,7 +63,7 @@ const getStatusVariant = (status: string) => {
     case 'Draft': return 'secondary';
     case 'Backlog': return 'secondary';
     case 'Assigned': return 'warning';
-    case 'Ongoing': return 'info';
+    case 'Ongoing': return 'warning';
     case 'Closed': return 'success';
     default: return 'secondary';
   }
@@ -121,12 +122,56 @@ const handleAssign = async () => {
   }
 };
 
+const startInspectionModalState = ref({
+  isOpen: false,
+  requestId: null as number | null,
+  estimatedDate: '',
+  estimatedTime: ''
+});
+
+const openStartInspectionModal = (item: any) => {
+  startInspectionModalState.value.requestId = item.id;
+  startInspectionModalState.value.estimatedDate = '';
+  startInspectionModalState.value.estimatedTime = '';
+  startInspectionModalState.value.isOpen = true;
+};
+
+const handleStartInspection = async () => {
+  try {
+    const { requestId, estimatedDate, estimatedTime } = startInspectionModalState.value;
+    if (!estimatedDate) {
+      toast.error(t('form.required'));
+      return;
+    }
+    
+    const timeStr = estimatedTime || '11:59';
+    const finalEstimatedDate = new Date(`${estimatedDate}T${timeStr}:00`).toISOString();
+    
+    await api.post(`/lab/requests/${requestId}/start-inspection`, {
+      estimated_date: finalEstimatedDate
+    });
+    
+    toast.success('Inspection started successfully');
+    startInspectionModalState.value.isOpen = false;
+    fetchRequests();
+    
+    router.push({ name: 'lab-request-detail', params: { id: requestId }, query: { mode: 'execute' } });
+  } catch (err: any) {
+    console.error(err);
+    toast.error(err.response?.data?.error || 'Failed to start inspection');
+  }
+};
+
 const handleAction = (item: any) => {
   if (item.status === 'Draft') {
     router.push({ name: 'lab-request-create', query: { id: item.id } });
   } else {
     router.push({ name: 'lab-request-detail', params: { id: item.id } });
   }
+};
+
+const handleExecute = (item: any) => {
+  router.push({ name: 'lab-request-detail', params: { id: item.id }, query: { mode: 'execute' } });
 };
 
 const { isLoading, execute: fetchRequests } = useAsyncState(async () => {
@@ -144,7 +189,7 @@ const { isLoading, execute: fetchRequests } = useAsyncState(async () => {
   const response = await api.get('/lab/requests', { params });
   requests.value = response.data.data;
   totalRequests.value = response.data.total;
-}, null, { immediate: false });
+}, null, { immediate: false, resetOnExecute: false });
 
 const handleFetchRequests = () => fetchRequests();
 
@@ -248,7 +293,7 @@ const deleteDraft = (id: number) => {
         </template>
 
         <template #cell-estimated_date="{ item }">
-          {{ formatDateOnly(item.estimated_date) }}
+          {{ formatDate(item.estimated_date) }}
         </template>
 
         <template #cell-inspector_name="{ item }">
@@ -260,11 +305,10 @@ const deleteDraft = (id: number) => {
         </template>
 
         <template #cell-receive_date="{ item }">
-          {{ formatDateOnly(item.sample_received_date) }}
+          {{ formatDate(item.sample_received_date) }}
         </template>
-
         <template #cell-return_date="{ item }">
-          {{ formatDateOnly(item.sample_return_date) }}
+          {{ formatDate(item.sample_return_date) }}
         </template>
         
         <template #cell-result="{ item }">
@@ -300,11 +344,18 @@ const deleteDraft = (id: number) => {
               {{ t('lab.assign') }}
             </button>
             <button 
-              v-if="canInspectLab && item.status === 'Ongoing'"
-              @click="handleAction(item)"
+              v-if="canInspectLab && item.status === 'Assigned'"
+              @click="openStartInspectionModal(item)"
               class="w-full text-left px-4 py-2 text-sm text-text hover:bg-bg hover:text-primary transition-colors"
             >
-              {{ t('fai.make_report') }}
+              {{ t('lab.start_inspection') }}
+            </button>
+            <button 
+              v-if="canInspectLab && item.status === 'Ongoing' && item.inspector_id === authStore.user?.id"
+              @click="handleExecute(item)"
+              class="w-full text-left px-4 py-2 text-sm text-text hover:bg-bg hover:text-primary transition-colors"
+            >
+              {{ t('lab.execute_test') }}
             </button>
             <div v-if="(item.status === 'Draft' && item.requestor_id === authStore.user?.id) || canManageRequestList" class="h-px bg-border my-1"></div>
             <button 
@@ -381,6 +432,42 @@ const deleteDraft = (id: number) => {
       </template>
     </BaseModal>
 
+
+    <!-- Start Inspection Modal -->
+    <BaseModal :isOpen="startInspectionModalState.isOpen" :title="t('lab.start_inspection')" maxWidth="700px" @close="startInspectionModalState.isOpen = false">
+      <form id="startInspectionForm" @submit.prevent="handleStartInspection" class="flex flex-col gap-4">
+        <div class="grid grid-cols-[1fr_2fr] gap-8 items-center">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text m-0">{{ t('fai.columns.estimated_date') }}</label>
+              <span class="text-[0.7rem] bg-[rgba(99,224,121,0.15)] text-primary px-1.5 py-0.5 rounded font-bold leading-none">{{ t('form.required') }}</span>
+            </div>
+            <p class="text-[0.8rem] text-text-muted m-0 leading-[1.4]">{{ t('lab.start_inspection_desc') }}</p>
+          </div>
+          <div class="flex flex-col">
+            <div class="flex gap-2">
+              <Input 
+                type="date"
+                v-model="startInspectionModalState.estimatedDate"
+                class="flex-1"
+                required
+              />
+              <Input 
+                type="time"
+                v-model="startInspectionModalState.estimatedTime"
+                class="w-32"
+              />
+            </div>
+          </div>
+        </div>
+      </form>
+      <template #footer>
+        <Button type="button" variant="secondary" @click="startInspectionModalState.isOpen = false">{{ t('action.cancel') }}</Button>
+        <Button type="submit" form="startInspectionForm" :loading="isLoading">
+          {{ t('action.save') }}
+        </Button>
+      </template>
+    </BaseModal>
 
     <ConfirmModal 
       :is-open="confirmModalState.isOpen" 

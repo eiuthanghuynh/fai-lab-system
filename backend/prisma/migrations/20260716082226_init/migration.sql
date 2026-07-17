@@ -85,19 +85,19 @@ CREATE TABLE "fai_requests" (
     "supplier_id" INTEGER,
     "part_type" VARCHAR(100),
     "reason_for_submission" VARCHAR(255),
-    "receive_date" DATE,
+    "receive_date" TIMESTAMP(3),
     "sample_qty" INTEGER NOT NULL DEFAULT 1,
     "submission_time" INTEGER NOT NULL DEFAULT 1,
     "priority" "PriorityLevel",
     "priority_reason" TEXT,
     "week_no" INTEGER,
-    "complete_date" DATE,
+    "complete_date" TIMESTAMP(3),
     "failure_details" TEXT,
     "improvement_plan" TEXT,
     "inspector_id" INTEGER,
     "fai_failure_mode" INTEGER,
     "remark" TEXT,
-    "estimated_date" DATE,
+    "estimated_date" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "status" "RequestStatus" NOT NULL DEFAULT 'Draft',
@@ -122,6 +122,18 @@ CREATE TABLE "suppliers" (
 );
 
 -- CreateTable
+CREATE TABLE "item_tests" (
+    "id" SERIAL NOT NULL,
+    "name" VARCHAR(255) NOT NULL,
+    "description" TEXT,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "item_tests_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "lab_requests" (
     "id" SERIAL NOT NULL,
     "test_no" VARCHAR(50),
@@ -135,14 +147,14 @@ CREATE TABLE "lab_requests" (
     "priority" "PriorityLevel",
     "priority_reason" TEXT,
     "week_no" INTEGER,
-    "request_date" DATE NOT NULL,
-    "estimated_date" DATE,
-    "complete_date" DATE,
+    "request_date" TIMESTAMP(3) NOT NULL,
+    "estimated_date" TIMESTAMP(3),
+    "complete_date" TIMESTAMP(3),
     "status" "RequestStatus" NOT NULL DEFAULT 'Draft',
     "requestor_id" INTEGER NOT NULL,
     "approved_by" INTEGER,
-    "sample_received_date" DATE,
-    "sample_return_date" DATE,
+    "sample_received_date" TIMESTAMP(3),
+    "sample_return_date" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
@@ -159,7 +171,7 @@ CREATE TABLE "lab_work_orders" (
     "lab_request_id" INTEGER NOT NULL,
     "quantity" INTEGER NOT NULL DEFAULT 1,
     "product_sn" VARCHAR(255),
-    "item_test" VARCHAR(255) NOT NULL,
+    "item_test_id" INTEGER NOT NULL,
     "procedure_condition" TEXT,
     "test_specification" TEXT,
     "remark" TEXT,
@@ -176,16 +188,16 @@ CREATE TABLE "lab_work_orders" (
 );
 
 -- CreateTable
-CREATE TABLE "lab_request_images" (
+CREATE TABLE "lab_work_order_images" (
     "id" SERIAL NOT NULL,
-    "lab_request_id" INTEGER NOT NULL,
+    "lab_work_order_id" INTEGER NOT NULL,
     "image_url" TEXT NOT NULL,
     "image_type" VARCHAR(50) NOT NULL,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "lab_request_images_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "lab_work_order_images_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -200,6 +212,20 @@ CREATE TABLE "request_attachments" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "request_attachments_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "report_attachments" (
+    "id" SERIAL NOT NULL,
+    "request_id" INTEGER NOT NULL,
+    "request_type" VARCHAR(20) NOT NULL,
+    "file_name" VARCHAR(255) NOT NULL,
+    "file_url" TEXT NOT NULL,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "report_attachments_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -287,6 +313,9 @@ CREATE UNIQUE INDEX "fai_requests_idempotency_key_key" ON "fai_requests"("idempo
 CREATE UNIQUE INDEX "suppliers_name_key" ON "suppliers"("name");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "item_tests_name_key" ON "item_tests"("name");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "lab_requests_test_no_key" ON "lab_requests"("test_no");
 
 -- CreateIndex
@@ -341,10 +370,13 @@ ALTER TABLE "lab_requests" ADD CONSTRAINT "lab_requests_inspector_id_fkey" FOREI
 ALTER TABLE "lab_work_orders" ADD CONSTRAINT "lab_work_orders_lab_request_id_fkey" FOREIGN KEY ("lab_request_id") REFERENCES "lab_requests"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "lab_work_orders" ADD CONSTRAINT "lab_work_orders_item_test_id_fkey" FOREIGN KEY ("item_test_id") REFERENCES "item_tests"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "lab_work_orders" ADD CONSTRAINT "lab_work_orders_technician_id_fkey" FOREIGN KEY ("technician_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "lab_request_images" ADD CONSTRAINT "lab_request_images_lab_request_id_fkey" FOREIGN KEY ("lab_request_id") REFERENCES "lab_requests"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "lab_work_order_images" ADD CONSTRAINT "lab_work_order_images_lab_work_order_id_fkey" FOREIGN KEY ("lab_work_order_id") REFERENCES "lab_work_orders"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "fai_lab_reports" ADD CONSTRAINT "fai_lab_reports_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;

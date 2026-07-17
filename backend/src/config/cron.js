@@ -26,6 +26,42 @@ const initCronJobs = () => {
       } else {
         console.log(`[MinIO] Successfully cleaned up 0 orphaned files.`);
       }
+
+      // Cleanup orphaned Report Attachments
+      const reportOrphans = await prisma.reportAttachment.findMany({
+        where: {
+          request_id: 0,
+          created_at: { lt: twentyFourHoursAgo }
+        }
+      });
+      if (reportOrphans.length > 0) {
+        const { minioClient, MINIO_BUCKET } = require('./minioClient');
+        const fileUrls = reportOrphans.map(o => o.file_url);
+        await minioClient.removeObjects(MINIO_BUCKET, fileUrls).catch(e => console.error('[MinIO] MinIO bulk cleanup error (Reports):', e));
+        
+        await prisma.reportAttachment.deleteMany({
+          where: { id: { in: reportOrphans.map(o => o.id) } }
+        });
+        console.log(`[MinIO] Successfully cleaned up ${reportOrphans.length} orphaned report attachments.`);
+      }
+
+      // Cleanup orphaned Lab Work Order Images
+      const imageOrphans = await prisma.labWorkOrderImage.findMany({
+        where: {
+          lab_work_order_id: 0,
+          created_at: { lt: twentyFourHoursAgo }
+        }
+      });
+      if (imageOrphans.length > 0) {
+        const { minioClient, MINIO_BUCKET } = require('./minioClient');
+        const fileUrls = imageOrphans.map(o => o.image_url);
+        await minioClient.removeObjects(MINIO_BUCKET, fileUrls).catch(e => console.error('[MinIO] MinIO bulk cleanup error (Images):', e));
+        
+        await prisma.labWorkOrderImage.deleteMany({
+          where: { id: { in: imageOrphans.map(o => o.id) } }
+        });
+        console.log(`[MinIO] Successfully cleaned up ${imageOrphans.length} orphaned work order images.`);
+      }
     } catch (err) {
       console.error('[MinIO] Error running orphan cleanup task:', err);
     }

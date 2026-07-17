@@ -41,7 +41,7 @@ watch(
 const getFullUrl = (url: string) => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `${props.baseUrl}${url}`;
+  return `${props.baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
 const selectFile = (index: number) => {
@@ -56,7 +56,7 @@ const isViewable = computed(() => {
 
 const viewerUrl = computed(() => {
   if (!currentFile.value) return '';
-  return getFullUrl(currentFile.value.file_url);
+  return getFullUrl(currentFile.value.url || currentFile.value.file_url);
 });
 
 const isFileNotFound = ref(false);
@@ -73,7 +73,7 @@ watch(currentFile, async (newFile) => {
   isFileNotFound.value = false;
   
   try {
-    const url = getFullUrl(newFile.file_url);
+    const url = getFullUrl(newFile.url || newFile.file_url);
     const controller = new AbortController();
     const response = await fetch(url, { signal: controller.signal });
     if (!response.ok) {
@@ -95,7 +95,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
 const downloadFile = async (file: FileItem) => {
-  const url = getFullUrl(file.file_url);
+  const url = getFullUrl(file.url || file.file_url);
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error('Network response was not ok');
@@ -118,7 +118,7 @@ const downloadAll = async () => {
     
     // Fetch all files
     const fetchPromises = props.files.map(async (file) => {
-      const url = getFullUrl(file.file_url);
+      const url = getFullUrl(file.url || file.file_url);
       const response = await fetch(url);
       if (!response.ok) throw new Error(`Failed to fetch ${file.file_name}`);
       const blob = await response.blob();

@@ -1,11 +1,33 @@
 const prisma = require('../config/db');
 const { minioClient, MINIO_BUCKET } = require('../config/minioClient');
-const { cleanupOrphanedAttachments } = require('../utils/attachmentHelper');
+const { cleanupOrphanedAttachments, cleanupOrphanedReportAttachments, cleanupOrphanedWorkOrderImages, processUploads } = require('../utils/attachmentHelper');
 const fs = require('fs').promises;
 
 const getByRequestId = async (req, res) => {
   {
     const { requestId } = req.params;
+    
+    // Check permission
+    const request = await prisma.labRequest.findUnique({
+      where: { id: parseInt(requestId) },
+      select: { requestor_id: true }
+    });
+
+    if (!request) {
+      return res.status(404).json({ error: 'Lab Request not found.' });
+    }
+
+    if (
+      !req.user.permissions ||
+      (!req.user.permissions.includes("INSPECT_LAB") &&
+        !req.user.permissions.includes("ASSIGN_LAB") &&
+        !req.user.permissions.includes("MANAGE_REQUEST_LIST"))
+    ) {
+      if (request.requestor_id !== req.user.id) {
+        return res.status(403).json({ error: "Access denied." });
+      }
+    }
+
     const workOrders = await prisma.labWorkOrder.findMany({
       where: {
         lab_request_id: parseInt(requestId),
@@ -14,150 +36,267 @@ const getByRequestId = async (req, res) => {
       include: {
         technician: {
           select: { id: true, full_name: true }
+        },
+        itemTest: {
+          select: { id: true, name: true }
+        },
+        images: {
+          where: { is_active: true }
         }
       }
     });
 
-    res.json({ success: true, data: workOrders });
-  }
-};
-
-const createWorkOrder = async (req, res) => {
-  {
-    const { requestId } = req.params;
-    const {
-      quantity,
-      product_sn,
-      item_test,
-      procedure_condition,
-      test_specification,
-      remark,
-      technician_id
-    } = req.body;
-
-    if (!item_test) {
-      return res.status(400).json({ error: 'Item test is required.' });
-    }
-
-    // Auto-generate work_order_no
-    const request = await prisma.labRequest.findUnique({
-      where: { id: parseInt(requestId) },
-      include: { workOrders: true }
-    });
-
-    if (!request) {
-      return res.status(404).json({ error: 'Lab Request not found.' });
-    }
-
-    const nextIndex = request.workOrders.length + 1;
-    const work_order_no = `${request.id}-${String(nextIndex).padStart(3, '0')}`; // e.g. 1-001
-
-    const workOrder = await prisma.labWorkOrder.create({
-      data: {
-        work_order_no,
-        lab_request_id: parseInt(requestId),
-        quantity: quantity ? parseInt(quantity) : request.quantity,
-        product_sn: product_sn || request.product_sn || '',
-        item_test,
-        procedure_condition: procedure_condition || '',
-        test_specification: test_specification || '',
-        remark: remark || '', // maps to Goal/Comments
-        status: 'Backlog',
-        technician_id: technician_id ? parseInt(technician_id) : req.user.id
+    const reportAttachments = await prisma.reportAttachment.findMany({
+      where: {
+        request_type: 'LAB',
+        parent_id: { in: workOrders.map(wo => wo.id) },
+        is_active: true
       }
     });
 
-    if (req.app.get('io')) {
-      req.app.get('io').emit('lab-work-order-created', workOrder);
-    }
+    const { getAttachmentUrl } = require('../utils/attachmentHelper');
 
-    const { connection: redis } = require('../config/queue');
-    const keys = await redis.keys('lab_requests:*');
-    if (keys.length > 0) await redis.del(keys);
+    const mappedWorkOrders = await Promise.all(workOrders.map(async (wo) => {
+      const mappedImages = await Promise.all(wo.images.map(async (img) => {
+        const presigned = await getAttachmentUrl(img.image_url, img.bucket_name);
+        return { ...img, url: presigned };
+      }));
 
-    res.json({ success: true, data: workOrder });
+      const raForWo = reportAttachments.filter(ra => ra.parent_id === wo.id);
+      const mappedRa = await Promise.all(raForWo.map(async (ra) => {
+        const presigned = await getAttachmentUrl(ra.file_url, ra.bucket_name, ra.file_name);
+        return { ...ra, url: presigned };
+      }));
+
+      return {
+        ...wo,
+        images: mappedImages,
+        reportAttachments: mappedRa
+      };
+    }));
+
+    res.json({ success: true, data: mappedWorkOrders });
   }
 };
 
-const updateStatus = async (req, res) => {
-  {
-    const { id } = req.params;
-    const {
-      status,
-      test_result,
-      failure_details,
-      improvement_plan,
-      remark,
-      file_ids
-    } = req.body;
+const bulkSaveWorkOrders = async (req, res) => {
+  const { requestId } = req.params;
+  const { creates = [], updates = [], deletes = [], keptImageIds = [], keptReportAttachmentIds = [] } = req.body;
 
-    const data = {};
-    if (status) data.status = status; // Backlog, Assigned, Ongoing, Completed
-    if (test_result !== undefined) data.test_result = test_result; // PASS / FAIL
-    if (failure_details !== undefined) data.failure_details = failure_details;
-    if (improvement_plan !== undefined) data.improvement_plan = improvement_plan;
-    if (remark !== undefined) data.remark = remark;
+  const request = await prisma.labRequest.findUnique({
+    where: { id: parseInt(requestId) }
+  });
+  
+  if (!request) {
+    return res.status(404).json({ error: 'Lab Request not found.' });
+  }
 
-    const updated = await prisma.labWorkOrder.update({
-      where: { id: parseInt(id) },
-      data
-    });
+  // The route middleware (checkPermission) ensures INSPECT_LAB.
+  // Now verify ownership:
+  if (request.inspector_id !== req.user.id) {
+    return res.status(403).json({ error: 'Access denied. You are not the assigned inspector for this request.' });
+  }
 
-    if (file_ids && file_ids.length > 0) {
-      await prisma.requestAttachment.updateMany({
-        where: {
-          id: { in: file_ids.map(fid => parseInt(fid)) },
-          request_type: 'LAB_WORK_ORDER'
-        },
+  // Validate Quantity constraints
+  const existingWOs = await prisma.labWorkOrder.findMany({
+    where: {
+      lab_request_id: parseInt(requestId),
+      is_active: true,
+      id: { notIn: [...updates.map(u => u.id), ...deletes] }
+    }
+  });
+
+  const existingQty = existingWOs.reduce((acc, wo) => acc + wo.quantity, 0);
+  const createsQty = creates.reduce((acc, wo) => acc + (wo.quantity || 1), 0);
+  const updatesQty = updates.reduce((acc, wo) => acc + (wo.quantity || 0), 0);
+  const totalQty = existingQty + createsQty + updatesQty;
+
+  if (totalQty > request.quantity) {
+    return res.status(400).json({ error: `Total work order quantity (${totalQty}) cannot exceed request quantity (${request.quantity}).` });
+  }
+
+  // Validate item_test_id presence
+  for (const wo of [...creates, ...updates]) {
+    if (!wo.item_test_id) {
+      return res.status(400).json({ error: `Work Order ${wo.work_order_no || wo.id} is missing an Item Test.` });
+    }
+  }
+
+  const results = await prisma.$transaction(async (tx) => {
+    // 1. Deletes
+    if (deletes.length > 0) {
+      // Find the work orders to get their IDs
+      const wosToDelete = await tx.labWorkOrder.findMany({
+        where: { id: { in: deletes }, lab_request_id: parseInt(requestId) },
+        select: { id: true }
+      });
+      const idsToDelete = wosToDelete.map(wo => wo.id);
+      
+      if (idsToDelete.length > 0) {
+        await tx.labWorkOrderImage.updateMany({
+          where: { parent_id: { in: idsToDelete } },
+          data: { parent_id: null }
+        });
+        await tx.reportAttachment.updateMany({
+          where: { parent_id: { in: idsToDelete }, request_type: 'LAB' },
+          data: { parent_id: null }
+        });
+        await tx.labWorkOrder.deleteMany({ where: { id: { in: idsToDelete } } });
+      }
+    }
+
+    // 2. Updates
+    const updatedIds = [];
+    for (const update of updates) {
+      await tx.labWorkOrder.update({
+        where: { id: update.id },
         data: {
-          request_id: updated.id
+          quantity: update.quantity,
+          product_sn: update.product_sn,
+          item_test_id: update.item_test_id,
+          procedure_condition: update.procedure_condition,
+          test_specification: update.test_specification,
+          remark: update.remark,
+          status: update.status,
+          test_result: update.test_result,
+          failure_details: update.failure_details,
+          improvement_plan: update.improvement_plan
         }
       });
+      updatedIds.push(update.id);
+      
+      if (update.images && update.images.length > 0) {
+         const fileIds = update.images.map(img => img.id).filter(id => id);
+         if (fileIds.length > 0) {
+           await tx.labWorkOrderImage.updateMany({
+             where: { id: { in: fileIds } },
+             data: { parent_id: update.id }
+           });
+         }
+      }
+      if (update.reportAttachments && update.reportAttachments.length > 0) {
+         const fileIds = update.reportAttachments.map(img => img.id).filter(id => id);
+         if (fileIds.length > 0) {
+           await tx.reportAttachment.updateMany({
+             where: { id: { in: fileIds } },
+             data: { parent_id: update.id }
+           });
+         }
+      }
     }
 
-    if (id) {
-      const keptFileIds = file_ids ? file_ids.map(fid => parseInt(fid)) : [];
-      await cleanupOrphanedAttachments(id, 'LAB_WORK_ORDER', keptFileIds);
+    // 3. Creates
+    const createdIds = [];
+    for (const create of creates) {
+      const newWo = await tx.labWorkOrder.create({
+        data: {
+          work_order_no: create.work_order_no,
+          lab_request_id: parseInt(requestId),
+          quantity: create.quantity,
+          product_sn: create.product_sn,
+          item_test_id: create.item_test_id,
+          procedure_condition: create.procedure_condition,
+          test_specification: create.test_specification,
+          remark: create.remark,
+          status: create.status || 'Ongoing',
+          test_result: create.test_result,
+          failure_details: create.failure_details,
+          improvement_plan: create.improvement_plan,
+          technician_id: req.user.id
+        }
+      });
+      createdIds.push(newWo.id);
+      
+      if (create.images && create.images.length > 0) {
+         const fileIds = create.images.map(img => img.id).filter(id => id);
+         if (fileIds.length > 0) {
+           await tx.labWorkOrderImage.updateMany({
+             where: { id: { in: fileIds } },
+             data: { parent_id: newWo.id }
+           });
+         }
+      }
+      if (create.reportAttachments && create.reportAttachments.length > 0) {
+         const fileIds = create.reportAttachments.map(img => img.id).filter(id => id);
+         if (fileIds.length > 0) {
+           await tx.reportAttachment.updateMany({
+             where: { id: { in: fileIds } },
+             data: { parent_id: newWo.id }
+           });
+         }
+      }
     }
 
-    if (req.app.get('io')) {
-      req.app.get('io').emit('lab-work-order-updated', updated);
-    }
+    // Report Attachments mapped per work order above
+    return { updatedIds, createdIds };
+  });
 
-    const { connection: redis } = require('../config/queue');
-    const keys = await redis.keys('lab_requests:*');
-    if (keys.length > 0) await redis.del(keys);
+  const allWoIdsList = [...results.updatedIds, ...results.createdIds];
 
-    res.json({ success: true, data: updated });
+  // Cleanup orphaned files outside transaction
+  if (keptReportAttachmentIds) {
+    await cleanupOrphanedReportAttachments(allWoIdsList, keptReportAttachmentIds);
   }
+  
+  // Clean images for all updated and created WOs + existing WOs
+  if (keptImageIds) {
+    const allActiveWOs = await prisma.labWorkOrder.findMany({
+      where: { lab_request_id: parseInt(requestId) },
+      select: { id: true }
+    });
+    const allWoIds = allActiveWOs.map(w => w.id);
+    if (allWoIds.length > 0) {
+      await cleanupOrphanedWorkOrderImages(allWoIds, keptImageIds);
+    }
+  }
+
+  res.json({ success: true, message: 'Work orders saved successfully.' });
 };
 
 const uploadWorkOrderFiles = async (req, res) => {
-  {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: 'No files uploaded.' });
-    }
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).json({ error: 'No files uploaded.' });
+  }
 
-    const attachments = [];
-    for (const file of req.files) {
-      const att = await prisma.requestAttachment.create({
+  const { type } = req.body;
+  if (!type) {
+    return res.status(400).json({ error: 'File type is required.' });
+  }
+
+  let uploadedFiles;
+  if (type === 'REPORT') {
+    uploadedFiles = await processUploads(req.files, (file) => {
+      return prisma.reportAttachment.create({
         data: {
-          request_id: 0, // temp placeholder
-          request_type: 'LAB_WORK_ORDER',
+          parent_id: null,
+          request_type: 'LAB',
           file_name: Buffer.from(file.originalname, 'latin1').toString('utf8'),
-          file_url: file.filename
+          file_url: file.filename || file.key,
+          bucket_name: file.bucket
         }
       });
-      attachments.push(att);
-    }
-
-    res.json({ files: attachments });
+    }, 'file_url');
+  } else if (type === 'FAILURE' || type === 'IMPROVEMENT') {
+    uploadedFiles = await processUploads(req.files, (file) => {
+      return prisma.labWorkOrderImage.create({
+        data: {
+          parent_id: null,
+          image_url: file.filename,
+          bucket_name: file.bucket,
+          image_type: file.mimetype,
+          image_category: type
+        }
+      });
+    }, 'image_url', true);
+  } else {
+    return res.status(400).json({ error: 'Invalid file type.' });
   }
+
+  res.json({ success: true, data: uploadedFiles });
 };
 
 module.exports = {
   getByRequestId,
-  createWorkOrder,
-  updateStatus,
+  bulkSaveWorkOrders,
   uploadWorkOrderFiles
 };

@@ -296,7 +296,7 @@ const { isLoading, execute: fetchRequests } = useAsyncState(async () => {
   const res = await api.get(`/fai?${params.toString()}`);
   requests.value = res.data.data;
   totalRequests.value = res.data.total;
-}, null, { immediate: false });
+}, null, { immediate: false, resetOnExecute: false });
 
 watch([searchQuery, page, limit, sortBy, sortDesc], () => {
   fetchRequests();

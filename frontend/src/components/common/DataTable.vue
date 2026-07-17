@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick, watch, computed } from 'vue';
-import { useEventListener } from '@vueuse/core';
+import { useEventListener, useMediaQuery } from '@vueuse/core';
 import Checkbox from '@/components/ui/Checkbox.vue';
 
 export interface DataTableColumn {
@@ -10,6 +10,7 @@ export interface DataTableColumn {
   sticky?: 'left' | 'right';
   width?: string;
   minWidth?: string;
+  maxWidth?: string;
 }
 
 const props = defineProps<{
@@ -30,6 +31,15 @@ const emit = defineEmits<{
 }>();
 
 const rowKeyProp = computed(() => props.rowKey || 'id');
+
+const isSmallScreen = useMediaQuery('(max-width: 1024px)');
+
+const getStickyType = (col: DataTableColumn) => {
+  if (isSmallScreen.value && col.key !== 'actions') {
+    return undefined;
+  }
+  return col.sticky;
+};
 
 // Scrollbar auto-hide logic
 const tableContainerRef = ref<HTMLElement | null>(null);
@@ -173,7 +183,7 @@ const getSortIcon = (columnKey: string) => {
       <table class="w-full border-collapse border-spacing-0 text-left transition-opacity duration-300" :class="{ 'opacity-40 pointer-events-none': isLoading }" ref="tableRef">
         <thead>
           <tr>
-            <th v-if="selectable" class="sticky-left sticky top-0 z-[11] p-4 border-b border-border font-semibold text-bg bg-primary whitespace-nowrap text-center pr-2" :style="{ minWidth: '50px', width: '50px', left: stickyOffsets['left-0'] }">
+            <th v-if="selectable" :class="[!isSmallScreen ? 'sticky-left z-[11]' : 'z-[10]', 'sticky top-0 p-4 border-b border-border font-semibold text-bg bg-primary whitespace-nowrap text-center pr-2']" :style="{ minWidth: '50px', width: '50px', left: !isSmallScreen ? stickyOffsets['left-0'] : undefined }">
               <Checkbox 
                 ref="selectAllCheckbox"
                 :model-value="isAllSelected" 
@@ -185,16 +195,18 @@ const getSortIcon = (columnKey: string) => {
               v-for="(col, index) in columns" 
               :key="col.key"
               :class="[
-                col.sticky === 'left' ? 'sticky-left' : '',
-                col.sticky === 'right' ? 'sticky-right' : '',
-                col.sticky === 'left' || col.sticky === 'right' ? 'sticky z-[11]' : 'sticky z-[10]',
+                getStickyType(col) === 'left' ? 'sticky-left' : '',
+                getStickyType(col) === 'right' ? 'sticky-right' : '',
+                getStickyType(col) ? 'sticky z-[11]' : 'sticky z-[10]',
                 col.sortable ? 'cursor-pointer select-none transition-all duration-200 hover:brightness-90' : '',
                 'p-4 border-b border-border font-semibold text-bg bg-primary whitespace-nowrap top-0'
               ]"
               :style="{ 
-                width: col.width, minWidth: col.minWidth || col.width, maxWidth: col.width,
-                left: col.sticky === 'left' ? stickyOffsets[`left-${selectable ? index + 1 : index}`] : undefined,
-                right: col.sticky === 'right' ? stickyOffsets[`right-${selectable ? index + 1 : index}`] : undefined
+                width: col.width || (col.maxWidth ? 'max-content' : undefined), 
+                minWidth: col.minWidth || col.width, 
+                maxWidth: col.maxWidth || col.width,
+                left: getStickyType(col) === 'left' ? stickyOffsets[`left-${selectable ? index + 1 : index}`] : undefined,
+                right: getStickyType(col) === 'right' ? stickyOffsets[`right-${selectable ? index + 1 : index}`] : undefined
               }"
               @click="col.sortable ? $emit('sort', col.key) : null"
             >
@@ -210,7 +222,7 @@ const getSortIcon = (columnKey: string) => {
             </td>
           </tr>
           <tr v-for="(item, index) in data" :key="item[rowKeyProp]" class="hover:brightness-[0.97] transition-all" :class="rowClass ? rowClass(item) : ''">
-            <td v-if="selectable" class="sticky z-[2] p-4 border-b border-border bg-bg-surface text-center pr-2" :style="{ left: stickyOffsets['left-0'] }">
+            <td v-if="selectable" :class="[!isSmallScreen ? 'sticky-left z-[2]' : 'z-[1]', 'sticky p-4 border-b border-border bg-bg-surface text-center pr-2']" :style="{ left: !isSmallScreen ? stickyOffsets['left-0'] : undefined }">
               <Checkbox 
                 :model-value="selectedRows?.includes(item[rowKeyProp])" 
                 @update:model-value="toggleSelectRow(item[rowKeyProp])" 
@@ -221,17 +233,26 @@ const getSortIcon = (columnKey: string) => {
               v-for="(col, colIndex) in columns" 
               :key="col.key"
               :class="[
-                col.sticky === 'left' || col.sticky === 'right' ? 'sticky z-[2]' : 'z-[1]',
+                getStickyType(col) === 'left' || getStickyType(col) === 'right' ? 'sticky z-[2]' : 'z-[1]',
                 'p-4 border-b border-border bg-bg-surface text-text'
               ]"
               :style="{ 
-                left: col.sticky === 'left' ? stickyOffsets[`left-${selectable ? colIndex + 1 : colIndex}`] : undefined,
-                right: col.sticky === 'right' ? stickyOffsets[`right-${selectable ? colIndex + 1 : colIndex}`] : undefined
+                left: getStickyType(col) === 'left' ? stickyOffsets[`left-${selectable ? colIndex + 1 : colIndex}`] : undefined,
+                right: getStickyType(col) === 'right' ? stickyOffsets[`right-${selectable ? colIndex + 1 : colIndex}`] : undefined
               }"
             >
-              <slot :name="`cell-${col.key}`" :item="item" :index="index">
-                {{ item[col.key] }}
-              </slot>
+              <div
+                :class="col.maxWidth ? 'whitespace-normal break-words [&_*]:max-w-full' : ''"
+                :style="{
+                  width: col.width || (col.maxWidth ? 'max-content' : undefined),
+                  minWidth: col.minWidth || col.width,
+                  maxWidth: col.maxWidth || col.width
+                }"
+              >
+                <slot :name="`cell-${col.key}`" :item="item" :index="index">
+                  {{ item[col.key] }}
+                </slot>
+              </div>
             </td>
           </tr>
         </tbody>

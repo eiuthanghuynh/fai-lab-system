@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { useAuthStore } from '@/stores/auth';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:3000';
 
@@ -8,9 +9,15 @@ class SocketService {
   connect() {
     if (this.socket?.connected) return;
 
+    const authStore = useAuthStore();
+    const token = authStore.token;
+
     this.socket = io(SOCKET_URL, {
       withCredentials: true,
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      auth: {
+        token: token
+      }
     });
 
     this.socket.on('connect', () => {

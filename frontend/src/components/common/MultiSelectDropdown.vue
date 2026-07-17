@@ -129,7 +129,7 @@ const displayValue = computed(() => {
           ref="menuRef"
           :style="dropdownStyle"
           :class="[
-            'z-[9999] bg-bg-surface shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-primary ring-opacity-5 overflow-auto focus:outline-none sm:text-sm border border-border',
+            'fai-dropdown-menu z-[9999] bg-bg-surface shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-primary ring-opacity-5 overflow-auto focus:outline-none sm:text-sm border border-border',
             isUpwards ? 'origin-bottom' : 'origin-top'
           ]"
         >

@@ -118,19 +118,19 @@ model FaiRequest {
   supplier_id           Int?
   part_type             String?  @db.VarChar(100)
   reason_for_submission String?  @db.VarChar(255)
-  receive_date          DateTime? @db.Date
+  receive_date          DateTime?
   sample_qty            Int      @default(1)
   submission_time       Int      @default(1)
   priority              PriorityLevel?
   priority_reason       String?  @db.Text
   week_no               Int?
-  complete_date         DateTime? @db.Date
+  complete_date         DateTime?
   failure_details       String?  @db.Text
   improvement_plan      String?  @db.Text
   inspector_id          Int?
   fai_failure_mode      Int?
   remark                String?  @db.Text
-  estimated_date        DateTime? @db.Date
+  estimated_date        DateTime?
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
   status                RequestStatus @default(Draft)
@@ -160,6 +160,19 @@ model Supplier {
   @@map("suppliers")
 }
 
+model ItemTest {
+  id          Int            @id @default(autoincrement())
+  name        String         @unique @db.VarChar(255)
+  description String?        @db.Text
+  is_active   Boolean        @default(true)
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
+
+  workOrders  LabWorkOrder[]
+
+  @@map("item_tests")
+}
+
 model LabRequest {
   id                Int      @id @default(autoincrement())
   test_no           String?  @unique @db.VarChar(50)
@@ -173,14 +186,14 @@ model LabRequest {
   priority          PriorityLevel?
   priority_reason   String?  @db.Text
   week_no           Int?
-  request_date      DateTime @db.Date
-  estimated_date    DateTime? @db.Date
-  complete_date     DateTime? @db.Date
+  request_date      DateTime
+  estimated_date    DateTime?
+  complete_date     DateTime?
   status            RequestStatus @default(Draft)
   requestor_id      Int
   approved_by       Int?
-  sample_received_date DateTime? @db.Date
-  sample_return_date   DateTime? @db.Date
+  sample_received_date DateTime?
+  sample_return_date   DateTime?
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
   is_active         Boolean  @default(true)
@@ -191,7 +204,6 @@ model LabRequest {
   inspector_id      Int?
   inspector         User?    @relation("LabInspector", fields: [inspector_id], references: [id])
   workOrders        LabWorkOrder[]
-  images            LabRequestImage[]
 
   @@map("lab_requests")
 }
@@ -202,7 +214,7 @@ model LabWorkOrder {
   lab_request_id      Int
   quantity            Int      @default(1)
   product_sn          String?  @db.VarChar(255)
-  item_test           String   @db.VarChar(255)
+  item_test_id        Int
   procedure_condition String?  @db.Text
   test_specification  String?  @db.Text
   remark              String?  @db.Text
@@ -216,36 +228,55 @@ model LabWorkOrder {
   is_active           Boolean  @default(true)
 
   labRequest          LabRequest @relation(fields: [lab_request_id], references: [id])
+  itemTest            ItemTest   @relation(fields: [item_test_id], references: [id])
   technician          User?      @relation("LabTechnician", fields: [technician_id], references: [id])
+  images              LabWorkOrderImage[]
 
   @@map("lab_work_orders")
 }
 
-model LabRequestImage {
-  id             Int      @id @default(autoincrement())
-  lab_request_id Int
-  image_url      String   @db.Text
-  image_type     String   @db.VarChar(50)
-  is_active      Boolean  @default(true)
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
+model LabWorkOrderImage {
+  id                Int      @id @default(autoincrement())
+  parent_id         Int?
+  image_url         String   @db.Text
+  image_type        String   @db.VarChar(50)
+  image_category    String?  @db.VarChar(50)
+  bucket_name       String   @default("requests") @db.VarChar(50)
+  is_active         Boolean  @default(true)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
 
-  labRequest     LabRequest @relation(fields: [lab_request_id], references: [id])
+  labWorkOrder      LabWorkOrder? @relation(fields: [parent_id], references: [id])
 
-  @@map("lab_request_images")
+  @@map("lab_work_order_images")
 }
 
 model RequestAttachment {
   id           Int      @id @default(autoincrement())
-  request_id   Int
+  parent_id    Int?
   request_type String   @db.VarChar(20)
   file_name    String   @db.VarChar(255)
   file_url     String   @db.Text
+  bucket_name  String   @default("requests") @db.VarChar(50)
   is_active    Boolean  @default(true)
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
 
   @@map("request_attachments")
+}
+
+model ReportAttachment {
+  id           Int      @id @default(autoincrement())
+  parent_id    Int?
+  request_type String   @db.VarChar(20)
+  file_name    String   @db.VarChar(255)
+  file_url     String   @db.Text
+  bucket_name  String   @default("requests") @db.VarChar(50)
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@map("report_attachments")
 }
 
 model FaiLabReport {

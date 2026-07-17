@@ -146,7 +146,7 @@ const { isLoading, execute: fetchUsers } = useAsyncState(async () => {
   const res = await api.get(`/users?${params.toString()}`);
   users.value = res.data?.data || (Array.isArray(res.data) ? res.data : []);
   totalUsers.value = res.data?.total || (Array.isArray(res.data) ? res.data.length : 0);
-}, null, { immediate: false });
+}, null, { immediate: false, resetOnExecute: false });
 
 const fetchRoles = async () => {
   try {

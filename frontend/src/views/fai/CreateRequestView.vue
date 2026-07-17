@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
@@ -8,6 +8,7 @@ import { useFormValidation } from '@/composables/useFormValidation';
 import { toast } from 'vue-sonner';
 import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
 import Input from '@/components/ui/Input.vue';
+import DirectUpload from '@/components/common/DirectUpload.vue';
 import Button from '@/components/ui/Button.vue';
 import Radio from '@/components/ui/Radio.vue';
 import Checkbox from '@/components/ui/Checkbox.vue';
@@ -77,14 +78,9 @@ const submissionContents = ref<Record<string, boolean>>({
   validate_report: false
 });
 
-// File Upload Status
-const fileIds = ref<number[]>([]);
 const uploadedFiles = ref<any[]>([]);
-const isUploading = ref(false);
-const uploadProgress = ref(0);
+const saveStatus = ref('');
 
-// Status indicator
-const saveStatus = ref(''); // 'saving', 'saved', 'error', ''
 const idempotencyKey = ref('');
 
 // Generate unique idempotency key
@@ -93,52 +89,7 @@ const generateIdempotencyKey = () => {
 };
 
 // Handle file upload
-const handleFileUpload = async (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  if (!target.files || target.files.length === 0) return;
-
-  isUploading.value = true;
-  uploadProgress.value = 10;
-  
-  const formData = new FormData();
-  for (let i = 0; i < target.files.length; i++) {
-    formData.append('files', target.files[i] as File);
-  }
-
-  try {
-    uploadProgress.value = 30;
-    const res = await api.post('/fai/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      },
-      onUploadProgress: (progressEvent) => {
-        if (progressEvent.total) {
-          uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        }
-      }
-    });
-    
-    uploadProgress.value = 100;
-    const files = res.data.files;
-    files.forEach((f: any) => {
-      fileIds.value.push(f.id);
-      uploadedFiles.value.push(f);
-    });
-  } catch (err) {
-    console.error('File upload failed:', err);
-    alert('Failed to upload files. Please try again.');
-  } finally {
-    setTimeout(() => {
-      isUploading.value = false;
-      uploadProgress.value = 0;
-    }, 1000);
-  }
-};
-
-const removeFile = (index: number) => {
-  fileIds.value.splice(index, 1);
-  uploadedFiles.value.splice(index, 1);
-};
+// File upload handled by DirectUpload
 
 const saveAsDraft = async () => {
   saveStatus.value = 'saving';
@@ -160,7 +111,7 @@ const saveAsDraft = async () => {
       reason_for_submission: reasonForSubmission.value === 'Others' ? (reasonOthersText.value ? `Others: ${reasonOthersText.value}` : 'Others:') : 
                              (reasonForSubmission.value === 'ECO' ? (ecoText.value ? `ECO: ${ecoText.value}` : 'ECO:') : reasonForSubmission.value),
       submission_contents: submissionContents.value,
-      file_ids: fileIds.value,
+      file_ids: uploadedFiles.value.map((f: any) => f.id),
       idempotency_key: idempotencyKey.value
     };
     
@@ -226,7 +177,7 @@ const submitForm = async () => {
       part_type: finalPartType,
       reason_for_submission: finalReason,
       submission_contents: submissionContents.value,
-      file_ids: fileIds.value,
+      file_ids: uploadedFiles.value.map((f: any) => f.id),
       idempotency_key: idempotencyKey.value
     };
 
@@ -485,25 +436,15 @@ onMounted(async () => {
             </div>
 
             <!-- File Attachment Section -->
-            <div class="pb-0 border-b-0">
+            <div class="pb-0 border-b-0 mt-4">
               <h3 class="text-base font-semibold mt-0 mb-3 text-text">{{ t('fai.attach_files') }}:</h3>
-              <div class="flex items-center gap-3 border border-border py-2 px-3 rounded bg-bg">
-                <input type="file" multiple @change="handleFileUpload" id="file-input" class="hidden" />
-                <label for="file-input" class="bg-bg-surface border border-border text-text py-1.5 px-3.5 rounded text-[0.85rem] font-medium cursor-pointer shadow-sm hover:bg-border">{{ t('fai.choose_files') }}</label>
-                <span class="text-[0.85rem] text-text-muted" v-if="uploadedFiles.length === 0">{{ t('fai.no_file') }}</span>
-                <div v-else class="flex flex-wrap gap-1.5">
-                  <div v-for="(file, idx) in uploadedFiles" :key="idx" class="flex items-center gap-1.5 bg-border py-1 px-2 rounded text-[0.8rem]">
-                    <span>{{ file.file_name }}</span>
-                    <button type="button" @click="removeFile(idx)" class="bg-transparent border-none text-[#ef4444] cursor-pointer text-[0.8rem]">✕</button>
-                  </div>
-                </div>
-              </div>
+              <DirectUpload 
+                v-model="uploadedFiles" 
+                uploadUrl="/fai/upload" 
+                :uploadParams="{ request_type: 'FAI' }" 
+                :multiple="true" 
+              />
               <p class="text-[0.75rem] text-text-muted mt-1.5 mb-0">{{ t('fai.multiple_files') }}</p>
-
-              <!-- Progress bar -->
-              <div v-if="isUploading" class="mt-2 bg-border h-1 rounded-sm overflow-hidden">
-                <div class="bg-primary h-full transition-[width] duration-200" :style="{ width: uploadProgress + '%' }"></div>
-              </div>
             </div>
           </div>
           

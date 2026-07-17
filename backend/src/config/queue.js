@@ -22,7 +22,15 @@ const emailQueue = new Queue('emailQueue', {
   }
 });
 
+const cleanupQueue = new Queue('cleanupQueue', { 
+  connection,
+  defaultJobOptions: {
+    removeOnComplete: true,
+  }
+});
+
 module.exports = {
   emailQueue,
+  cleanupQueue,
   connection
 };

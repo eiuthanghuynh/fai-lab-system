@@ -1,4 +1,4 @@
-import { createI18n } from 'vue-i18n';
+import { createI18n } from 'vue-i18n'
 
 const messages = {
   en: {
@@ -9,7 +9,7 @@ const messages = {
       submit: 'Login',
       error: 'Invalid credentials',
       rate_limit_error: 'Too many failed attempts. Please try again after 2 minutes.',
-      internal_error: 'Internal server error (500)',
+      internal_error: 'Internal server error. Please contact administrator to resolve the issue.',
       keep_logged_in: 'Keep me logged in today',
       forgot_password: 'Forgot password?',
       forgot_password_title: 'Reset Password',
@@ -21,7 +21,7 @@ const messages = {
       password_mismatch: 'Passwords do not match.',
       reset_success: 'Password has been reset successfully.',
       invalid_link: 'Invalid or expired password reset link.',
-      back_to_login: 'Back to Login'
+      back_to_login: 'Back to Login',
     },
     dashboard: {
       title: 'First Article Inspection (FAI) Dashboard',
@@ -44,7 +44,7 @@ const messages = {
       reload_data: 'Reload Data',
       recent_requests: 'Recent FAI Requests',
       view_all: 'View All',
-      no_recent_requests: 'No recent requests found.'
+      no_recent_requests: 'No recent requests found.',
     },
     fai: {
       form_title: 'FAI Request Form',
@@ -80,7 +80,7 @@ const messages = {
         created_at: 'Created At',
         status: 'Status',
         actions: 'Actions',
-        updated_at: 'Updated At'
+        updated_at: 'Updated At',
       },
       advanced_filters: 'Advanced Filters',
       placeholder: {
@@ -101,7 +101,7 @@ const messages = {
         search_tracking: 'Search Tracking No.',
         all_inspectors: 'All Inspectors',
         all_status: 'All Status',
-        all_results: 'All Results'
+        all_results: 'All Results',
       },
       part_type: 'Part Type',
       reason: 'Reason for Submission',
@@ -119,7 +119,7 @@ const messages = {
       back_to_list: 'Back to List',
       general_information: 'General Information',
       submission_contents: 'Submission Contents',
-      attachment: 'Attachments',
+      attachment: 'Requestor\'s Attachments',
       assign: 'Assign',
       make_report: 'Make Report',
       priority: 'Priority',
@@ -128,12 +128,16 @@ const messages = {
       assign_desc: 'Select an inspector and priority level for this request.',
       priority_urgent: 'Urgent',
       priority_normal: 'Normal',
-      priority_reason: 'Priority Reason'
+      priority_reason: 'Priority Reason',
     },
     lab: {
       form_title: 'LAB Request Form',
       list_title: 'LAB Requests',
-      search_placeholder: 'Search by model, project, product SN...',
+      start_inspection: 'Start Inspection',
+      start_inspection_desc: 'Please select an estimated completion date.',
+      execute_test: 'Execute Test',
+      adjust_time: 'Adjust Time',
+      search_placeholder: 'Search by Test No, Model No, project, product SN...',
       create_new: 'Create LAB Request',
       details: 'Request Details',
       assign: 'Assign',
@@ -150,7 +154,7 @@ const messages = {
         request_date: 'Request Date',
         status: 'Status',
         actions: 'Actions',
-        requestor: 'Requestor'
+        requestor: 'Requestor',
       },
       work_order: {
         title: 'Work Orders',
@@ -166,8 +170,20 @@ const messages = {
         failure_details: 'Failure details',
         improvement_action: 'Improvement / Action',
         technician: 'Test by',
-        report: 'Test report'
-      }
+        report: 'Test report',
+      },
+      test: {
+        estimated_date: 'Estimated Complete Date',
+        estimated_date_desc: 'Please specify estimated complete date',
+        estimated_date_desc_readonly: 'You can not change the estimated complete date after specified',
+        receive_date: 'Sample Receive Date',
+        receive_date_desc: 'Please specify sample receive date',
+        return_date: 'Sample Return Date',
+        return_date_desc: 'Please specify sample return date',
+        error: {
+          return_date_invalid: 'Return date must be after or equal to receive date'
+        }
+      },
     },
     nav: {
       home: 'Home',
@@ -177,7 +193,7 @@ const messages = {
       lab_requests: 'LAB Requests',
       db_management: 'Database Management',
       logout: 'Logout',
-      logout_warning: 'Are you sure you want to log out of the system?'
+      logout_warning: 'Are you sure you want to log out of the system?',
     },
     common: {
       warning: 'Warning',
@@ -186,17 +202,18 @@ const messages = {
       delete_confirm: 'Are you sure you want to delete this item?',
       choose_language: 'Choose Language',
       dark_mode: 'Dark Mode',
-      submit_request: 'Send Recovery Request'
+      submit_request: 'Send Recovery Request',
+      settings: 'Settings',
     },
     pdf: {
       no_attachments: 'No attachments found',
       download: 'Download',
       download_all: 'Download All',
-      download_placeholder_title: 'Preview is Not Available.' ,
+      download_placeholder_title: 'Preview is Not Available.',
       download_placeholder_content: 'Please download the file to view its contents.',
       not_found_title: 'File Not Found',
       not_found_content: 'The requested file could not be found on the server.',
-      document_length: 'Documents'
+      document_length: 'Documents',
     },
     admin: {
       users: 'User Management',
@@ -213,7 +230,7 @@ const messages = {
       restore_role: 'Restore Role',
       fai_failure_modes: 'FAI Failure Modes',
       commodity_parts: 'Commodity Parts',
-      actions: 'Actions'
+      actions: 'Actions',
     },
     user: {
       id: 'ID',
@@ -224,7 +241,7 @@ const messages = {
       department: 'Department',
       role: 'Role',
       status: 'Status',
-      actions: 'Actions'
+      actions: 'Actions',
     },
     table: {
       id: 'ID',
@@ -237,7 +254,7 @@ const messages = {
       description: 'Description',
       badge_color: 'Badge Color',
       permissions: 'Permissions',
-      no_data: 'No data available'
+      no_data: 'No data available',
     },
     form: {
       username: 'Username',
@@ -266,12 +283,13 @@ const messages = {
       role_desc: 'System permissions level',
       role_name_desc: 'Identifier for the role',
       role_desc_desc: 'Detailed description of this role',
-      badge_color_desc: 'Display color in the system'
+      badge_color_desc: 'Display color in the system',
     },
     action: {
       create: 'Add New',
       edit: 'Edit',
       delete: 'Delete',
+      selected: 'selected',
       restore: 'Restore',
       save: 'Save',
       cancel: 'Cancel',
@@ -281,18 +299,20 @@ const messages = {
       sort_by: 'Sort by',
       reset: 'Reset',
       apply: 'Apply Filters',
-      filter: 'Filter'
+      filter: 'Filter',
     },
     status: {
       active: 'Active',
-      inactive: 'Inactive'
+      inactive: 'Inactive',
     },
     session: {
-      idle_expired: 'Your session has expired due to 30 minutes of inactivity. Please log in again.',
-      invalidated: 'Your session has been invalidated or expired. Please log in again.'
+      idle_expired:
+        'Your session has expired due to 30 minutes of inactivity. Please log in again.',
+      invalidated: 'Your session has been invalidated or expired. Please log in again.',
     },
     error: {
-      password_format: 'Password must be at least 8 characters long, contain uppercase, lowercase, numbers, and special characters.',
+      password_format:
+        'Password must be at least 8 characters long, contain uppercase, lowercase, numbers, and special characters.',
       username_exists: 'Username already exists.',
       email_exists: 'Email already exists.',
       employee_id_exists: 'Employee ID already exists.',
@@ -301,26 +321,26 @@ const messages = {
       validation_failed: 'Validation is failed, please review and try again.',
       required_field: 'This field is required.',
       sample_qty_fai_bounds: 'Sample quantity must be between 3 and 20.',
-      sample_qty_lab_bounds: 'Sample quantity must be between 1 and 20.'
+      sample_qty_lab_bounds: 'Sample quantity must be between 1 and 20.',
     },
     error_page: {
-      unauthorized_title: '401',
-      unauthorized_subtitle: 'Unauthorized',
+      unauthorized_title: '403',
+      unauthorized_subtitle: 'Forbidden',
       unauthorized_desc: 'You do not have permission to access this page.',
       notfound_title: '404',
       notfound_subtitle: 'Not Found',
       notfound_desc: 'The page you are looking for does not exist or has been moved.',
-      back_to_home: 'Back to Home'
+      back_to_home: 'Back to Home',
     },
     filter: {
       role_all: 'Role',
       status_all: 'Status',
       created_date: 'Created Date',
-      updated_date: 'Updated Date'
+      updated_date: 'Updated Date',
     },
     pagination: {
       rows_per_page: 'Rows per page',
-      of_rows: 'of {total} rows'
+      of_rows: 'of {total} rows',
     },
     toast: {
       create_success: 'Created successfully',
@@ -331,8 +351,13 @@ const messages = {
       action_success: 'Action completed successfully',
       action_failed: 'Action failed',
       load_failed: 'Failed to load data',
-      error: 'An error occurred'
-    }
+      error: 'An error occurred',
+      lab: {
+        work_order: {
+          exceed_quantity: 'The total quantity has exceeded the available quantity'
+        }
+      }
+    },
   },
   vi: {
     login: {
@@ -342,7 +367,7 @@ const messages = {
       submit: 'Đăng nhập',
       error: 'Thông tin đăng nhập không hợp lệ',
       rate_limit_error: 'Bạn đã đăng nhập sai quá nhiều lần. Vui lòng thử lại sau 2 phút.',
-      internal_error: 'Lỗi từ phía máy chủ (500)',
+      internal_error: 'Lỗi từ phía máy chủ. Vui lòng liên hệ tới quản trị viên để khắc phục vấn đề.',
       keep_logged_in: 'Duy trì đăng nhập hôm nay',
       forgot_password: 'Quên mật khẩu?',
       forgot_password_title: 'Khôi phục mật khẩu',
@@ -354,7 +379,7 @@ const messages = {
       password_mismatch: 'Mật khẩu không khớp.',
       reset_success: 'Mật khẩu đã được thiết lập lại thành công.',
       invalid_link: 'Đường link khôi phục không hợp lệ hoặc đã hết hạn.',
-      back_to_login: 'Trở lại Đăng nhập'
+      back_to_login: 'Trở lại Đăng nhập',
     },
     dashboard: {
       title: 'Tổng quan First Article Inspection (FAI)',
@@ -377,7 +402,7 @@ const messages = {
       reload_data: 'Tải lại dữ liệu',
       recent_requests: 'Yêu cầu FAI gần đây',
       view_all: 'Xem tất cả',
-      no_recent_requests: 'Không tìm thấy yêu cầu nào gần đây.'
+      no_recent_requests: 'Không tìm thấy yêu cầu nào gần đây.',
     },
     fai: {
       form_title: 'FAI Request',
@@ -413,7 +438,7 @@ const messages = {
         created_at: 'Ngày tạo',
         status: 'Trạng thái',
         actions: 'Hành động',
-        updated_at: 'Ngày cập nhật'
+        updated_at: 'Ngày cập nhật',
       },
       advanced_filters: 'Bộ lọc nâng cao',
       placeholder: {
@@ -434,7 +459,7 @@ const messages = {
         search_tracking: 'Tìm kiếm tracking no.',
         all_inspectors: 'Tất cả',
         all_status: 'Tất cả trạng thái',
-        all_results: 'Tất cả kết quả'
+        all_results: 'Tất cả kết quả',
       },
       part_type: 'Loại Part',
       reason: 'Lý do gửi yêu cầu',
@@ -452,7 +477,7 @@ const messages = {
       back_to_list: 'Quay lại danh sách',
       general_information: 'Thông tin chung',
       submission_contents: 'Nội dung đính kèm',
-      attachment: 'Tệp tin đính kèm',
+      attachment: 'Tệp tin đính kèm (từ người Request)',
       assign: 'Phân công',
       make_report: 'Tạo báo cáo',
       priority: 'Mức ưu tiên',
@@ -461,12 +486,16 @@ const messages = {
       assign_desc: 'Vui lòng chọn người Inspect và mức độ ưu tiên.',
       priority_urgent: 'Urgent',
       priority_normal: 'Normal',
-      priority_reason: 'Lý do ưu tiên'
+      priority_reason: 'Lý do ưu tiên',
     },
     lab: {
       form_title: 'LAB Request',
-      list_title: 'Phòng LAB',
-      search_placeholder: 'Tìm kiếm theo model, project, product SN...',
+      list_title: 'Yêu cầu của LAB',
+      start_inspection: 'Bắt đầu Inspect',
+      start_inspection_desc: 'Vui lòng chọn ngày dự kiến hoàn thành.',
+      execute_test: 'Thực hiện Test',
+      adjust_time: 'Điều chỉnh thời gian',
+      search_placeholder: 'Tìm kiếm theo Test No, Model No, project, product SN...',
       details: 'Chi tiết',
       assign: 'Phân công',
       detail_title: 'LAB - Chi tiết yêu cầu',
@@ -482,7 +511,7 @@ const messages = {
         request_date: 'Ngày yêu cầu',
         status: 'Trạng thái',
         actions: 'Hành động',
-        requestor: 'Người yêu cầu'
+        requestor: 'Người yêu cầu',
       },
       work_order: {
         title: 'Work Orders',
@@ -498,8 +527,20 @@ const messages = {
         failure_details: 'Chi tiết lỗi',
         improvement_action: 'Cải tiến / Action',
         technician: 'Người thực hiện',
-        report: 'Báo cáo (Report)'
-      }
+        report: 'Báo cáo (Report)',
+      },
+      test: {
+        estimated_date: 'Ngày dự kiến hoàn thành',
+        estimated_date_desc: 'Vui lòng chọn ngày dự kiến hoàn thành',
+        estimated_date_desc_readonly: 'Bạn không thể thay đổi ngày dự kiến hoàn thành sau khi đã chỉnh',
+        receive_date: 'Ngày nhận mẫu',
+        receive_date_desc: 'Vui lòng chọn ngày nhận mẫu',
+        return_date: 'Ngày trả mẫu',
+        return_date_desc: 'Vui lòng chọn ngày trả mẫu',
+        error: {
+          return_date_invalid: 'Ngày trả mẫu bắt buộc phải sau hoặc cùng ngày nhận mẫu'
+        }
+      },
     },
     nav: {
       home: 'Trang chủ',
@@ -509,7 +550,7 @@ const messages = {
       lab_requests: 'Yêu cầu LAB',
       db_management: 'Quản lý cơ sở dữ liệu',
       logout: 'Đăng xuất',
-      logout_warning: 'Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?'
+      logout_warning: 'Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?',
     },
     common: {
       warning: 'Cảnh báo',
@@ -518,17 +559,18 @@ const messages = {
       delete_confirm: 'Bạn có chắc chắn muốn xóa mục này không?',
       choose_language: 'Chọn ngôn ngữ',
       dark_mode: 'Chế độ nền tối',
-      submit_request: 'Gửi yêu cầu khôi phục'
+      submit_request: 'Gửi yêu cầu khôi phục',
+      settings: 'Cài đặt',
     },
     pdf: {
       no_attachments: 'Không có tệp đính kèm nào',
       download: 'Tải xuống',
       download_all: 'Tải xuống tất cả',
-      download_placeholder_title: 'Xem trước không khả dụng.' ,
+      download_placeholder_title: 'Xem trước không khả dụng.',
       download_placeholder_content: 'Vui lòng tải xuống file để có thể xem nội dung.',
       not_found_title: 'Không tìm thấy file',
       not_found_content: 'File yêu cầu không tồn tại hoặc đã bị xóa khỏi hệ thống.',
-      document_length: 'Tài liệu'
+      document_length: 'Tài liệu',
     },
     admin: {
       users: 'Quản lý người dùng',
@@ -545,7 +587,7 @@ const messages = {
       restore_role: 'Khôi phục vai trò',
       fai_failure_modes: 'FAI Failure Mode',
       commodity_parts: 'Commodity Parts',
-      actions: 'Hành động'
+      actions: 'Hành động',
     },
     user: {
       id: 'ID',
@@ -556,7 +598,7 @@ const messages = {
       department: 'Phòng ban',
       role: 'Vai trò',
       status: 'Trạng thái',
-      actions: 'Thao tác'
+      actions: 'Thao tác',
     },
     table: {
       id: 'ID',
@@ -569,7 +611,7 @@ const messages = {
       description: 'Mô tả',
       badge_color: 'Màu nhận diện',
       permissions: 'Quyền hạn',
-      no_data: 'Không tìm thấy kết quả'
+      no_data: 'Không tìm thấy kết quả',
     },
     form: {
       username: 'Tên đăng nhập',
@@ -598,12 +640,13 @@ const messages = {
       role_desc: 'Cấp độ quyền hạn trong hệ thống',
       role_name_desc: 'Tên định danh của vai trò',
       role_desc_desc: 'Mô tả chi tiết về chức năng của vai trò này',
-      badge_color_desc: 'Màu sắc hiển thị trên hệ thống'
+      badge_color_desc: 'Màu sắc hiển thị trên hệ thống',
     },
     action: {
       create: 'Thêm mới',
       edit: 'Sửa',
       delete: 'Xóa',
+      selected: 'đã chọn',
       restore: 'Khôi phục',
       save: 'Lưu',
       cancel: 'Hủy',
@@ -613,18 +656,20 @@ const messages = {
       sort_by: 'Sắp xếp theo',
       reset: 'Đặt lại',
       apply: 'Áp dụng',
-      filter: 'Lọc'
+      filter: 'Lọc',
     },
     status: {
       active: 'Hoạt động',
-      inactive: 'Vô hiệu hóa'
+      inactive: 'Vô hiệu hóa',
     },
     session: {
-      idle_expired: 'Phiên đăng nhập đã hết hạn do 30 phút không hoạt động. Vui lòng đăng nhập lại.',
-      invalidated: 'Phiên đăng nhập đã không hợp lệ hoặc hết hạn. Vui lòng đăng nhập lại.'
+      idle_expired:
+        'Phiên đăng nhập đã hết hạn do 30 phút không hoạt động. Vui lòng đăng nhập lại.',
+      invalidated: 'Phiên đăng nhập đã không hợp lệ hoặc hết hạn. Vui lòng đăng nhập lại.',
     },
     error: {
-      password_format: 'Mật khẩu phải dài ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.',
+      password_format:
+        'Mật khẩu phải dài ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.',
       username_exists: 'Tên đăng nhập đã tồn tại.',
       email_exists: 'Email đã tồn tại.',
       employee_id_exists: 'Mã nhân viên đã tồn tại.',
@@ -633,26 +678,26 @@ const messages = {
       validation_failed: 'Xác thực thông tin thất bại, vui lòng kiểm tra thông tin và thử lại.',
       required_field: 'Trường này là bắt buộc.',
       sample_qty_fai_bounds: 'Số lượng mẫu phải từ 3 đến 20.',
-      sample_qty_lab_bounds: 'Số lượng mẫu phải từ 1 đến 20.'
+      sample_qty_lab_bounds: 'Số lượng mẫu phải từ 1 đến 20.',
     },
     error_page: {
-      unauthorized_title: '401',
+      unauthorized_title: '403',
       unauthorized_subtitle: 'Không có quyền truy cập',
       unauthorized_desc: 'Bạn không có đủ quyền hạn để truy cập vào trang này.',
       notfound_title: '404',
       notfound_subtitle: 'Không tìm thấy trang',
       notfound_desc: 'Trang bạn đang tìm kiếm không tồn tại hoặc đã bị di dời.',
-      back_to_home: 'Về trang chủ'
+      back_to_home: 'Về trang chủ',
     },
     filter: {
       role_all: 'Vai trò',
       status_all: 'Trạng thái',
       created_date: 'Ngày tạo',
-      updated_date: 'Ngày cập nhật'
+      updated_date: 'Ngày cập nhật',
     },
     pagination: {
       rows_per_page: 'Số hàng mỗi trang',
-      of_rows: 'trong số {total} hàng'
+      of_rows: 'trong số {total} hàng',
     },
     toast: {
       create_success: 'Tạo mới thành công',
@@ -663,18 +708,23 @@ const messages = {
       action_success: 'Thực hiện thành công',
       action_failed: 'Thao tác thất bại',
       load_failed: 'Tải dữ liệu thất bại',
-      error: 'Đã xảy ra lỗi'
-    }
-  }
-};
+      error: 'Đã xảy ra lỗi',
+      lab: {
+        work_order: {
+          exceed_quantity: 'Tổng Quantity đã bị vượt quá số lượng hiện có'
+        }
+      }
+    },
+  },
+}
 
-const savedLanguage = localStorage.getItem('language_preference') || 'en';
+const savedLanguage = localStorage.getItem('language_preference') || 'en'
 
 const i18n = createI18n({
   legacy: false, // use Composition API
   locale: savedLanguage, // default locale
   fallbackLocale: 'vi',
-  messages
-});
+  messages,
+})
 
-export default i18n;
+export default i18n
