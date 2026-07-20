@@ -40,7 +40,6 @@ model User {
   faiRequestsAsRequestor  FaiRequest[] @relation("FaiRequestor")
   faiRequestsAsInspector  FaiRequest[] @relation("FaiInspector")
   labRequestsAsRequestor  LabRequest[] @relation("LabRequestor")
-  labRequestsAsInspector  LabRequest[] @relation("LabInspector")
   labWorkOrdersAsTechnician LabWorkOrder[] @relation("LabTechnician")
   labRequestsAsApprover   LabRequest[] @relation("LabApprover")
   faiLabReports FaiLabReport[]
@@ -201,8 +200,7 @@ model LabRequest {
 
   requestor         User     @relation("LabRequestor", fields: [requestor_id], references: [id])
   approver          User?    @relation("LabApprover", fields: [approved_by], references: [id])
-  inspector_id      Int?
-  inspector         User?    @relation("LabInspector", fields: [inspector_id], references: [id])
+
   workOrders        LabWorkOrder[]
 
   @@map("lab_requests")
@@ -210,11 +208,11 @@ model LabRequest {
 
 model LabWorkOrder {
   id                  Int      @id @default(autoincrement())
-  work_order_no       String   @unique @db.VarChar(50)
+  work_order_no       String?  @unique @db.VarChar(50)
   lab_request_id      Int
   quantity            Int      @default(1)
   product_sn          String?  @db.VarChar(255)
-  item_test_id        Int
+  item_test_id        Int?
   procedure_condition String?  @db.Text
   test_specification  String?  @db.Text
   remark              String?  @db.Text
@@ -228,7 +226,7 @@ model LabWorkOrder {
   is_active           Boolean  @default(true)
 
   labRequest          LabRequest @relation(fields: [lab_request_id], references: [id])
-  itemTest            ItemTest   @relation(fields: [item_test_id], references: [id])
+  itemTest            ItemTest?  @relation(fields: [item_test_id], references: [id])
   technician          User?      @relation("LabTechnician", fields: [technician_id], references: [id])
   images              LabWorkOrderImage[]
 

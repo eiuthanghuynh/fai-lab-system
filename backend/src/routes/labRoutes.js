@@ -6,7 +6,7 @@ const fs = require('fs');
 
 const labController = require('../controllers/labController');
 const labWorkOrderController = require('../controllers/labWorkOrderController');
-const { authenticateToken, checkPermission } = require('../middlewares/authMiddleware');
+const { authenticateToken, checkPermission, checkAnyPermission } = require('../middlewares/authMiddleware');
 
 const MinioStorage = require('../config/minioStorage');
 
@@ -46,7 +46,7 @@ router.put('/requests/:id/schedule', checkPermission('INSPECT_LAB'), labControll
 
 // Work Order endpoints
 router.get('/requests/:requestId/work-orders', labWorkOrderController.getByRequestId);
-router.post('/requests/:requestId/work-orders/bulk', checkPermission('INSPECT_LAB'), labWorkOrderController.bulkSaveWorkOrders);
+router.post('/requests/:requestId/work-orders/bulk', checkAnyPermission(['INSPECT_LAB', 'ASSIGN_LAB']), labWorkOrderController.bulkSaveWorkOrders);
 router.post('/work-orders/upload', checkPermission('INSPECT_LAB'), uploadReports.array('files'), labWorkOrderController.uploadWorkOrderFiles);
 
 module.exports = router;

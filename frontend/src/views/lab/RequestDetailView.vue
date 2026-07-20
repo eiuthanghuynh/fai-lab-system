@@ -35,7 +35,10 @@ const workOrders = ref<any[]>([]);
 
 
 const canInspectLab = computed(() => authStore.hasPermission('INSPECT_LAB'));
+const canAssignLab = computed(() => authStore.hasPermission('ASSIGN_LAB'));
 const isExecuteMode = computed(() => route.query.mode === 'execute');
+const isAssignMode = computed(() => route.query.mode === 'assign');
+const hasOwnedWorkOrders = computed(() => workOrders.value.some(wo => wo.technician_id === authStore.user?.id));
 
 const { isLoading, execute: fetchDetail } = useAsyncState(async () => {
   const res = await api.get(`/lab/requests/${requestId}`);
@@ -43,7 +46,8 @@ const { isLoading, execute: fetchDetail } = useAsyncState(async () => {
   attachments.value = res.data.data.attachments || [];
 
   const woRes = await api.get(`/lab/requests/${requestId}/work-orders`);
-  workOrders.value = woRes.data.data || [];
+  const rawWos = woRes.data.data || [];
+  workOrders.value = rawWos.sort((a: any, b: any) => (a.work_order_no || '').localeCompare(b.work_order_no || ''));
 }, null, { 
   immediate: false,
   resetOnExecute: false,
@@ -65,8 +69,9 @@ onMounted(() => {
 });
 
 const woColumns = computed<DataTableColumn[]>(() => [
-  { key: 'work_order_no', label: t('lab.work_order.work_order_no'), sortable: false, minWidth: "120px", width: "120px" },
+  { key: 'work_order_no', label: t('lab.work_order.work_order_no'), sortable: true, minWidth: "120px", width: "120px" },
   { key: 'itemTest.name', label: t('lab.work_order.item_test'), sortable: false, minWidth: "180px", width: "180px" },
+  { key: 'technician.full_name', label: t('lab.work_order.technician_name', 'Technician'), sortable: false, minWidth: "160px", width: "160px" },
   { key: 'quantity', label: t('lab.columns.quantity'), sortable: false },
   { key: 'product_sn', label: t('lab.columns.product_sn'), sortable: false },
   { key: 'procedure_condition', label: t('lab.work_order.procedure_condition'), sortable: false, minWidth: "200px", maxWidth: "800px"},
@@ -79,14 +84,18 @@ const woColumns = computed<DataTableColumn[]>(() => [
   { key: 'report_attachment', label: t('lab.work_order.report_attachment', 'Report Attachment'), sortable: false }
 ]);
 
-const selectedWorkOrders = ref<any[]>([]);
-const isEditingWO = ref(false);
 const workOrdersDraft = ref<any[]>([]);
 const itemTestOptions = ref<any[]>([]);
+const inspectorOptions = ref<any[]>([]);
 
 const { execute: fetchItemTests } = useAsyncState(async () => {
   const res = await api.get('/item-tests/list');
   itemTestOptions.value = res.data.data.map((i: any) => ({ value: i.id, label: i.name }));
+}, null, { immediate: false });
+
+const { execute: fetchInspectors } = useAsyncState(async () => {
+  const res = await api.get('/lab/inspectors/list');
+  inspectorOptions.value = res.data.data.map((i: any) => ({ value: i.id, label: i.full_name || i.username }));
 }, null, { immediate: false });
 
 const totalDraftQuantity = computed(() => {
@@ -94,13 +103,14 @@ const totalDraftQuantity = computed(() => {
 });
 const isQuantityValid = computed(() => {
   if (!request.value) return false;
-  return totalDraftQuantity.value <= request.value.quantity;
+  return totalDraftQuantity.value === request.value.quantity;
 });
 
 // Adjust Time Modal State
 const adjustTimeModalState = ref({
   isOpen: false,
   estimatedDate: '',
+  estimatedTime: '',
   receiveDate: '',
   receiveTime: '',
   returnDate: '',
@@ -111,10 +121,12 @@ const { formErrors: adjustTimeErrors, validate: validateAdjustTime, clearError: 
 
 const previewPdfModalState = ref({
   isOpen: false,
-  files: [] as any[]
+  files: [] as any[],
+  zipFilename: 'attachments.zip'
 });
-const openPdfPreview = (files: any[]) => {
+const openPdfPreview = (files: any[], workOrderNo?: string) => {
   previewPdfModalState.value.files = files;
+  previewPdfModalState.value.zipFilename = workOrderNo ? `Report_${workOrderNo}.zip` : 'attachments.zip';
   previewPdfModalState.value.isOpen = true;
 };
 
@@ -152,6 +164,10 @@ const extractTime = (isoString: string | null | undefined) => {
 };
 
 const openAdjustTimeModal = () => {
+  if (!canInspectLab.value || !hasOwnedWorkOrders.value || !isExecuteMode.value) {
+    toast.error('Forbidden');
+    return;
+  }
   if (request.value) {
     clearAllAdjustTimeErrors();
     const estDate = extractDate(request.value.estimated_date);
@@ -159,7 +175,8 @@ const openAdjustTimeModal = () => {
     
     adjustTimeModalState.value = {
       isOpen: true,
-      estimatedDate: estDate ? `${estDate}T${estTime}` : '',
+      estimatedDate: estDate,
+      estimatedTime: extractDate(request.value.estimated_date) ? estTime : '',
       receiveDate: extractDate(request.value.sample_received_date),
       receiveTime: extractTime(request.value.sample_received_date),
       returnDate: extractDate(request.value.sample_return_date),
@@ -183,6 +200,7 @@ const handleAdjustTime = async () => {
     };
 
     const payload = {
+      estimated_date: getCombineDateTime(adjustTimeModalState.value.estimatedDate, adjustTimeModalState.value.estimatedTime),
       sample_received_date: getCombineDateTime(adjustTimeModalState.value.receiveDate, adjustTimeModalState.value.receiveTime),
       sample_return_date: getCombineDateTime(adjustTimeModalState.value.returnDate, adjustTimeModalState.value.returnTime)
     };
@@ -209,15 +227,28 @@ const resultOptions = [
   { value: '', label: 'N/A' }
 ];
 
-const handleEditWO = () => {
+const editingType = ref<'assign' | 'execute' | null>(null);
+const isEditingWO = computed(() => editingType.value !== null);
+
+const handleStartAssignWO = () => {
+  workOrdersDraft.value = JSON.parse(JSON.stringify(workOrders.value));
+  editingType.value = 'assign';
+  fetchInspectors();
+};
+
+const handleStartExecuteWO = () => {
   workOrdersDraft.value = JSON.parse(JSON.stringify(workOrders.value));
   workOrdersDraft.value.forEach(draft => {
     draft.failure_images = (draft.images || []).filter((img: any) => img.image_category === 'FAILURE');
     draft.improvement_images = (draft.images || []).filter((img: any) => img.image_category === 'IMPROVEMENT');
     draft.reportAttachments = draft.reportAttachments || [];
   });
-  isEditingWO.value = true;
+  editingType.value = 'execute';
   fetchItemTests();
+};
+
+const isOwner = (item: any) => {
+  return item.technician_id === authStore.user?.id;
 };
 
 const cancelConfirmModalState = ref({ isOpen: false });
@@ -226,52 +257,10 @@ const handleCancelEditWO = () => {
 };
 
 const confirmCancelEdit = () => {
-  isEditingWO.value = false;
+  editingType.value = null;
   workOrdersDraft.value = [];
-  selectedWorkOrders.value = [];
   cancelConfirmModalState.value.isOpen = false;
 };
-
-const handleAddWO = () => {
-  const maxSuffix = workOrdersDraft.value.reduce((max, wo) => {
-    if (wo.work_order_no) {
-      const parts = wo.work_order_no.split('-');
-      const suffix = parseInt(parts[parts.length - 1]);
-      if (!isNaN(suffix) && suffix > max) return suffix;
-    }
-    return max;
-  }, 0);
-  
-  const testNo = request.value?.test_no || 'REQ' + request.value?.id;
-  const nextSuffix = (maxSuffix + 1).toString().padStart(4, '0');
-  
-  workOrdersDraft.value.push({
-    tempId: Date.now().toString() + Math.random().toString(),
-    work_order_no: `${testNo}-${nextSuffix}`,
-    quantity: 1,
-    status: 'Ongoing',
-    test_result: '',
-    images: [],
-    failure_images: [],
-    improvement_images: [],
-    reportAttachments: []
-  });
-};
-
-const deleteConfirmModalState = ref({ isOpen: false });
-const handleDeleteSelectedWO = () => {
-  if (selectedWorkOrders.value.length === 0) return;
-  deleteConfirmModalState.value.isOpen = true;
-};
-
-const confirmDeleteWO = () => {
-  const selectedKeys = selectedWorkOrders.value;
-  workOrdersDraft.value = workOrdersDraft.value.filter(wo => !selectedKeys.includes(wo.work_order_no));
-  selectedWorkOrders.value = [];
-  deleteConfirmModalState.value.isOpen = false;
-};
-
-// handleImageSelect is removed as DirectUpload handles uploads directly
 
 const { isLoading: isSaving, execute: handleSaveWO } = useAsyncState(async () => {
   if (!isQuantityValid.value) {
@@ -279,11 +268,7 @@ const { isLoading: isSaving, execute: handleSaveWO } = useAsyncState(async () =>
     return;
   }
 
-  const creates = [];
   const updates = [];
-  const deletes = workOrders.value
-    .filter(wo => !workOrdersDraft.value.find(d => d.id === wo.id))
-    .map(wo => wo.id);
 
   for (const draft of workOrdersDraft.value) {
     // Reconstruct images array from separated arrays
@@ -291,8 +276,6 @@ const { isLoading: isSaving, execute: handleSaveWO } = useAsyncState(async () =>
 
     if (draft.id) {
       updates.push(draft);
-    } else {
-      creates.push(draft);
     }
   }
   
@@ -300,15 +283,13 @@ const { isLoading: isSaving, execute: handleSaveWO } = useAsyncState(async () =>
   const keptReportAttachmentIds = workOrdersDraft.value.flatMap(wo => (wo.reportAttachments || []).map((att:any) => att.id)).filter(id => id);
 
   await api.post(`/lab/requests/${requestId}/work-orders/bulk`, {
-    creates,
     updates,
-    deletes,
     keptImageIds,
     keptReportAttachmentIds
   });
 
   toast.success('Work Orders saved successfully');
-  isEditingWO.value = false;
+  editingType.value = null;
   fetchDetail();
 }, null, { 
   immediate: false,
@@ -402,7 +383,7 @@ const getStatusVariant = (status: string) => {
               <DetailCard title="Sample & Schedule">
                 <template #action>
                   <Button 
-                    v-if="canInspectLab && request.estimated_date && request.inspector_id === authStore.user?.id && isExecuteMode"
+                    v-if="canInspectLab && hasOwnedWorkOrders && isExecuteMode"
                     variant="primary" 
                     class="h-8 text-xs font-semibold px-3" 
                     @click="openAdjustTimeModal"
@@ -455,12 +436,27 @@ const getStatusVariant = (status: string) => {
               </DetailCard>
             </div>
 
-            <DetailCard class="!h-auto min-h-[567px]" :title="`${t('lab.work_order.title')} - Inspector: ${request.inspector?.full_name || (workOrders.length > 0 && workOrders[0].technician ? workOrders[0].technician.full_name : t('lab.work_order.not_assign', 'Not Assign'))}`">
+            <DetailCard class="!h-auto min-h-[567px]" :title="t('lab.work_order.title')">
               <template #action>
-                <div v-if="canInspectLab && request.inspector_id === authStore.user?.id && isExecuteMode" class="flex gap-2">
-                  <Button v-if="!isEditingWO" variant="primary" class="h-8 text-xs font-semibold px-3" @click="handleEditWO">
-                    {{ t('action.edit') }} Work Order
-                  </Button>
+                <div v-if="(isAssignMode && canAssignLab) || (isExecuteMode && canInspectLab && hasOwnedWorkOrders)" class="flex gap-2">
+                  <template v-if="!editingType">
+                    <Button 
+                      v-if="isAssignMode && canAssignLab" 
+                      variant="primary" 
+                      class="h-8 text-xs font-semibold px-3" 
+                      @click="handleStartAssignWO"
+                    >
+                      {{ t('lab.assign_technician') }}
+                    </Button>
+                    <Button 
+                      v-if="isExecuteMode && canInspectLab && hasOwnedWorkOrders" 
+                      variant="primary" 
+                      class="h-8 text-xs font-semibold px-3" 
+                      @click="handleStartExecuteWO"
+                    >
+                      {{ t('action.edit') }} Work Order
+                    </Button>
+                  </template>
                   <template v-else>
                     <Button variant="secondary" class="h-8 text-xs font-semibold px-3" @click="handleCancelEditWO">{{ t('action.cancel') }}</Button>
                     <Button variant="primary" class="h-8 text-xs font-semibold px-3" :loading="isSaving" @click="handleSaveWO">{{ t('action.save') }}</Button>
@@ -468,79 +464,62 @@ const getStatusVariant = (status: string) => {
                 </div>
               </template>
               
-              <transition
-                enter-active-class="transition-all duration-300 ease-in-out overflow-hidden"
-                leave-active-class="transition-all duration-300 ease-in-out overflow-hidden"
-                enter-from-class="max-h-0 opacity-0 !mb-0"
-                enter-to-class="max-h-16 opacity-100 !mb-4"
-                leave-from-class="max-h-16 opacity-100 !mb-4"
-                leave-to-class="max-h-0 opacity-0 !mb-0"
-              >
-                <div v-if="isEditingWO" class="flex gap-2 mb-4">
-                  <Button variant="secondary" size="sm" @click="handleAddWO">{{ t('action.create') }}</Button>
-                  <Button v-if="selectedWorkOrders.length > 0" variant="danger" size="sm" @click="handleDeleteSelectedWO">{{ t('action.delete') }} {{ selectedWorkOrders.length }} {{ t('action.selected') }}</Button>
-                </div>
-              </transition>
-              
-
               <DataTable 
-                class="flex-1"
+                class="flex-1 mt-4"
                 :columns="woColumns" 
                 :data="isEditingWO ? workOrdersDraft : workOrders" 
                 :isLoading="isLoading"
-                :selectable="isEditingWO"
-                v-model:selectedRows="selectedWorkOrders"
                 rowKey="work_order_no"
               >
                 <template #cell-itemTest.name="{ item }">
-                  <template v-if="isEditingWO">
-                    <SingleSelectDropdown v-model="item.item_test_id" :options="itemTestOptions" class="w-40" />
+                  {{ item.itemTest?.name }}
+                </template>
+                
+                <template #cell-technician.full_name="{ item }">
+                  <template v-if="editingType === 'assign' && canAssignLab">
+                    <SingleSelectDropdown v-model="item.technician_id" :options="inspectorOptions" class="w-40" />
                   </template>
-                  <template v-else>{{ item.itemTest?.name }}</template>
+                  <template v-else>{{ item.technician?.full_name || item.technician?.username || '-' }}</template>
                 </template>
                 
                 <template #cell-quantity="{ item }">
-                  <Input v-if="isEditingWO" type="number" v-model.number="item.quantity" min="1" class="w-20" />
-                  <template v-else>{{ item.quantity }}</template>
+                  {{ item.quantity }}
                 </template>
                 
                 <template #cell-product_sn="{ item }">
-                  <Input v-if="isEditingWO" v-model="item.product_sn" class="w-32" />
-                  <template v-else>{{ item.product_sn }}</template>
+                  <Input v-if="editingType === 'execute' && isOwner(item)" v-model="item.product_sn" class="w-32" />
+                  <template v-else>{{ item.product_sn || '-' }}</template>
                 </template>
                 
                 <template #cell-procedure_condition="{ item }">
-                  <Textarea v-if="isEditingWO" v-model="item.procedure_condition" class="w-full min-w-[200px] text-xs" rows="2" />
-                  <template v-else>{{ item.procedure_condition }}</template>
+                  {{ item.procedure_condition || '-' }}
                 </template>
 
                 <template #cell-test_specification="{ item }">
-                  <Textarea v-if="isEditingWO" v-model="item.test_specification" class="w-full min-w-[200px] text-xs" rows="2" />
-                  <template v-else>{{ item.test_specification }}</template>
+                  {{ item.test_specification || '-' }}
                 </template>
                 
                 <template #cell-remark="{ item }">
-                  <Textarea v-if="isEditingWO" v-model="item.remark" class="w-full min-w-[200px] text-xs" rows="2" />
-                  <template v-else>{{ item.remark }}</template>
+                  {{ item.remark || '-' }}
                 </template>
 
                 <template #cell-status="{ item }">
-                  <SingleSelectDropdown v-if="isEditingWO" v-model="item.status" :options="statusOptions" class="w-32" />
+                  <SingleSelectDropdown v-if="editingType === 'execute' && isOwner(item)" v-model="item.status" :options="statusOptions" class="w-32" />
                   <StatusBadge v-else :isActive="true" :activeText="item.status" inactiveText="" :variant="getStatusVariant(item.status)" />
                 </template>
 
                 <template #cell-test_result="{ item }">
-                  <SingleSelectDropdown v-if="isEditingWO" v-model="item.test_result" :options="resultOptions" class="w-32" />
+                  <SingleSelectDropdown v-if="editingType === 'execute' && isOwner(item)" v-model="item.test_result" :options="resultOptions" class="w-32" />
                   <span v-else :class="{'text-emerald-500 font-bold': item.test_result === 'PASS', 'text-red-500 font-bold': item.test_result === 'FAIL'}">{{ item.test_result || '-' }}</span>
                 </template>
 
                 <template #cell-failure_details="{ item }">
                   <div class="flex flex-col gap-2">
-                    <Textarea v-if="isEditingWO" v-model="item.failure_details" class="w-full min-w-[200px] text-xs" rows="2" />
+                    <Textarea v-if="editingType === 'execute' && isOwner(item)" v-model="item.failure_details" class="w-full min-w-[200px] text-xs" rows="2" />
                     <template v-else>{{ item.failure_details }}</template>
                     
                     <DirectUpload 
-                      v-if="isEditingWO"
+                      v-if="editingType === 'execute' && isOwner(item)"
                       v-model="item.failure_images" 
                       uploadUrl="/lab/work-orders/upload"
                       :uploadParams="{ type: 'FAILURE' }"
@@ -548,17 +527,17 @@ const getStatusVariant = (status: string) => {
                       accept=".jpg,.jpeg,.png"
                       :maxSize="20 * 1024 * 1024"
                     />
-                    <ImageSlideshow v-else :images="item.images?.filter(img => img.image_category === 'FAILURE') || []" />
+                    <ImageSlideshow v-else :images="item.images?.filter((img: any) => img.image_category === 'FAILURE') || []" />
                   </div>
                 </template>
 
                 <template #cell-improvement_plan="{ item }">
                   <div class="flex flex-col gap-2">
-                    <Textarea v-if="isEditingWO" v-model="item.improvement_plan" class="w-full min-w-[200px] text-xs" rows="2" />
+                    <Textarea v-if="editingType === 'execute' && isOwner(item)" v-model="item.improvement_plan" class="w-full min-w-[200px] text-xs" rows="2" />
                     <template v-else>{{ item.improvement_plan }}</template>
                     
                     <DirectUpload 
-                      v-if="isEditingWO"
+                      v-if="editingType === 'execute' && isOwner(item)"
                       v-model="item.improvement_images" 
                       uploadUrl="/lab/work-orders/upload"
                       :uploadParams="{ type: 'IMPROVEMENT' }"
@@ -566,14 +545,14 @@ const getStatusVariant = (status: string) => {
                       accept=".jpg,.jpeg,.png"
                       :maxSize="20 * 1024 * 1024"
                     />
-                    <ImageSlideshow v-else :images="item.images?.filter(img => img.image_category === 'IMPROVEMENT') || []" />
+                    <ImageSlideshow v-else :images="item.images?.filter((img: any) => img.image_category === 'IMPROVEMENT') || []" />
                   </div>
                 </template>
 
                 <template #cell-report_attachment="{ item }">
                   <div class="flex flex-col gap-2">
                     <DirectUpload 
-                      v-if="isEditingWO"
+                      v-if="editingType === 'execute' && isOwner(item)"
                       v-model="item.reportAttachments" 
                       uploadUrl="/lab/work-orders/upload"
                       :uploadParams="{ type: 'REPORT' }"
@@ -584,7 +563,7 @@ const getStatusVariant = (status: string) => {
                         v-if="item.reportAttachments && item.reportAttachments.length > 0"
                         type="button" 
                         class="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-md transition-colors border-none cursor-pointer text-xs font-semibold whitespace-nowrap"
-                        @click="openPdfPreview(item.reportAttachments)"
+                        @click="openPdfPreview(item.reportAttachments, item.work_order_no)"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                         Preview Report
@@ -600,7 +579,7 @@ const getStatusVariant = (status: string) => {
           <!-- Section: PDF Viewer (Attachments) -->
           <div class="bg-bg-surface border border-border rounded-lg p-6 shadow-sm">
             <h3 class="mt-0 mb-5 text-[1.15rem] font-semibold text-primary border-b border-border pb-2">{{ t('fai.attachment') }}</h3>
-            <PdfViewer :files="attachments || []" />
+            <PdfViewer :files="attachments || []" :zipFilename="request ? `Attachments_${request.request_no}.zip` : 'attachments.zip'" />
           </div>
         </div>
       </div>
@@ -613,14 +592,21 @@ const getStatusVariant = (status: string) => {
             <div class="flex items-center gap-2">
               <label class="font-semibold text-text m-0">{{ t('lab.test.estimated_date') }}</label>
             </div>
-            <p class="text-[0.8rem] text-text-muted m-0 leading-[1.4]">{{ t('lab.test.estimated_date_desc_readonly') }}</p>
+            <p class="text-[0.8rem] text-text-muted m-0 leading-[1.4]">{{ t('lab.start_inspection_desc', 'Estimated completion date for testing') }}</p>
           </div>
           <div class="flex flex-col">
-            <Input 
-              type="datetime-local"
-              v-model="adjustTimeModalState.estimatedDate"
-              disabled
-            />
+            <div class="flex gap-2">
+              <Input 
+                type="date"
+                v-model="adjustTimeModalState.estimatedDate"
+                class="flex-1"
+              />
+              <Input 
+                type="time"
+                v-model="adjustTimeModalState.estimatedTime"
+                class="w-32"
+              />
+            </div>
           </div>
         </div>
 
@@ -697,7 +683,7 @@ const getStatusVariant = (status: string) => {
     <!-- Preview PDF Modal -->
     <BaseModal :isOpen="previewPdfModalState.isOpen" title="Preview Report" maxWidth="1000px" @close="previewPdfModalState.isOpen = false">
       <div class="-mx-8 -my-6 h-[80vh] flex flex-col">
-        <PdfViewer :files="previewPdfModalState.files" class="h-full border-none rounded-none w-full !max-h-full" />
+        <PdfViewer :files="previewPdfModalState.files" :zipFilename="previewPdfModalState.zipFilename" class="h-full border-none rounded-none w-full !max-h-full" />
       </div>
     </BaseModal>
 
@@ -713,17 +699,6 @@ const getStatusVariant = (status: string) => {
       @cancel="cancelConfirmModalState.isOpen = false" 
     />
 
-    <!-- Confirm Delete Modal -->
-    <ConfirmModal 
-      :isOpen="deleteConfirmModalState.isOpen" 
-      title="Delete Selected" 
-      :message="`Are you sure you want to delete ${selectedWorkOrders.length} selected work orders?`" 
-      confirmText="Delete" 
-      cancelText="Cancel" 
-      :isDanger="true" 
-      @confirm="confirmDeleteWO" 
-      @cancel="deleteConfirmModalState.isOpen = false" 
-    />
   </div>
   </div>
 </template>

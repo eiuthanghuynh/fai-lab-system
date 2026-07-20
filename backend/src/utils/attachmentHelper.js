@@ -29,10 +29,9 @@ const cleanupOrphanedAttachments = async (parentId, requestType, keptFileIds = [
     });
 
     if (removedAttachments.length > 0) {
-      await removeByBucket(removedAttachments);
-
-      await prisma.requestAttachment.deleteMany({
-        where: { id: { in: removedAttachments.map(a => a.id) } }
+      await prisma.requestAttachment.updateMany({
+        where: { id: { in: removedAttachments.map(a => a.id) } },
+        data: { parent_id: null }
       });
     }
   } catch (error) {
@@ -52,10 +51,9 @@ const cleanupOrphanedReportAttachments = async (parentIds, keptFileIds = []) => 
     });
 
     if (removedAttachments.length > 0) {
-      await removeByBucket(removedAttachments);
-
-      await prisma.reportAttachment.deleteMany({
-        where: { id: { in: removedAttachments.map(a => a.id) } }
+      await prisma.reportAttachment.updateMany({
+        where: { id: { in: removedAttachments.map(a => a.id) } },
+        data: { parent_id: null }
       });
     }
   } catch (error) {
@@ -74,10 +72,9 @@ const cleanupOrphanedWorkOrderImages = async (workOrderIds, keptImageIds = []) =
     });
 
     if (removedImages.length > 0) {
-      await removeByBucket(removedImages, 'image_url');
-
-      await prisma.labWorkOrderImage.deleteMany({
-        where: { id: { in: removedImages.map(a => a.id) } }
+      await prisma.labWorkOrderImage.updateMany({
+        where: { id: { in: removedImages.map(a => a.id) } },
+        data: { parent_id: null }
       });
     }
   } catch (error) {

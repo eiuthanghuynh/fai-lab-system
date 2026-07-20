@@ -71,6 +71,12 @@ const initCleanupWorker = async () => {
     console.error(`[CleanupWorker] Job ${job?.id} failed:`, err);
   });
 
+  // Remove any legacy/stale repeatable jobs in Redis
+  const existingRepeatableJobs = await cleanupQueue.getRepeatableJobs();
+  for (const job of existingRepeatableJobs) {
+    await cleanupQueue.removeRepeatableByKey(job.key);
+  }
+
   // Add the repeatable job (runs every day at midnight)
   await cleanupQueue.add('daily-cleanup', {}, {
     repeat: {

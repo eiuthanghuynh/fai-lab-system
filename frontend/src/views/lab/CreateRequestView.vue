@@ -6,10 +6,14 @@ import api from '@/services/api';
 import { toast } from 'vue-sonner';
 import { z } from 'zod';
 import { useFormValidation } from '@/composables/useFormValidation';
+import { useAsyncState } from '@vueuse/core';
 import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
 import Input from '@/components/ui/Input.vue';
 import DirectUpload from '@/components/common/DirectUpload.vue';
 import Button from '@/components/ui/Button.vue';
+import DataTable from '@/components/common/DataTable.vue';
+import type { DataTableColumn } from '@/types/DataTableColumn';
+import Textarea from '@/components/ui/Textarea.vue';
 
 const { t } = useI18n();
 const router = useRouter();
@@ -60,8 +64,51 @@ const stageOptions = computed(() => [
 const saveStatus = ref(''); // 'saving', 'saved', 'error', ''
 const idempotencyKey = ref('');
 
+const workOrders = ref<any[]>([
+  { quantity: 1, item_test_id: null, procedure_condition: '', test_specification: '', remark: '' }
+]);
+
+const itemTestOptions = ref<any[]>([]);
+
+const { execute: fetchItemTests } = useAsyncState(async () => {
+  const res = await api.get('/item-tests/list');
+  itemTestOptions.value = res.data.data.map((i: any) => ({ value: i.id, label: i.name }));
+}, null, { immediate: true });
+
+const woColumns = computed<DataTableColumn[]>(() => [
+  { key: 'no', label: 'No.', sortable: false, minWidth: '60px', width: '60px' },
+  { key: 'itemTest.name', label: t('lab.work_order.item_test'), sortable: false, minWidth: '180px', width: '180px' },
+  { key: 'quantity', label: t('lab.columns.quantity'), sortable: false, minWidth: '100px', width: '100px' },
+  { key: 'procedure_condition', label: t('lab.work_order.procedure_condition'), sortable: false, minWidth: '200px' },
+  { key: 'test_specification', label: t('lab.work_order.test_specification'), sortable: false, minWidth: '200px' },
+  { key: 'remark', label: t('lab.work_order.goal_comments'), sortable: false, minWidth: '200px' },
+  { key: 'actions', label: 'Actions', sortable: false, minWidth: '80px', width: '80px', align: 'center' }
+]);
+
+const totalWoQuantity = computed(() => {
+  return workOrders.value.reduce((acc, wo) => acc + (Number(wo.quantity) || 0), 0);
+});
+
+const isQuantityValid = computed(() => {
+  return totalWoQuantity.value === formData.value.quantity;
+});
+
 const generateIdempotencyKey = () => {
   return 'idemp-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+};
+
+const addWorkOrder = () => {
+  workOrders.value.push({
+    quantity: 1,
+    item_test_id: null,
+    procedure_condition: '',
+    test_specification: '',
+    remark: ''
+  });
+};
+
+const removeWorkOrder = (index: number) => {
+  workOrders.value.splice(index, 1);
 };
 
 onMounted(async () => {
@@ -83,6 +130,21 @@ onMounted(async () => {
           stage: data.stage.startsWith('Prototype') ? 'Prototype' : data.stage,
           prototype_number: data.stage.startsWith('Prototype ') ? parseInt(data.stage.split(' ')[1]) : 1
         };
+        
+        if (data.workOrders && data.workOrders.length > 0) {
+           workOrders.value = data.workOrders.map((wo: any) => ({
+             id: wo.id,
+             quantity: wo.quantity,
+             item_test_id: wo.item_test_id,
+             procedure_condition: wo.procedure_condition || '',
+             test_specification: wo.test_specification || '',
+             remark: wo.remark || ''
+           }));
+        }
+        
+        if (data.attachments && data.attachments.length > 0) {
+          attachedFiles.value = data.attachments;
+        }
       } else {
         toast.error('Cannot edit non-draft request');
         router.push('/lab/request/list');
@@ -109,7 +171,8 @@ const saveAsDraft = async () => {
       ...formData.value,
       stage: finalStage,
       file_ids: fileIds,
-      idempotency_key: idempotencyKey.value
+      idempotency_key: idempotencyKey.value,
+      workOrders: workOrders.value
     };
 
     const res = await api.post('/lab/requests/draft', payload);
@@ -148,6 +211,11 @@ const submitRequest = async () => {
     return;
   }
 
+  if (workOrders.value.some(wo => !wo.item_test_id)) {
+    toast.error('Item Test is required for all Work Orders.');
+    return;
+  }
+
   try {
 
     isSubmitting.value = true;
@@ -162,7 +230,8 @@ const submitRequest = async () => {
       ...formData.value,
       stage: finalStage,
       file_ids: fileIds,
-      idempotency_key: idempotencyKey.value
+      idempotency_key: idempotencyKey.value,
+      workOrders: workOrders.value
     };
 
     const res = await api.post('/lab/requests', payload);
@@ -277,10 +346,65 @@ const submitRequest = async () => {
           
         </div>
 
+        <!-- Work Orders Section -->
+        <div class="mt-8 mb-5 border-t border-border pt-6 flex flex-col gap-4">
+          <div class="flex justify-between items-center">
+            <h2 class="text-xl font-semibold m-0 text-text">{{ t('lab.work_order.title', 'Work Orders') }}</h2>
+            <Button type="button" variant="primary" @click="addWorkOrder">
+              + {{ t('fai.add') }} Work Order
+            </Button>
+          </div>
+          
+          <div v-if="!isQuantityValid && totalWoQuantity > 0" class="text-red-500 font-medium text-sm">
+            {{ t('error.lab_wo_qty_mismatch', { totalWoQuantity, formDataQuantity: formData.quantity }) }}
+          </div>
+          
+          <DataTable 
+            :data="workOrders" 
+            :columns="woColumns" 
+            class="mt-2"
+          >
+            <!-- Cell Template definitions for editing -->
+            <template #cell-no="{ index }">
+              {{ index + 1 }}
+            </template>
+            
+            <template #cell-itemTest.name="{ item }">
+              <SingleSelectDropdown v-model="item.item_test_id" :options="itemTestOptions" class="w-[160px]" />
+            </template>
+            
+            <template #cell-quantity="{ item }">
+              <Input type="number" v-model.number="item.quantity" :min="1" class="w-20" />
+            </template>
+            
+            <template #cell-procedure_condition="{ item }">
+              <Textarea v-model="item.procedure_condition" class="w-full min-w-[180px] text-xs" rows="2" />
+            </template>
+
+            <template #cell-test_specification="{ item }">
+              <Textarea v-model="item.test_specification" class="w-full min-w-[180px] text-xs" rows="2" />
+            </template>
+            
+            <template #cell-remark="{ item }">
+              <Textarea v-model="item.remark" class="w-full min-w-[180px] text-xs" rows="2" />
+            </template>
+            
+            <template #cell-actions="{ index }">
+              <button type="button" @click.prevent="removeWorkOrder(index)" :disabled="workOrders.length <= 1" class="text-red-500 hover:text-red-700 disabled:opacity-50">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 6h18"></path>
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                </svg>
+              </button>
+            </template>
+          </DataTable>
+        </div>
+
         <!-- Action Buttons -->
         <div class="flex justify-end gap-3 mt-auto pt-4 border-t border-border">
           <Button type="button" variant="secondary" @click="saveAsDraft">{{ t('fai.save_draft') }}</Button>
-          <Button type="submit" :disabled="isSubmitting">
+          <Button type="submit" :disabled="isSubmitting || !isQuantityValid">
             {{ t('fai.submit') }}
           </Button>
         </div>

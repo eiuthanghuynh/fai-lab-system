@@ -49,7 +49,7 @@ const columns = computed<DataTableColumn[]>(() => [
   { key: 'priority_reason', label: 'Priority Reason', sortable: true, minWidth: '150px' },
   { key: 'week_no', label: 'Week', sortable: true, minWidth: '100px' },
   { key: 'estimated_date', label: t('fai.columns.estimated_date'), sortable: true, minWidth: '150px' },
-  { key: 'inspector_name', label: t('fai.inspector', 'Inspector'), sortable: false, minWidth: '150px' },
+  { key: 'inspector_name', label: t('fai.inspector', 'Technician'), sortable: false, minWidth: '150px' },
   { key: 'approved_by', label: 'Approved By', sortable: false, minWidth: '150px' },
   { key: 'receive_date', label: t('fai.columns.receive_date'), sortable: true, minWidth: '150px' },
   { key: 'return_date', label: 'Return Date', sortable: true, minWidth: '150px' },
@@ -72,7 +72,7 @@ const getStatusVariant = (status: string) => {
 const assignModalState = ref({
   isOpen: false,
   requestId: null as number | null,
-  inspectorId: '' as number | string,
+
   priority: 'Normal',
   priorityReason: ''
 });
@@ -80,31 +80,19 @@ const priorityOptions = computed(() => [
   { value: 'Urgent', label: t('fai.priority_urgent') },
   { value: 'Normal', label: t('fai.priority_normal') }
 ]);
-const inspectorOptions = ref<{value: string|number, label: string}[]>([]);
+
 
 const openAssignModal = async (item: any) => {
   assignModalState.value.requestId = item.id;
-  assignModalState.value.inspectorId = '';
   assignModalState.value.priority = 'Normal';
   assignModalState.value.priorityReason = '';
   assignModalState.value.isOpen = true;
-  if (inspectorOptions.value.length === 0) {
-    try {
-      const res = await api.get('/lab/inspectors/list');
-      inspectorOptions.value = res.data.data.map((u: any) => ({
-        value: u.id,
-        label: u.full_name
-      }));
-    } catch (e) {
-      console.error(e);
-    }
-  }
 };
 
 const handleAssign = async () => {
   try {
-    const { requestId, inspectorId, priority, priorityReason } = assignModalState.value;
-    if (!inspectorId || !priority) {
+    const { requestId, priority, priorityReason } = assignModalState.value;
+    if (!priority) {
       toast.error(t('form.required'));
       return;
     }
@@ -112,55 +100,17 @@ const handleAssign = async () => {
       toast.error(t('form.required'));
       return;
     }
-    await api.post(`/lab/requests/${requestId}/assign`, { inspector_id: inspectorId, priority, priority_reason: priorityReason });
-    toast.success('Assigned successfully');
+    await api.post(`/lab/requests/${requestId}/assign`, { priority, priority_reason: priorityReason });
+    toast.success(t('lab.set_priority_success'));
     assignModalState.value.isOpen = false;
     fetchRequests();
   } catch (e) {
     console.error(e);
-    toast.error('Assign failed');
+    toast.error(t('lab.set_priority_failed'));
   }
 };
 
-const startInspectionModalState = ref({
-  isOpen: false,
-  requestId: null as number | null,
-  estimatedDate: '',
-  estimatedTime: ''
-});
 
-const openStartInspectionModal = (item: any) => {
-  startInspectionModalState.value.requestId = item.id;
-  startInspectionModalState.value.estimatedDate = '';
-  startInspectionModalState.value.estimatedTime = '';
-  startInspectionModalState.value.isOpen = true;
-};
-
-const handleStartInspection = async () => {
-  try {
-    const { requestId, estimatedDate, estimatedTime } = startInspectionModalState.value;
-    if (!estimatedDate) {
-      toast.error(t('form.required'));
-      return;
-    }
-    
-    const timeStr = estimatedTime || '11:59';
-    const finalEstimatedDate = new Date(`${estimatedDate}T${timeStr}:00`).toISOString();
-    
-    await api.post(`/lab/requests/${requestId}/start-inspection`, {
-      estimated_date: finalEstimatedDate
-    });
-    
-    toast.success('Inspection started successfully');
-    startInspectionModalState.value.isOpen = false;
-    fetchRequests();
-    
-    router.push({ name: 'lab-request-detail', params: { id: requestId }, query: { mode: 'execute' } });
-  } catch (err: any) {
-    console.error(err);
-    toast.error(err.response?.data?.error || 'Failed to start inspection');
-  }
-};
 
 const handleAction = (item: any) => {
   if (item.status === 'Draft') {
@@ -172,6 +122,10 @@ const handleAction = (item: any) => {
 
 const handleExecute = (item: any) => {
   router.push({ name: 'lab-request-detail', params: { id: item.id }, query: { mode: 'execute' } });
+};
+
+const handleAssignNavigation = (item: any) => {
+  router.push({ name: 'lab-request-detail', params: { id: item.id }, query: { mode: 'assign' } });
 };
 
 const { isLoading, execute: fetchRequests } = useAsyncState(async () => {
@@ -297,7 +251,8 @@ const deleteDraft = (id: number) => {
         </template>
 
         <template #cell-inspector_name="{ item }">
-          {{ item.inspector?.full_name || (item.workOrders && item.workOrders.length > 0 && item.workOrders[0].technician ? item.workOrders[0].technician.full_name : '-') }}
+          {{ item.workOrders && item.workOrders.length > 0 && item.workOrders[0].technician ? item.workOrders[0].technician.full_name : '-' }}
+          <span v-if="item.workOrders && item.workOrders.length > 1" class="text-xs text-primary font-semibold ml-1 bg-primary/10 px-1.5 py-0.5 rounded">+{{ item.workOrders.length - 1 }}</span>
         </template>
 
         <template #cell-approved_by="{ item }">
@@ -337,21 +292,22 @@ const deleteDraft = (id: number) => {
               {{ item.status === 'Draft' ? t('fai.edit_draft') : t('lab.details') }}
             </button>
             <button 
-              v-if="canAssignLab && item.status === 'Backlog'"
+              v-if="canAssignLab && item.status !== 'Draft' && item.status !== 'Closed'"
               @click="openAssignModal(item)"
               class="w-full text-left px-4 py-2 text-sm text-text hover:bg-bg hover:text-primary transition-colors"
             >
-              {{ t('lab.assign') }}
+              {{ t('lab.set_priority') }}
             </button>
             <button 
-              v-if="canInspectLab && item.status === 'Assigned'"
-              @click="openStartInspectionModal(item)"
+              v-if="canAssignLab && item.priority && item.status !== 'Draft' && item.status !== 'Closed'"
+              @click="handleAssignNavigation(item)"
               class="w-full text-left px-4 py-2 text-sm text-text hover:bg-bg hover:text-primary transition-colors"
             >
-              {{ t('lab.start_inspection') }}
+              {{ t('fai.assign', 'Assign') }}
             </button>
+
             <button 
-              v-if="canInspectLab && item.status === 'Ongoing' && item.inspector_id === authStore.user?.id"
+              v-if="canInspectLab && (item.status === 'Assigned' || item.status === 'Ongoing') && item.workOrders?.some((wo: any) => wo.technician_id === authStore.user?.id)"
               @click="handleExecute(item)"
               class="w-full text-left px-4 py-2 text-sm text-text hover:bg-bg hover:text-primary transition-colors"
             >
@@ -372,24 +328,10 @@ const deleteDraft = (id: number) => {
 
     <Pagination :total="totalRequests" v-model="page" v-model:rowsPerPage="limit" />
 
-    <!-- Assign Modal -->
-    <BaseModal :isOpen="assignModalState.isOpen" :title="t('fai.assign_title')" maxWidth="690px" @close="assignModalState.isOpen = false">
+    <!-- Set Priority Modal -->
+    <BaseModal :isOpen="assignModalState.isOpen" :title="t('lab.set_priority_title')" maxWidth="690px" @close="assignModalState.isOpen = false">
       <form id="assignForm" @submit.prevent="handleAssign" class="flex flex-col gap-6">
-        <div class="grid grid-cols-[1fr_1.5fr] gap-8 items-center pb-2 border-b border-border">
-          <div class="flex flex-col gap-1">
-            <div class="flex items-center gap-2">
-              <label class="font-semibold text-text m-0">{{ t('fai.inspector', 'Inspector Name') }}</label>
-              <span class="text-[0.7rem] px-1.5 py-0.5 bg-[rgba(99,224,121,0.15)] text-primary rounded font-semibold leading-none">{{ t('form.required') }}</span>
-            </div>
-          </div>
-          <div class="flex flex-col">
-            <SingleSelectDropdown 
-              v-model="assignModalState.inspectorId" 
-              :options="inspectorOptions" 
-              :placeholder="t('form.required')" 
-            />
-          </div>
-        </div>
+
 
         <div class="grid grid-cols-[1fr_1.5fr] gap-8 items-center pb-2">
           <div class="flex flex-col gap-1">
@@ -397,7 +339,7 @@ const deleteDraft = (id: number) => {
               <label class="font-semibold text-text m-0">{{ t('fai.priority') }}</label>
               <span class="text-[0.7rem] px-1.5 py-0.5 bg-[rgba(99,224,121,0.15)] text-primary rounded font-semibold leading-none">{{ t('form.required') }}</span>
             </div>
-            <p class="text-[0.8rem] text-text-muted m-0 leading-[1.4]">{{ t('fai.assign_desc') }}</p>
+            <p class="text-[0.8rem] text-text-muted m-0 leading-[1.4]">{{ t('lab.set_priority_desc') }}</p>
           </div>
           <div class="flex flex-col">
             <SingleSelectDropdown 
@@ -432,42 +374,6 @@ const deleteDraft = (id: number) => {
       </template>
     </BaseModal>
 
-
-    <!-- Start Inspection Modal -->
-    <BaseModal :isOpen="startInspectionModalState.isOpen" :title="t('lab.start_inspection')" maxWidth="700px" @close="startInspectionModalState.isOpen = false">
-      <form id="startInspectionForm" @submit.prevent="handleStartInspection" class="flex flex-col gap-4">
-        <div class="grid grid-cols-[1fr_2fr] gap-8 items-center">
-          <div class="flex flex-col gap-1">
-            <div class="flex items-center gap-2">
-              <label class="font-semibold text-text m-0">{{ t('fai.columns.estimated_date') }}</label>
-              <span class="text-[0.7rem] bg-[rgba(99,224,121,0.15)] text-primary px-1.5 py-0.5 rounded font-bold leading-none">{{ t('form.required') }}</span>
-            </div>
-            <p class="text-[0.8rem] text-text-muted m-0 leading-[1.4]">{{ t('lab.start_inspection_desc') }}</p>
-          </div>
-          <div class="flex flex-col">
-            <div class="flex gap-2">
-              <Input 
-                type="date"
-                v-model="startInspectionModalState.estimatedDate"
-                class="flex-1"
-                required
-              />
-              <Input 
-                type="time"
-                v-model="startInspectionModalState.estimatedTime"
-                class="w-32"
-              />
-            </div>
-          </div>
-        </div>
-      </form>
-      <template #footer>
-        <Button type="button" variant="secondary" @click="startInspectionModalState.isOpen = false">{{ t('action.cancel') }}</Button>
-        <Button type="submit" form="startInspectionForm" :loading="isLoading">
-          {{ t('action.save') }}
-        </Button>
-      </template>
-    </BaseModal>
 
     <ConfirmModal 
       :is-open="confirmModalState.isOpen" 

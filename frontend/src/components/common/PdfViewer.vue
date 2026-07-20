@@ -12,9 +12,11 @@ const props = withDefaults(
   defineProps<{
     files: FileItem[];
     baseUrl?: string;
+    zipFilename?: string;
   }>(),
   {
     baseUrl: 'http://localhost:3000',
+    zipFilename: 'attachments.zip'
   }
 );
 
@@ -128,7 +130,11 @@ const downloadAll = async () => {
     await Promise.all(fetchPromises);
     
     const zipBlob = await zip.generateAsync({ type: 'blob' });
-    saveAs(zipBlob, 'attachments.zip');
+    let filename = props.zipFilename || 'attachments.zip';
+    if (!filename.endsWith('.zip')) {
+      filename += '.zip';
+    }
+    saveAs(zipBlob, filename);
   } catch (error) {
     console.error('Error creating zip file:', error);
     alert('Failed to download all files. Please try downloading them individually.');

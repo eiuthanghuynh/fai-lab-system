@@ -33,6 +33,9 @@ const getByRequestId = async (req, res) => {
         lab_request_id: parseInt(requestId),
         is_active: true
       },
+      orderBy: {
+        work_order_no: 'asc'
+      },
       include: {
         technician: {
           select: { id: true, full_name: true }
@@ -79,93 +82,123 @@ const getByRequestId = async (req, res) => {
   }
 };
 
+/**
+ * Helper to check if a field value has actually mutated.
+ * Normalizes null, undefined, and empty string comparisons.
+ */
+const hasValueChanged = (newVal, oldVal) => {
+  if (newVal === undefined) return false;
+  const normalizedNew = (newVal === '' || newVal === undefined) ? null : newVal;
+  const normalizedOld = (oldVal === '' || oldVal === undefined) ? null : oldVal;
+  return normalizedNew !== normalizedOld;
+};
+
 const bulkSaveWorkOrders = async (req, res) => {
   const { requestId } = req.params;
-  const { creates = [], updates = [], deletes = [], keptImageIds = [], keptReportAttachmentIds = [] } = req.body;
+  const { updates = [], keptImageIds = [], keptReportAttachmentIds = [] } = req.body;
+
+  if (!Array.isArray(updates) || updates.length === 0) {
+    return res.status(400).json({ error: 'updates must be a non-empty array.' });
+  }
 
   const request = await prisma.labRequest.findUnique({
     where: { id: parseInt(requestId) }
   });
-  
   if (!request) {
-    return res.status(404).json({ error: 'Lab Request not found.' });
+    return res.status(404).json({ error: 'Request not found.' });
   }
 
-  // The route middleware (checkPermission) ensures INSPECT_LAB.
-  // Now verify ownership:
-  if (request.inspector_id !== req.user.id) {
-    return res.status(403).json({ error: 'Access denied. You are not the assigned inspector for this request.' });
+  const hasAssignLab = req.user.permissions?.includes('ASSIGN_LAB');
+  const hasInspectLab = req.user.permissions?.includes('INSPECT_LAB');
+
+  if (!hasAssignLab && !hasInspectLab) {
+    return res.status(403).json({ error: 'Forbidden' });
   }
 
-  // Validate Quantity constraints
   const existingWOs = await prisma.labWorkOrder.findMany({
     where: {
       lab_request_id: parseInt(requestId),
-      is_active: true,
-      id: { notIn: [...updates.map(u => u.id), ...deletes] }
+      is_active: true
     }
   });
 
-  const existingQty = existingWOs.reduce((acc, wo) => acc + wo.quantity, 0);
-  const createsQty = creates.reduce((acc, wo) => acc + (wo.quantity || 1), 0);
-  const updatesQty = updates.reduce((acc, wo) => acc + (wo.quantity || 0), 0);
-  const totalQty = existingQty + createsQty + updatesQty;
+  const existingWoMap = new Map(existingWOs.map(wo => [wo.id, wo]));
 
-  if (totalQty > request.quantity) {
-    return res.status(400).json({ error: `Total work order quantity (${totalQty}) cannot exceed request quantity (${request.quantity}).` });
-  }
+  // Field Mutation Guard: Validate only actual value mutations
+  for (const update of updates) {
+    const existing = existingWoMap.get(update.id);
+    if (!existing) {
+      return res.status(404).json({ error: `Work Order ${update.id} not found.` });
+    }
+    
+    if (update.quantity !== undefined && update.quantity !== existing.quantity) {
+       return res.status(403).json({ error: 'Changing quantity is not allowed after request submission.' });
+    }
+    
+    const isOwner = existing.technician_id === req.user.id;
+    
+    // Check technician_id mutation
+    const isMutatingTechnician = hasValueChanged(update.technician_id, existing.technician_id);
+    if (isMutatingTechnician && !hasAssignLab) {
+       return res.status(403).json({ error: 'Only ASSIGN_LAB can change assignee.' });
+    }
 
-  // Validate item_test_id presence
-  for (const wo of [...creates, ...updates]) {
-    if (!wo.item_test_id) {
-      return res.status(400).json({ error: `Work Order ${wo.work_order_no || wo.id} is missing an Item Test.` });
+    // Check test result mutations
+    const isMutatingScalarResults = (
+       hasValueChanged(update.product_sn, existing.product_sn) ||
+       hasValueChanged(update.status, existing.status) ||
+       hasValueChanged(update.test_result, existing.test_result) ||
+       hasValueChanged(update.failure_details, existing.failure_details) ||
+       hasValueChanged(update.improvement_plan, existing.improvement_plan)
+    );
+
+    const isMutatingImages = Array.isArray(update.images) && update.images.some(img => !img.parent_id);
+    const isMutatingAttachments = Array.isArray(update.reportAttachments) && update.reportAttachments.some(att => !att.parent_id);
+
+    const isMutatingResults = isMutatingScalarResults || isMutatingImages || isMutatingAttachments;
+
+    if (isMutatingResults && !isOwner) {
+       return res.status(403).json({ error: `You are not the assigned technician for Work Order ${existing.work_order_no}.` });
     }
   }
 
   const results = await prisma.$transaction(async (tx) => {
-    // 1. Deletes
-    if (deletes.length > 0) {
-      // Find the work orders to get their IDs
-      const wosToDelete = await tx.labWorkOrder.findMany({
-        where: { id: { in: deletes }, lab_request_id: parseInt(requestId) },
-        select: { id: true }
-      });
-      const idsToDelete = wosToDelete.map(wo => wo.id);
-      
-      if (idsToDelete.length > 0) {
-        await tx.labWorkOrderImage.updateMany({
-          where: { parent_id: { in: idsToDelete } },
-          data: { parent_id: null }
-        });
-        await tx.reportAttachment.updateMany({
-          where: { parent_id: { in: idsToDelete }, request_type: 'LAB' },
-          data: { parent_id: null }
-        });
-        await tx.labWorkOrder.deleteMany({ where: { id: { in: idsToDelete } } });
-      }
-    }
-
-    // 2. Updates
     const updatedIds = [];
+    let anyAssigned = false;
+
     for (const update of updates) {
-      await tx.labWorkOrder.update({
-        where: { id: update.id },
-        data: {
-          quantity: update.quantity,
-          product_sn: update.product_sn,
-          item_test_id: update.item_test_id,
-          procedure_condition: update.procedure_condition,
-          test_specification: update.test_specification,
-          remark: update.remark,
-          status: update.status,
-          test_result: update.test_result,
-          failure_details: update.failure_details,
-          improvement_plan: update.improvement_plan
-        }
-      });
-      updatedIds.push(update.id);
+      const existing = existingWoMap.get(update.id);
+      const updateData = {};
+
+      const isMutatingTechnician = hasValueChanged(update.technician_id, existing.technician_id);
+      if (hasAssignLab && isMutatingTechnician) {
+         updateData.technician_id = update.technician_id;
+         if (update.technician_id && (!update.status || update.status === 'Backlog')) {
+            updateData.status = "Assigned";
+            anyAssigned = true;
+         } else if (!update.technician_id && existing.status === 'Assigned') {
+            updateData.status = "Backlog";
+         }
+      }
+
+      const isOwner = (updateData.technician_id !== undefined ? updateData.technician_id : existing.technician_id) === req.user.id;
+      if (isOwner) {
+         if (hasValueChanged(update.product_sn, existing.product_sn)) updateData.product_sn = update.product_sn;
+         if (hasValueChanged(update.status, existing.status)) updateData.status = update.status;
+         if (hasValueChanged(update.test_result, existing.test_result)) updateData.test_result = update.test_result;
+         if (hasValueChanged(update.failure_details, existing.failure_details)) updateData.failure_details = update.failure_details;
+         if (hasValueChanged(update.improvement_plan, existing.improvement_plan)) updateData.improvement_plan = update.improvement_plan;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await tx.labWorkOrder.update({
+          where: { id: update.id },
+          data: updateData
+        });
+        updatedIds.push(update.id);
+      }
       
-      if (update.images && update.images.length > 0) {
+      if (isOwner && update.images && update.images.length > 0) {
          const fileIds = update.images.map(img => img.id).filter(id => id);
          if (fileIds.length > 0) {
            await tx.labWorkOrderImage.updateMany({
@@ -174,7 +207,7 @@ const bulkSaveWorkOrders = async (req, res) => {
            });
          }
       }
-      if (update.reportAttachments && update.reportAttachments.length > 0) {
+      if (isOwner && update.reportAttachments && update.reportAttachments.length > 0) {
          const fileIds = update.reportAttachments.map(img => img.id).filter(id => id);
          if (fileIds.length > 0) {
            await tx.reportAttachment.updateMany({
@@ -184,54 +217,31 @@ const bulkSaveWorkOrders = async (req, res) => {
          }
       }
     }
+    
+    // Check if we need to update the parent Request status
+    const allWOs = await tx.labWorkOrder.findMany({ where: { lab_request_id: parseInt(requestId), is_active: true } });
+    
+    const hasAnyOngoingOrCompleted = allWOs.some(wo => wo.status === 'Ongoing' || wo.status === 'Completed');
+    const allAssigned = allWOs.length > 0 && allWOs.every(wo => wo.technician_id !== null && wo.technician_id !== undefined);
 
-    // 3. Creates
-    const createdIds = [];
-    for (const create of creates) {
-      const newWo = await tx.labWorkOrder.create({
-        data: {
-          work_order_no: create.work_order_no,
-          lab_request_id: parseInt(requestId),
-          quantity: create.quantity,
-          product_sn: create.product_sn,
-          item_test_id: create.item_test_id,
-          procedure_condition: create.procedure_condition,
-          test_specification: create.test_specification,
-          remark: create.remark,
-          status: create.status || 'Ongoing',
-          test_result: create.test_result,
-          failure_details: create.failure_details,
-          improvement_plan: create.improvement_plan,
-          technician_id: req.user.id
-        }
-      });
-      createdIds.push(newWo.id);
-      
-      if (create.images && create.images.length > 0) {
-         const fileIds = create.images.map(img => img.id).filter(id => id);
-         if (fileIds.length > 0) {
-           await tx.labWorkOrderImage.updateMany({
-             where: { id: { in: fileIds } },
-             data: { parent_id: newWo.id }
-           });
-         }
-      }
-      if (create.reportAttachments && create.reportAttachments.length > 0) {
-         const fileIds = create.reportAttachments.map(img => img.id).filter(id => id);
-         if (fileIds.length > 0) {
-           await tx.reportAttachment.updateMany({
-             where: { id: { in: fileIds } },
-             data: { parent_id: newWo.id }
-           });
-         }
-      }
+    let newReqStatus = request.status;
+    if (hasAnyOngoingOrCompleted) {
+       newReqStatus = 'Ongoing';
+    } else if (allAssigned && request.status === 'Backlog') {
+       newReqStatus = 'Assigned';
     }
 
-    // Report Attachments mapped per work order above
-    return { updatedIds, createdIds };
+    if (newReqStatus !== request.status) {
+       await tx.labRequest.update({
+          where: { id: parseInt(requestId) },
+          data: { status: newReqStatus }
+       });
+    }
+
+    return { updatedIds };
   });
 
-  const allWoIdsList = [...results.updatedIds, ...results.createdIds];
+  const allWoIdsList = [...results.updatedIds];
 
   // Cleanup orphaned files outside transaction
   if (keptReportAttachmentIds) {

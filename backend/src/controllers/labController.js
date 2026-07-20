@@ -86,9 +86,6 @@ const getRequests = async (req, res) => {
         approver: {
           select: { full_name: true },
         },
-        inspector: {
-          select: { id: true, full_name: true },
-        },
         workOrders: {
           where: { is_active: true },
           include: {
@@ -117,9 +114,6 @@ const getRequestById = async (req, res) => {
       include: {
         requestor: {
           select: { full_name: true, username: true },
-        },
-        inspector: {
-          select: { id: true, full_name: true },
         },
         workOrders: {
           where: { is_active: true },
@@ -218,11 +212,17 @@ const saveDraft = async (req, res) => {
       idempotency_key,
       priority,
       priority_reason,
+      workOrders = [],
     } = req.body;
 
     const parsedQuantity = quantity ? parseInt(quantity) : 1;
     if (parsedQuantity < 1 || parsedQuantity > 20) {
       return res.status(400).json({ error: "error.sample_qty_lab_bounds" });
+    }
+
+    // Work Orders Validation for Draft (Basic)
+    if (!Array.isArray(workOrders)) {
+      return res.status(400).json({ error: "workOrders must be an array" });
     }
 
     // Idempotency Check using Redis for Draft
@@ -259,13 +259,74 @@ const saveDraft = async (req, res) => {
     };
 
     if (id) {
-      request = await prisma.labRequest.update({
-        where: { id: parseInt(id) },
-        data: requestData,
+      // For editing draft, we will use a transaction to update the request and its work orders
+      // First, find existing work orders to determine which to delete, update, or create
+      const existingWOs = await prisma.labWorkOrder.findMany({ where: { lab_request_id: parseInt(id) } });
+      const existingWOIds = existingWOs.map(wo => wo.id);
+      const incomingIds = workOrders.filter(wo => wo.id).map(wo => wo.id);
+      
+      const idsToDelete = existingWOIds.filter(id => !incomingIds.includes(id));
+      
+      request = await prisma.$transaction(async (tx) => {
+        const updatedReq = await tx.labRequest.update({
+          where: { id: parseInt(id) },
+          data: requestData,
+        });
+
+        if (idsToDelete.length > 0) {
+          await tx.labWorkOrder.deleteMany({ where: { id: { in: idsToDelete } } });
+        }
+
+        for (let i = 0; i < workOrders.length; i++) {
+          const wo = workOrders[i];
+          const woData = {
+            quantity: wo.quantity ? parseInt(wo.quantity) : 1,
+            item_test_id: wo.item_test_id,
+            procedure_condition: wo.procedure_condition || null,
+            test_specification: wo.test_specification || null,
+            remark: wo.remark || null,
+          };
+
+          if (wo.id) {
+            await tx.labWorkOrder.update({
+              where: { id: wo.id },
+              data: woData,
+            });
+          } else {
+            // Generate temporary work_order_no for draft
+            const tempWoNo = `DRAFT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            await tx.labWorkOrder.create({
+              data: {
+                ...woData,
+                work_order_no: tempWoNo,
+                lab_request_id: parseInt(id),
+                status: "Draft",
+              },
+            });
+          }
+        }
+        return updatedReq;
       });
     } else {
-      request = await prisma.labRequest.create({
-        data: requestData,
+      request = await prisma.$transaction(async (tx) => {
+        const newReq = await tx.labRequest.create({
+          data: requestData,
+        });
+
+        if (workOrders.length > 0) {
+          const wosToCreate = workOrders.map((wo) => ({
+            work_order_no: `DRAFT-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+            lab_request_id: newReq.id,
+            quantity: wo.quantity ? parseInt(wo.quantity) : 1,
+            item_test_id: wo.item_test_id,
+            procedure_condition: wo.procedure_condition || null,
+            test_specification: wo.test_specification || null,
+            remark: wo.remark || null,
+            status: "Draft",
+          }));
+          await tx.labWorkOrder.createMany({ data: wosToCreate });
+        }
+        return newReq;
       });
     }
 
@@ -314,6 +375,7 @@ const submitRequest = async (req, res) => {
       idempotency_key,
       priority,
       priority_reason,
+      workOrders = [],
     } = req.body;
 
     if (
@@ -330,6 +392,19 @@ const submitRequest = async (req, res) => {
     const parsedQuantity = quantity ? parseInt(quantity) : 1;
     if (parsedQuantity < 1 || parsedQuantity > 20) {
       return res.status(400).json({ error: "error.sample_qty_lab_bounds" });
+    }
+
+    if (!Array.isArray(workOrders) || workOrders.length === 0) {
+      return res.status(400).json({ error: "At least one Work Order is required to submit a Request." });
+    }
+
+    if (workOrders.some(wo => !wo.item_test_id)) {
+      return res.status(400).json({ error: "Item Test is required for all Work Orders." });
+    }
+
+    const totalWoQuantity = workOrders.reduce((acc, wo) => acc + (wo.quantity ? parseInt(wo.quantity) : 1), 0);
+    if (totalWoQuantity !== parsedQuantity) {
+      return res.status(400).json({ error: `Total Work Order quantity (${totalWoQuantity}) must exactly match Request quantity (${parsedQuantity}).` });
     }
 
     if (stage && stage.startsWith("Prototype")) {
@@ -378,28 +453,89 @@ const submitRequest = async (req, res) => {
     };
 
     let request;
-    if (id) {
-      // Edit mode (if it was draft or we allow editing)
-      const existingDraft = await prisma.labRequest.findUnique({
-        where: { id: parseInt(id) },
-      });
-      const test_no = existingDraft.test_no || (await generateTestNo());
-      request = await prisma.labRequest.update({
-        where: { id: parseInt(id) },
-        data: {
-          ...requestData,
-          test_no,
-        },
-      });
-    } else {
-      const test_no = await generateTestNo();
-      request = await prisma.labRequest.create({
-        data: {
-          ...requestData,
-          test_no,
-        },
-      });
-    }
+    request = await prisma.$transaction(async (tx) => {
+      let finalTestNo;
+      let reqId = parseInt(id);
+
+      if (reqId) {
+        // Edit mode
+        const existingDraft = await tx.labRequest.findUnique({
+          where: { id: reqId },
+        });
+        finalTestNo = existingDraft.test_no || (await generateTestNo());
+        
+        await tx.labRequest.update({
+          where: { id: reqId },
+          data: {
+            ...requestData,
+            test_no: finalTestNo,
+          },
+        });
+
+        // Delete existing draft work orders first to replace with new ones cleanly
+        // Or update them if IDs are provided
+        const existingWOs = await tx.labWorkOrder.findMany({ where: { lab_request_id: reqId } });
+        const existingWOIds = existingWOs.map(wo => wo.id);
+        const incomingIds = workOrders.filter(wo => wo.id).map(wo => wo.id);
+        const idsToDelete = existingWOIds.filter(wid => !incomingIds.includes(wid));
+        
+        if (idsToDelete.length > 0) {
+          await tx.labWorkOrder.deleteMany({ where: { id: { in: idsToDelete } } });
+        }
+
+        for (let i = 0; i < workOrders.length; i++) {
+          const wo = workOrders[i];
+          const wo_no = `${finalTestNo}-${String(i + 1).padStart(4, '0')}`;
+          const woData = {
+            quantity: wo.quantity ? parseInt(wo.quantity) : 1,
+            item_test_id: wo.item_test_id,
+            procedure_condition: wo.procedure_condition || null,
+            test_specification: wo.test_specification || null,
+            remark: wo.remark || null,
+            status: "Backlog",
+            work_order_no: wo_no,
+          };
+
+          if (wo.id) {
+            await tx.labWorkOrder.update({
+              where: { id: wo.id },
+              data: woData,
+            });
+          } else {
+            await tx.labWorkOrder.create({
+              data: {
+                ...woData,
+                lab_request_id: reqId,
+              },
+            });
+          }
+        }
+      } else {
+        // Create new
+        finalTestNo = await generateTestNo();
+        const newReq = await tx.labRequest.create({
+          data: {
+            ...requestData,
+            test_no: finalTestNo,
+          },
+        });
+        reqId = newReq.id;
+
+        const wosToCreate = workOrders.map((wo, i) => ({
+          work_order_no: `${finalTestNo}-${String(i + 1).padStart(4, '0')}`,
+          lab_request_id: reqId,
+          quantity: wo.quantity ? parseInt(wo.quantity) : 1,
+          item_test_id: wo.item_test_id,
+          procedure_condition: wo.procedure_condition || null,
+          test_specification: wo.test_specification || null,
+          remark: wo.remark || null,
+          status: "Backlog",
+        }));
+        await tx.labWorkOrder.createMany({ data: wosToCreate });
+      }
+
+      return tx.labRequest.findUnique({ where: { id: reqId } });
+    });
 
     if (file_ids.length > 0) {
       await prisma.requestAttachment.updateMany({
@@ -435,11 +571,11 @@ const submitRequest = async (req, res) => {
 const assignRequest = async (req, res) => {
   {
     const { id } = req.params;
-    const { priority, priority_reason, inspector_id } = req.body;
+    const { priority, priority_reason } = req.body;
 
-    if (!priority || !inspector_id) {
+    if (!priority) {
       return res.status(400).json({
-        error: "Priority and inspector_id are required for assignment",
+        error: "Priority is required",
       });
     }
 
@@ -455,10 +591,8 @@ const assignRequest = async (req, res) => {
     const updatedRequest = await prisma.labRequest.update({
       where: { id: parseInt(id) },
       data: {
-        inspector: { connect: { id: parseInt(inspector_id) } },
         priority,
         priority_reason,
-        status: "Assigned",
       },
     });
 
@@ -521,8 +655,9 @@ const deleteDraft = async (req, res) => {
     });
 
     await prisma.$transaction([
-      prisma.requestAttachment.deleteMany({
+      prisma.requestAttachment.updateMany({
         where: { parent_id: request.id, request_type: "LAB" },
+        data: { parent_id: null },
       }),
       prisma.labWorkOrder.deleteMany({
         where: { lab_request_id: request.id },
@@ -531,19 +666,6 @@ const deleteDraft = async (req, res) => {
         where: { id: request.id },
       }),
     ]);
-
-    for (const att of attachments) {
-      if (att.file_url) {
-        try {
-          await minioClient.removeObject(MINIO_BUCKET, att.file_url);
-        } catch (err) {
-          console.error(
-            `[MinIO] Failed to delete object: ${att.file_url}`,
-            err.message,
-          );
-        }
-      }
-    }
 
     if (req.app.get('io') && request.status !== "Draft") {
       req.app.get('io').emit("lab-request-deleted", parseInt(id));
@@ -625,7 +747,30 @@ const startInspection = async (req, res) => {
 
 const adjustSchedule = async (req, res) => {
   const { id } = req.params;
-  const { sample_received_date, sample_return_date } = req.body;
+  const { estimated_date, sample_received_date, sample_return_date } = req.body;
+
+  const hasInspectLab = req.user.permissions?.includes('INSPECT_LAB');
+  if (!hasInspectLab) {
+    return res.status(403).json({ success: false, error: 'Forbidden. Requires INSPECT_LAB permission.' });
+  }
+
+  const request = await prisma.labRequest.findUnique({
+    where: { id: parseInt(id) },
+    include: {
+      workOrders: {
+        where: { is_active: true }
+      }
+    }
+  });
+
+  if (!request) {
+    return res.status(404).json({ success: false, error: "Request not found" });
+  }
+
+  const isAssignedTechnician = request.workOrders.some(wo => wo.technician_id === req.user.id);
+  if (!isAssignedTechnician) {
+    return res.status(403).json({ success: false, error: 'Forbidden. You are not an assigned technician for this request.' });
+  }
 
   if (sample_received_date && sample_return_date) {
     const received = new Date(sample_received_date);
@@ -635,22 +780,20 @@ const adjustSchedule = async (req, res) => {
     }
   }
 
-  const request = await prisma.labRequest.findUnique({
-    where: { id: parseInt(id) }
-  });
+  const updateData = {
+    estimated_date: estimated_date ? new Date(estimated_date) : null,
+    sample_received_date: sample_received_date ? new Date(sample_received_date) : null,
+    sample_return_date: sample_return_date ? new Date(sample_return_date) : null
+  };
 
-  if (!request) {
-    return res.status(404).json({ success: false, error: "Request not found" });
+  if (request.status === 'Assigned' && estimated_date) {
+    updateData.status = 'Ongoing';
   }
 
   const updatedRequest = await prisma.labRequest.update({
     where: { id: parseInt(id) },
-    data: {
-      sample_received_date: sample_received_date ? new Date(sample_received_date) : null,
-      sample_return_date: sample_return_date ? new Date(sample_return_date) : null
-    }
+    data: updateData
   });
-
 
   res.json({ success: true, data: updatedRequest });
 };
