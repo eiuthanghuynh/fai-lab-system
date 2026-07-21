@@ -160,6 +160,7 @@ const messages = {
       set_priority_success: 'Priority set successfully',
       set_priority_failed: 'Failed to set priority',
       assign_technician: 'Assign Technician',
+      edit_wo_block: 'Please select Estimated Date before editing.<br/>Click the <strong class="text-primary">Adjust Time</strong> button to set the Estimated Date.',
       detail_title: 'LAB - Request Details',
       columns: {
         id: 'ID',
@@ -328,7 +329,7 @@ const messages = {
       badge_color_desc: 'Display color in the system',
     },
     action: {
-      create: 'Add New',
+      create: 'Add',
       edit: 'Edit',
       delete: 'Delete',
       selected: 'selected',
@@ -560,6 +561,7 @@ const messages = {
       set_priority_success: 'Cập nhật mức ưu tiên thành công',
       set_priority_failed: 'Cập nhật mức ưu tiên thất bại',
       assign_technician: 'Phân công Kỹ thuật viên',
+      edit_wo_block: 'Vui lòng chọn Estimated Date trước khi có thể thực hiện chỉnh sửa<br/>Hãy bấm vào nút <strong class="text-primary">Adjust Time</strong> để chọn Estimated Date.',
       detail_title: 'LAB - Chi tiết yêu cầu',
       columns: {
         id: 'ID',

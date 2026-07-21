@@ -351,7 +351,7 @@ const submitRequest = async () => {
           <div class="flex justify-between items-center">
             <h2 class="text-xl font-semibold m-0 text-text">{{ t('lab.work_order.title', 'Work Orders') }}</h2>
             <Button type="button" variant="primary" @click="addWorkOrder">
-              + {{ t('fai.add') }} Work Order
+              + {{ t('action.create') }}
             </Button>
           </div>
           

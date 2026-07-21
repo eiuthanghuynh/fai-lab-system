@@ -140,7 +140,7 @@ const deleteItem = async (item: any) => {
       <template #actions>
         <Button class="gap-2" @click="openModal(null)">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          {{ t('action.add', 'Add') }}
+          {{ t('action.create', 'Add') }}
         </Button>
       </template>
     </DataTableToolbar>
@@ -168,7 +168,7 @@ const deleteItem = async (item: any) => {
     
     <Pagination :total="totalItems" v-model="page" v-model:rowsPerPage="limit" />
 
-    <BaseModal :isOpen="isModalOpen" :title="isEditing ? t('action.edit', 'Edit') : t('action.add', 'Add')" maxWidth="600px" @close="closeModal">
+    <BaseModal :isOpen="isModalOpen" :title="isEditing ? t('action.edit', 'Edit') : t('action.create', 'Add')" maxWidth="600px" @close="closeModal">
       <form id="itemForm" @submit.prevent="saveItem" class="flex flex-col gap-4">
         <div class="grid grid-cols-[1fr_2fr] gap-8 items-center">
           <div class="flex flex-col gap-1">

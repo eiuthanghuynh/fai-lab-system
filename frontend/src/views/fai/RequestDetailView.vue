@@ -121,17 +121,30 @@ const goBack = () => {
             </svg>
             {{ t('fai.back_to_list') }}
           </Button>
-          <h2 class="m-0 text-2xl font-bold text-text">{{ t('fai.detail_title') }} <span v-if="request">#{{ request.id }}</span></h2>
+          <div class="flex flex-col">
+            <h2 class="m-0 text-2xl font-bold text-text">{{ t('fai.detail_title') }} <span v-if="request">#{{ request.id }}</span></h2>
+            <div v-if="request" class="flex items-center gap-4 text-xs font-medium text-text mt-1">
+              <div class="flex items-center gap-2">
+                <span class="text-text-muted">{{ t('fai.columns.status') }}:</span>
+                <StatusBadge 
+                  :isActive="request.status !== 'Draft'" 
+                  :activeText="getStatusText(request.status)" 
+                  :inactiveText="t('fai.status_draft')" 
+                  :variant="getStatusVariant(request.status)"
+                  class="!px-2 !py-0.5 !text-[11px] !h-5 flex items-center"
+                />
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-text-muted">{{ t('fai.columns.result') }}:</span>
+                <ResultBadge 
+                  :result="request.result" 
+                  class="!px-2 !py-0.5 !text-[11px] !w-12 !h-5 !rounded-[6px]"
+                />
+              </div>
+            </div>
+          </div>
         </div>
         
-        <div v-if="request" class="flex items-center">
-          <StatusBadge 
-            :isActive="request.status !== 'Draft'" 
-            :activeText="getStatusText(request.status)" 
-            :inactiveText="t('fai.status_draft')" 
-            :variant="getStatusVariant(request.status)"
-          />
-        </div>
       </div>
 
       <!-- Loading and Error States -->
@@ -227,7 +240,7 @@ const goBack = () => {
                 </div>
                 <div class="flex flex-col gap-1">
                   <label class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">{{ t('fai.priority_reason') }}</label>
-                  <span class="text-[0.95rem] font-medium break-all" :class="{'text-[#ff5555]': request.priority === 'Urgent', 'text-text': request.priority !== 'Urgent'}">{{ request.priority_reason || '-' }}</span>
+                  <span class="text-[0.95rem] font-medium break-all whitespace-pre-wrap" :class="{'text-[#ff5555]': request.priority === 'Urgent', 'text-text': request.priority !== 'Urgent'}">{{ request.priority_reason || '-' }}</span>
                 </div>
                 <div class="flex flex-col gap-1.5">
                   <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Week</span>

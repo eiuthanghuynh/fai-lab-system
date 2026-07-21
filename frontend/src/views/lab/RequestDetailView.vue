@@ -392,6 +392,13 @@ const getStatusVariant = (status: string) => {
   }
 };
 
+const goBack = () => {
+  if (window.history.state.back) {
+    router.back();
+  } else {
+    router.push({ name: 'lab-request-list' });
+  }
+};
 
 </script>
 
@@ -402,24 +409,37 @@ const getStatusVariant = (status: string) => {
       <!-- Header -->
       <div class="flex justify-between items-center border-b border-border pb-4">
         <div class="flex items-center gap-6">
-          <Button variant="secondary" class="gap-2" @click="router.push('/lab/request/list')">
+          <Button variant="secondary" class="gap-2" @click="goBack">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
             {{ t('fai.back_to_list', 'Back to List') }}
           </Button>
-          <h2 class="m-0 text-2xl font-bold text-text">{{ t('lab.detail_title') }} <span v-if="request">#{{ request.id }}</span></h2>
+          <div class="flex flex-col">
+            <h2 class="m-0 text-2xl font-bold text-text">{{ t('lab.detail_title') }} <span v-if="request">#{{ request.id }}</span></h2>
+            <div v-if="request" class="flex items-center gap-4 text-xs font-medium text-text mt-1">
+              <div class="flex items-center gap-2">
+                <span class="text-text-muted">{{ t('fai.columns.status') }}:</span>
+                <StatusBadge 
+                  :isActive="true" 
+                  :activeText="request.status" 
+                  inactiveText="" 
+                  :variant="getStatusVariant(request.status)"
+                  class="!px-2 !py-0.5 !text-[11px] !h-5 flex items-center"
+                />
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-text-muted">{{ t('fai.columns.result') }}:</span>
+                <ResultBadge 
+                  :result="request.result" 
+                  class="!px-2 !py-0.5 !text-[11px] !w-12 !h-5 !rounded-[6px]"
+                />
+              </div>
+            </div>
+          </div>
         </div>
         
-        <div v-if="request" class="flex items-center">
-          <StatusBadge 
-            :isActive="true" 
-            :activeText="request.status" 
-            inactiveText="" 
-            :variant="getStatusVariant(request.status)"
-          />
-        </div>
       </div>
 
       <!-- Loading and Error States -->
@@ -438,7 +458,7 @@ const getStatusVariant = (status: string) => {
               <DetailCard title="General Information">
                 <template #action>
                   <Button
-                    v-if="(isApproveMode || (canApproveLab && request?.complete_date)) && request?.result !== 'PASS' && request?.result !== 'FAIL'"
+                    v-if="isApproveMode && canApproveLab && request?.complete_date && request?.result !== 'PASS' && request?.result !== 'FAIL'"
                     variant="danger"
                     class="h-8 text-xs font-semibold px-3"
                     @click="isApprovalModalOpen = true"
@@ -536,7 +556,7 @@ const getStatusVariant = (status: string) => {
                   </div>
                   <div class="flex flex-col gap-1">
                     <label class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Priority Reason</label>
-                    <span class="text-[0.95rem] font-medium break-all" :class="{'text-[#ff5555]': request.priority === 'Urgent', 'text-text': request.priority !== 'Urgent'}">{{ request.priority_reason || '-' }}</span>
+                    <span class="text-[0.95rem] font-medium break-all whitespace-pre-wrap" :class="{'text-[#ff5555]': request.priority === 'Urgent', 'text-text': request.priority !== 'Urgent'}">{{ request.priority_reason || '-' }}</span>
                   </div>
                   <div class="flex flex-col gap-1.5">
                     <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Week</span>
@@ -592,14 +612,22 @@ const getStatusVariant = (status: string) => {
                         </div>
                       </div>
                     </template>
-                    <Button 
-                      v-if="isExecuteMode && canInspectLab && hasOwnedWorkOrders" 
-                      variant="primary" 
-                      class="h-8 text-xs font-semibold px-3" 
-                      @click="handleStartExecuteWO"
-                    >
-                      {{ t('action.edit') }} Work Order
-                    </Button>
+                    <div v-if="isExecuteMode && canInspectLab && hasOwnedWorkOrders" class="relative group inline-block">
+                      <Button 
+                        variant="primary" 
+                        class="h-8 text-xs font-semibold px-3" 
+                        @click="handleStartExecuteWO"
+                        :disabled="!request?.estimated_date"
+                      >
+                        {{ t('action.edit') }} Work Order
+                      </Button>
+                      <div 
+                        v-if="!request?.estimated_date"
+                        class="absolute -bottom-14 right-0 whitespace-nowrap bg-gray-800 text-white text-[0.75rem] px-3 py-2 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none shadow-lg w-max text-center"
+                        v-html="t('lab.edit_wo_block')"
+                      >
+                      </div>
+                    </div>
                   </template>
                   <template v-else>
                     <Button variant="secondary" class="h-8 text-xs font-semibold px-3" @click="handleCancelEditWO">{{ t('action.cancel') }}</Button>

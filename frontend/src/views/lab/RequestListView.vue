@@ -55,10 +55,11 @@ const columns = computed<DataTableColumn[]>(() => [
   { key: 'priority_reason', label: 'Priority Reason', sortable: true, minWidth: '150px' },
   { key: 'week_no', label: 'Week', sortable: true, minWidth: '100px' },
   { key: 'estimated_date', label: t('fai.columns.estimated_date'), sortable: true, minWidth: '150px' },
-  { key: 'inspector_name', label: t('fai.inspector', 'Technician'), sortable: false, minWidth: '150px' },
-  { key: 'approved_by', label: 'Approved By', sortable: false, minWidth: '150px' },
+  { key: 'complete_date', label: 'Complete Date', sortable: true, minWidth: '150px' },
   { key: 'receive_date', label: t('fai.columns.receive_date'), sortable: true, minWidth: '150px' },
   { key: 'return_date', label: 'Return Date', sortable: true, minWidth: '150px' },
+  { key: 'created_at', label: t('fai.columns.created_at'), sortable: true, minWidth: '180px' },
+  { key: 'updated_at', label: t('fai.columns.updated_at'), sortable: true, minWidth: '180px' },
   { key: 'result', label: t('fai.columns.result'), sortable: true, sticky: 'right', minWidth: '120px' },
   { key: 'status', label: t('lab.columns.status'), sortable: true, sticky: 'right', minWidth: '160px', width: '160px' },
   { key: 'actions', label: t('lab.columns.actions'), sticky: 'right', minWidth: '120px', width: '120px', align: 'center' }
@@ -214,20 +215,23 @@ const deleteDraft = (id: number) => {
           {{ formatDate(item.estimated_date) }}
         </template>
 
-        <template #cell-inspector_name="{ item }">
-          {{ item.workOrders && item.workOrders.length > 0 && item.workOrders[0].technician ? item.workOrders[0].technician.full_name : '-' }}
-          <span v-if="item.workOrders && item.workOrders.length > 1" class="text-xs text-primary font-semibold ml-1 bg-primary/10 px-1.5 py-0.5 rounded">+{{ item.workOrders.length - 1 }}</span>
-        </template>
-
-        <template #cell-approved_by="{ item }">
-          {{ item.approver?.full_name || '-' }}
-        </template>
-
         <template #cell-receive_date="{ item }">
           {{ formatDate(item.sample_received_date) }}
         </template>
         <template #cell-return_date="{ item }">
           {{ formatDate(item.sample_return_date) }}
+        </template>
+
+        <template #cell-complete_date="{ item }">
+          {{ formatDate(item.complete_date) }}
+        </template>
+        
+        <template #cell-created_at="{ item }">
+          {{ formatDate(item.created_at) }}
+        </template>
+
+        <template #cell-updated_at="{ item }">
+          {{ formatDate(item.updated_at) }}
         </template>
         
         <template #cell-result="{ item }">
