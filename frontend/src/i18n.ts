@@ -145,6 +145,10 @@ const messages = {
       start_inspection_desc: 'Please select an estimated completion date.',
       execute_test: 'Execute Test',
       adjust_time: 'Adjust Time',
+      complete_testing: 'Complete Testing',
+      confirm_complete_testing_message: 'Are you sure you want to complete testing?',
+      confirm_complete_testing_warning: 'After confirmation, you will not be able to change any information in this Request anymore.',
+      complete_testing_error: 'Cannot complete testing because not all Work Orders are Closed or lack test results, please check again.',
       search_placeholder: 'Search by Test No, Model No, project, product SN...',
       create_new: 'Create LAB Request',
       details: 'Request Details',
@@ -152,6 +156,7 @@ const messages = {
       set_priority: 'Set Priority',
       set_priority_title: 'Set Priority',
       set_priority_desc: 'Please select the priority level for this request.',
+      set_priority_block: 'Please select the priority level first.',
       set_priority_success: 'Priority set successfully',
       set_priority_failed: 'Failed to set priority',
       assign_technician: 'Assign Technician',
@@ -198,6 +203,29 @@ const messages = {
           return_date_invalid: 'Return date must be after or equal to receive date'
         }
       },
+    },
+    approval: {
+      lab: {
+        approve: 'Approve',
+        approve_request: 'Approve Request',
+        approval_modal_title: 'Request Approval Process',
+        approval_status: 'Approval Status',
+        explanation: 'Explanation',
+        explanation_placeholder: 'Enter explanation/comment for approval status...',
+        explanation_required: 'Explanation is required when status is Rejected.',
+        approved: 'Approved',
+        rejected: 'Rejected',
+        lab_engineer_approval: 'Lab Engineer Approval',
+        quality_manager_approval: 'Quality Manager Approval',
+        select_status: 'Select approval status',
+        already_approved: 'Approved',
+        already_rejected: 'Rejected',
+        pending: 'Pending',
+        submit_approval: 'Submit Approval',
+        approval_success: 'Approval submitted successfully',
+        approval_error: 'Failed to submit approval',
+        no_permission: 'You don\'t have permission'
+      }
     },
     nav: {
       home: 'Home',
@@ -518,12 +546,17 @@ const messages = {
       start_inspection_desc: 'Vui lòng chọn ngày dự kiến hoàn thành.',
       execute_test: 'Thực hiện Test',
       adjust_time: 'Điều chỉnh thời gian',
+      complete_testing: 'Hoàn thành Kiểm thử',
+      confirm_complete_testing_message: 'Bạn có chắc chắn muốn hoàn thành kiểm thử không.',
+      confirm_complete_testing_warning: 'Sau khi xác nhận, bạn sẽ không thể thay đổi được bất cứ thông tin gì trong Request này nữa.',
+      complete_testing_error: 'Không thể hoàn thành kiểm thử do tất cả Work Order chưa Closed và chưa có đủ kết quả kiểm thử, vui lòng kiểm tra lại.',
       search_placeholder: 'Tìm kiếm theo Test No, Model No, project, product SN...',
       details: 'Chi tiết',
       assign: 'Đặt mức ưu tiên',
       set_priority: 'Đặt mức ưu tiên',
       set_priority_title: 'Thiết lập mức ưu tiên',
       set_priority_desc: 'Vui lòng chọn mức độ ưu tiên cho yêu cầu này.',
+      set_priority_block: 'Vui lòng thiết lập mức độ ưu tiên trước',
       set_priority_success: 'Cập nhật mức ưu tiên thành công',
       set_priority_failed: 'Cập nhật mức ưu tiên thất bại',
       assign_technician: 'Phân công Kỹ thuật viên',
@@ -570,6 +603,29 @@ const messages = {
           return_date_invalid: 'Ngày trả mẫu bắt buộc phải sau hoặc cùng ngày nhận mẫu'
         }
       },
+    },
+    approval: {
+      lab: {
+        approve: 'Duyệt',
+        approve_request: 'Duyệt Yêu cầu',
+        approval_modal_title: 'Quy trình Duyệt Yêu cầu',
+        approval_status: 'Trạng thái duyệt',
+        explanation: 'Giải thích',
+        explanation_placeholder: 'Nhập nội dung giải thích cho việc lựa chọn trạng thái duyệt...',
+        explanation_required: 'Nội dung giải thích là bắt buộc khi chọn từ chối (Rejected).',
+        approved: 'Approved',
+        rejected: 'Rejected',
+        lab_engineer_approval: 'Lab Engineer Approval',
+        quality_manager_approval: 'Quality Manager Approval',
+        select_status: 'Chọn trạng thái duyệt',
+        already_approved: 'Đã duyệt (Approved)',
+        already_rejected: 'Đã từ chối (Rejected)',
+        pending: 'Chờ duyệt',
+        submit_approval: 'Xác nhận Duyệt',
+        approval_success: 'Gửi kết quả duyệt thành công',
+        approval_error: 'Lỗi khi gửi kết quả duyệt',
+        no_permission: 'Bạn không có quyền'
+      }
     },
     nav: {
       home: 'Trang chủ',

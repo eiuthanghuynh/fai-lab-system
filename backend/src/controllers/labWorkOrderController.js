@@ -109,6 +109,10 @@ const bulkSaveWorkOrders = async (req, res) => {
     return res.status(404).json({ error: 'Request not found.' });
   }
 
+  if (request.complete_date) {
+    return res.status(400).json({ error: 'Cannot modify work orders of a completed request.' });
+  }
+
   const hasAssignLab = req.user.permissions?.includes('ASSIGN_LAB');
   const hasInspectLab = req.user.permissions?.includes('INSPECT_LAB');
 

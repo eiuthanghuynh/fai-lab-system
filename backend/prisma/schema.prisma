@@ -146,6 +146,7 @@ model FaiRequest {
   faiFailureModeRel FaiFailureMode? @relation(fields: [fai_failure_mode], references: [id])
   commodityPartRel  CommodityPart?  @relation(fields: [commodity_part], references: [id])
   supplier          Supplier?       @relation(fields: [supplier_id], references: [id])
+  approvalLogs      ApprovalLog[]
 
   @@map("fai_requests")
 }
@@ -189,6 +190,7 @@ model LabRequest {
   estimated_date    DateTime?
   complete_date     DateTime?
   status            RequestStatus @default(Draft)
+  result            String?  @db.VarChar(50)
   requestor_id      Int
   approved_by       Int?
   sample_received_date DateTime?
@@ -202,6 +204,7 @@ model LabRequest {
   approver          User?    @relation("LabApprover", fields: [approved_by], references: [id])
 
   workOrders        LabWorkOrder[]
+  approvalLogs      ApprovalLog[]
 
   @@map("lab_requests")
 }
@@ -294,17 +297,20 @@ model FaiLabReport {
 }
 
 model ApprovalLog {
-  id           Int      @id @default(autoincrement())
-  request_id   Int
-  request_type String   @db.VarChar(20)
-  approver_id  Int
-  action       String   @db.VarChar(50)
-  comment      String?  @db.Text
-  is_active    Boolean  @default(true)
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  id              Int          @id @default(autoincrement())
+  fai_request_id  Int?
+  lab_request_id  Int?
+  approver_id     Int
+  role            String?      @db.VarChar(50)
+  action          String       @db.VarChar(50)
+  comment         String?      @db.Text
+  is_active       Boolean      @default(true)
+  created_at      DateTime     @default(now())
+  updated_at      DateTime     @updatedAt
 
-  approver     User     @relation(fields: [approver_id], references: [id])
+  approver        User         @relation(fields: [approver_id], references: [id])
+  faiRequest      FaiRequest?  @relation(fields: [fai_request_id], references: [id], onDelete: Cascade)
+  labRequest      LabRequest?  @relation(fields: [lab_request_id], references: [id], onDelete: Cascade)
 
   @@map("approval_logs")
 }

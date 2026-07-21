@@ -33,7 +33,8 @@ const emit = defineEmits<{
           <h3 :class="['m-0 mb-4 text-xl font-semibold', isDanger ? 'text-[#ff5555]' : 'text-primary']">
             {{ title || t('common.warning') }}
           </h3>
-          <p class="m-0 mb-6 text-text leading-relaxed">{{ message }}</p>
+          <slot v-if="$slots.default"></slot>
+          <p v-else class="m-0 mb-6 text-text leading-relaxed">{{ message }}</p>
           
           <div class="flex justify-end gap-4">
             <Button v-if="!hideCancel" variant="secondary" @click="emit('cancel')">

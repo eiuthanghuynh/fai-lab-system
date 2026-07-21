@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     ActionDropdown: typeof import('./src/components/common/ActionDropdown.vue')['default']
+    ApprovalModal: typeof import('./src/components/lab/ApprovalModal.vue')['default']
     BaseModal: typeof import('./src/components/common/BaseModal.vue')['default']
     Button: typeof import('./src/components/ui/Button.vue')['default']
     ChartCard: typeof import('./src/components/common/ChartCard.vue')['default']
@@ -32,6 +33,7 @@ declare module 'vue' {
     Pagination: typeof import('./src/components/Pagination.vue')['default']
     PdfViewer: typeof import('./src/components/common/PdfViewer.vue')['default']
     Radio: typeof import('./src/components/ui/Radio.vue')['default']
+    ResultBadge: typeof import('./src/components/common/ResultBadge.vue')['default']
     RoleBadgeList: typeof import('./src/components/common/RoleBadgeList.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

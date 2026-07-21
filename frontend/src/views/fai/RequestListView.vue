@@ -9,6 +9,7 @@ import DataTableToolbar from '@/components/common/DataTableToolbar.vue';
 import DataTable, { type DataTableColumn } from '@/components/common/DataTable.vue';
 import Pagination from '@/components/Pagination.vue';
 import StatusBadge from '@/components/common/StatusBadge.vue';
+import ResultBadge from '@/components/common/ResultBadge.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
 import { useDataTable } from '@/composables/useDataTable';
 import { useAuthStore } from '@/stores/auth';
@@ -585,7 +586,7 @@ const getRowClass = (item: any) => {
         </template>
 
         <template #cell-result="{ item }">
-          {{ item.result || '-' }}
+          <ResultBadge :result="item.result" />
         </template>
 
         <template #cell-fai_failure_mode="{ item }">

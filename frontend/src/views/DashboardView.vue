@@ -23,6 +23,7 @@ import { Bar, Doughnut, Line } from 'vue-chartjs'
 import { useDark } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import ResultBadge from '@/components/common/ResultBadge.vue'
 import MultiSelectDropdown from '@/components/common/MultiSelectDropdown.vue'
 import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue'
 import ChartCard from '@/components/common/ChartCard.vue'
@@ -39,10 +40,12 @@ const getStatusVariant = (status: string) => {
   switch (status) {
     case 'Draft': return 'secondary';
     case 'Backlog': return 'secondary';
+    case 'Assigned': return 'warning';
     case 'Ongoing': return 'warning';
     case 'Approved': return 'success';
     case 'Rejected': return 'danger';
-    default: return 'info';
+    case 'Closed': return 'success';
+    default: return 'secondary';
   }
 }
 
@@ -74,12 +77,12 @@ const kpiList = computed(() => [
 
 const getStatusText = (status: string) => {
   switch (status) {
-    case 'Draft': return t('fai.status_draft')
-    case 'Backlog': return t('fai.status_backlog')
-    case 'Ongoing': return t('fai.status_ongoing')
-    case 'Approved': return t('fai.status_approved')
-    case 'Rejected': return t('fai.status_rejected')
-    case 'Assigned': return 'Assigned' // LAB specific status
+    case 'Draft': return 'Draft'
+    case 'Backlog': return 'Backlog'
+    case 'Ongoing': return 'Ongoing'
+    case 'Approved': return 'Approved'
+    case 'Rejected': return 'Rejected'
+    case 'Assigned': return 'Assigned'
     case 'Closed': return 'Closed'
     default: return status
   }
@@ -1029,7 +1032,7 @@ const isScrollable = computed(() => itemTestByDateWidth.value.endsWith('px'));
           <template #cell-receive_date="{ item }">
             {{ systemFilter === 'FAI' ? formatDateOnly(item.receive_date) : formatDateOnly(item.sample_received_date) }}
           </template>
-          <template #cell-result="{ item }">{{ item.result || '-' }}</template>
+          <template #cell-result="{ item }"><ResultBadge :result="item.result" /></template>
           <template #cell-fai_failure_mode="{ item }">{{ item.fai_failure_mode || '-' }}</template>
           <template #cell-remark="{ item }">{{ item.remark || '-' }}</template>
           <template #cell-created_at="{ item }">{{ formatDate(item.created_at) }}</template>

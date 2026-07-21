@@ -10,6 +10,7 @@ import DataTableToolbar from '@/components/common/DataTableToolbar.vue';
 import DataTable, { type DataTableColumn } from '@/components/common/DataTable.vue';
 import Pagination from '@/components/Pagination.vue';
 import StatusBadge from '@/components/common/StatusBadge.vue';
+import ResultBadge from '@/components/common/ResultBadge.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
 import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
 import BaseModal from '@/components/common/BaseModal.vue';
@@ -27,6 +28,11 @@ const authStore = useAuthStore();
 const canAssignLab = computed(() => authStore.hasPermission('ASSIGN_LAB'));
 const canInspectLab = computed(() => authStore.hasPermission('INSPECT_LAB'));
 const canManageRequestList = computed(() => authStore.hasPermission('MANAGE_REQUEST_LIST'));
+const canApproveLab = computed(() => authStore.hasPermission('APPROVE_LAB_ENGINEER') || authStore.hasPermission('APPROVE_LAB_MANAGER'));
+
+const handleApproveNavigation = (item: any) => {
+  router.push(`/lab/request/${item.id}?mode=approve`);
+};
 
 const { page, limit, sortBy, sortDesc, searchQuery, toggleSort } = useDataTable('id', false);
 
@@ -68,48 +74,6 @@ const getStatusVariant = (status: string) => {
     default: return 'secondary';
   }
 };
-
-const assignModalState = ref({
-  isOpen: false,
-  requestId: null as number | null,
-
-  priority: 'Normal',
-  priorityReason: ''
-});
-const priorityOptions = computed(() => [
-  { value: 'Urgent', label: t('fai.priority_urgent') },
-  { value: 'Normal', label: t('fai.priority_normal') }
-]);
-
-
-const openAssignModal = async (item: any) => {
-  assignModalState.value.requestId = item.id;
-  assignModalState.value.priority = 'Normal';
-  assignModalState.value.priorityReason = '';
-  assignModalState.value.isOpen = true;
-};
-
-const handleAssign = async () => {
-  try {
-    const { requestId, priority, priorityReason } = assignModalState.value;
-    if (!priority) {
-      toast.error(t('form.required'));
-      return;
-    }
-    if (priority === 'Urgent' && (!priorityReason || priorityReason.trim() === '')) {
-      toast.error(t('form.required'));
-      return;
-    }
-    await api.post(`/lab/requests/${requestId}/assign`, { priority, priority_reason: priorityReason });
-    toast.success(t('lab.set_priority_success'));
-    assignModalState.value.isOpen = false;
-    fetchRequests();
-  } catch (e) {
-    console.error(e);
-    toast.error(t('lab.set_priority_failed'));
-  }
-};
-
 
 
 const handleAction = (item: any) => {
@@ -267,11 +231,7 @@ const deleteDraft = (id: number) => {
         </template>
         
         <template #cell-result="{ item }">
-          <span v-if="item.result" :class="[
-            'badge',
-            item.result === 'PASS' ? 'badge-success' : 'badge-danger'
-          ]">{{ item.result }}</span>
-          <span v-else>-</span>
+          <ResultBadge :result="item.result" />
         </template>
 
         <template #cell-status="{ item }">
@@ -293,17 +253,10 @@ const deleteDraft = (id: number) => {
             </button>
             <button 
               v-if="canAssignLab && item.status !== 'Draft' && item.status !== 'Closed'"
-              @click="openAssignModal(item)"
-              class="w-full text-left px-4 py-2 text-sm text-text hover:bg-bg hover:text-primary transition-colors"
-            >
-              {{ t('lab.set_priority') }}
-            </button>
-            <button 
-              v-if="canAssignLab && item.priority && item.status !== 'Draft' && item.status !== 'Closed'"
               @click="handleAssignNavigation(item)"
               class="w-full text-left px-4 py-2 text-sm text-text hover:bg-bg hover:text-primary transition-colors"
             >
-              {{ t('fai.assign', 'Assign') }}
+              Set Priority & Assign
             </button>
 
             <button 
@@ -312,6 +265,13 @@ const deleteDraft = (id: number) => {
               class="w-full text-left px-4 py-2 text-sm text-text hover:bg-bg hover:text-primary transition-colors"
             >
               {{ t('lab.execute_test') }}
+            </button>
+            <button 
+              v-if="canApproveLab && item.complete_date && item.result !== 'PASS' && item.result !== 'FAIL'"
+              @click="handleApproveNavigation(item)"
+              class="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger/10 hover:text-danger font-medium transition-colors"
+            >
+              {{ t('approval.lab.approve') }}
             </button>
             <div v-if="(item.status === 'Draft' && item.requestor_id === authStore.user?.id) || canManageRequestList" class="h-px bg-border my-1"></div>
             <button 
@@ -327,52 +287,6 @@ const deleteDraft = (id: number) => {
     </div>
 
     <Pagination :total="totalRequests" v-model="page" v-model:rowsPerPage="limit" />
-
-    <!-- Set Priority Modal -->
-    <BaseModal :isOpen="assignModalState.isOpen" :title="t('lab.set_priority_title')" maxWidth="690px" @close="assignModalState.isOpen = false">
-      <form id="assignForm" @submit.prevent="handleAssign" class="flex flex-col gap-6">
-
-
-        <div class="grid grid-cols-[1fr_1.5fr] gap-8 items-center pb-2">
-          <div class="flex flex-col gap-1">
-            <div class="flex items-center gap-2">
-              <label class="font-semibold text-text m-0">{{ t('fai.priority') }}</label>
-              <span class="text-[0.7rem] px-1.5 py-0.5 bg-[rgba(99,224,121,0.15)] text-primary rounded font-semibold leading-none">{{ t('form.required') }}</span>
-            </div>
-            <p class="text-[0.8rem] text-text-muted m-0 leading-[1.4]">{{ t('lab.set_priority_desc') }}</p>
-          </div>
-          <div class="flex flex-col">
-            <SingleSelectDropdown 
-              v-model="assignModalState.priority" 
-              :options="priorityOptions" 
-              :placeholder="t('form.required')" 
-            />
-          </div>
-        </div>
-        
-        <div v-if="assignModalState.priority === 'Urgent'" class="grid grid-cols-[1fr_1.5fr] gap-8 items-start pb-2">
-          <div class="flex flex-col gap-1">
-            <div class="flex items-center gap-2">
-              <label class="font-semibold text-text m-0">{{ t('fai.priority_reason') }}</label>
-              <span class="text-[0.7rem] px-1.5 py-0.5 bg-[rgba(99,224,121,0.15)] text-primary rounded font-semibold leading-none">{{ t('form.required') }}</span>
-            </div>
-          </div>
-          <div class="flex flex-col">
-            <Textarea 
-              v-model="assignModalState.priorityReason"
-              :placeholder="t('form.required')"
-              :rows="3"
-            />
-          </div>
-        </div>
-      </form>
-      <template #footer>
-        <Button type="button" variant="secondary" @click="assignModalState.isOpen = false">{{ t('action.cancel') }}</Button>
-        <Button type="submit" form="assignForm" :loading="isLoading">
-          {{ t('action.save') }}
-        </Button>
-      </template>
-    </BaseModal>
 
 
     <ConfirmModal 

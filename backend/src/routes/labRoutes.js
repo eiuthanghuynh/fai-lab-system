@@ -43,6 +43,8 @@ router.delete('/requests/:id/draft', checkPermission('SUBMIT_LAB_REQUEST'), labC
 router.post('/requests/:id/assign', checkPermission('ASSIGN_LAB'), labController.assignRequest);
 router.post('/requests/:id/start-inspection', checkPermission('INSPECT_LAB'), labController.startInspection);
 router.put('/requests/:id/schedule', checkPermission('INSPECT_LAB'), labController.adjustSchedule);
+router.post('/requests/:id/complete-testing', checkPermission('INSPECT_LAB'), labController.completeTesting);
+router.post('/requests/:id/approve', checkAnyPermission(['APPROVE_LAB_ENGINEER', 'APPROVE_LAB_MANAGER']), labController.approveRequest);
 
 // Work Order endpoints
 router.get('/requests/:requestId/work-orders', labWorkOrderController.getByRequestId);

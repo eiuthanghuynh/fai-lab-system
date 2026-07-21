@@ -8,6 +8,7 @@ import api from '@/services/api';
 import PdfViewer from '@/components/common/PdfViewer.vue';
 import DetailCard from '@/components/common/DetailCard.vue';
 import StatusBadge from '@/components/common/StatusBadge.vue';
+import ResultBadge from '@/components/common/ResultBadge.vue';
 import Button from '@/components/ui/Button.vue';
 
 const route = useRoute();
@@ -269,7 +270,7 @@ const goBack = () => {
                 </div>
                 <div class="flex flex-col gap-1.5">
                   <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Result</span>
-                  <span class="text-[0.95rem] break-all" :class="{'text-emerald-500 font-bold': request.result === 'PASS', 'text-red-500 font-bold': request.result === 'FAIL', 'text-text': !['PASS', 'FAIL'].includes(request.result)}">{{ request.result || '-' }}</span>
+                  <ResultBadge :result="request.result" />
                 </div>
                 <div class="flex flex-col gap-1.5">
                   <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">FAI Failure Mode</span>

@@ -11,6 +11,11 @@ const initEmailWorker = () => {
         console.log(`[Worker] Processing sendResetPassword for ${email}...`);
         await sendResetPasswordEmail(email, resetLink);
         console.log(`[Worker] Completed sendResetPassword for ${email}`);
+      } else if (job.name === 'sendLabApprovalResult') {
+        const { requestId, testNo, requestorId, result } = job.data;
+        console.log(`[Worker] Placeholder: Processing sendLabApprovalResult for Request ID: ${requestId} (${testNo}). Result: ${result}. Requestor ID: ${requestorId}...`);
+        // TODO: Implement actual email sending with template/mailer helper in future
+        console.log(`[Worker] Placeholder: Completed sendLabApprovalResult for Request ID: ${requestId}`);
       }
     },
     {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useAsyncState } from '@vueuse/core';
 import { useRoute, useRouter } from 'vue-router';
 import { formatDate } from '@/utils/dateFormatter';
@@ -8,6 +8,8 @@ import api from '@/services/api';
 
 import DataTable, { type DataTableColumn } from '@/components/common/DataTable.vue';
 import StatusBadge from '@/components/common/StatusBadge.vue';
+import ResultBadge from '@/components/common/ResultBadge.vue';
+import ActionDropdown from '@/components/common/ActionDropdown.vue';
 import BaseModal from '@/components/common/BaseModal.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
 import SingleSelectDropdown from '@/components/common/SingleSelectDropdown.vue';
@@ -15,6 +17,7 @@ import PdfViewer from '@/components/common/PdfViewer.vue';
 import DirectUpload from '@/components/common/DirectUpload.vue';
 import ImageSlideshow from '@/components/common/ImageSlideshow.vue';
 import DetailCard from '@/components/common/DetailCard.vue';
+import ApprovalModal from '@/components/lab/ApprovalModal.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 import Textarea from '@/components/ui/Textarea.vue';
@@ -25,20 +28,32 @@ import { z } from 'zod';
 
 const route = useRoute();
 const router = useRouter();
-const { t } = useI18n();
 const authStore = useAuthStore();
+const { t } = useI18n();
+
 const requestId = route.params.id as string;
 
 const request = ref<any>(null);
 const attachments = ref<any[]>([]);
 const workOrders = ref<any[]>([]);
 
+const completeConfirmModalState = ref({ isOpen: false });
+const isApprovalModalOpen = ref(false);
 
 const canInspectLab = computed(() => authStore.hasPermission('INSPECT_LAB'));
 const canAssignLab = computed(() => authStore.hasPermission('ASSIGN_LAB'));
-const isExecuteMode = computed(() => route.query.mode === 'execute');
+const canApproveLab = computed(() => authStore.hasPermission('APPROVE_LAB_ENGINEER') || authStore.hasPermission('APPROVE_LAB_MANAGER'));
+const isExecuteMode = computed(() => route.query.mode === 'execute' && !request.value?.complete_date);
 const isAssignMode = computed(() => route.query.mode === 'assign');
+const isApproveMode = computed(() => route.query.mode === 'approve');
 const hasOwnedWorkOrders = computed(() => workOrders.value.some(wo => wo.technician_id === authStore.user?.id));
+
+watch(() => request.value, (newReq) => {
+  if (newReq && newReq.complete_date && route.query.mode === 'execute') {
+    router.replace({ name: route.name as string, params: route.params, query: {} });
+    toast.warning(t('lab.completed_warning_toast', 'Testing completed, editing is no longer allowed.'));
+  }
+});
 
 const { isLoading, execute: fetchDetail } = useAsyncState(async () => {
   const res = await api.get(`/lab/requests/${requestId}`);
@@ -69,19 +84,19 @@ onMounted(() => {
 });
 
 const woColumns = computed<DataTableColumn[]>(() => [
-  { key: 'work_order_no', label: t('lab.work_order.work_order_no'), sortable: true, minWidth: "120px", width: "120px" },
+  { key: 'work_order_no', label: t('lab.work_order.work_order_no'), sortable: true, minWidth: "120px", width: "120px", sticky: 'left' },
   { key: 'itemTest.name', label: t('lab.work_order.item_test'), sortable: false, minWidth: "180px", width: "180px" },
   { key: 'technician.full_name', label: t('lab.work_order.technician_name', 'Technician'), sortable: false, minWidth: "160px", width: "160px" },
   { key: 'quantity', label: t('lab.columns.quantity'), sortable: false },
-  { key: 'product_sn', label: t('lab.columns.product_sn'), sortable: false },
+  { key: 'product_sn', label: t('lab.columns.product_sn'), sortable: false, minWidth: "200px", width: "200px" },
   { key: 'procedure_condition', label: t('lab.work_order.procedure_condition'), sortable: false, minWidth: "200px", maxWidth: "800px"},
   { key: 'test_specification', label: t('lab.work_order.test_specification'), sortable: false, minWidth: "200px", maxWidth: "800px" },
   { key: 'remark', label: t('lab.work_order.goal_comments'), sortable: false, minWidth: "200px", maxWidth: "800px" },
-  { key: 'status', label: t('lab.work_order.status'), sortable: false },
-  { key: 'test_result', label: t('lab.work_order.test_result'), sortable: false },
-  { key: 'failure_details', label: t('lab.work_order.failure_details', 'Failure Details'), sortable: false, minWidth: "250px", maxWidth: "500px" },
-  { key: 'improvement_plan', label: t('lab.work_order.improvement_plan', 'Improvement Plan'), sortable: false, minWidth: "250px", maxWidth: "500px" },
-  { key: 'report_attachment', label: t('lab.work_order.report_attachment', 'Report Attachment'), sortable: false }
+  { key: 'failure_details', label: t('lab.work_order.failure_details', 'Failure Details'), sortable: false, minWidth: "375px", maxWidth: "750px" },
+  { key: 'improvement_plan', label: t('lab.work_order.improvement_plan', 'Improvement Plan'), sortable: false, minWidth: "375px", maxWidth: "750px" },
+  { key: 'status', label: t('lab.work_order.status'), sortable: false, sticky: 'right', minWidth: "100px", width: "100px" },
+  { key: 'test_result', label: t('lab.work_order.test_result'), sortable: false, sticky: 'right', minWidth: "100px", width: "100px" },
+  { key: 'report_attachment', label: t('lab.work_order.report_attachment', 'Report Attachment'), sortable: false, sticky: 'right', minWidth: "150px" }
 ]);
 
 const workOrdersDraft = ref<any[]>([]);
@@ -185,6 +200,48 @@ const openAdjustTimeModal = () => {
   }
 };
 
+const assignPriorityModalState = ref({
+  isOpen: false,
+  priority: 'Normal',
+  priorityReason: ''
+});
+
+const priorityOptions = computed(() => [
+  { value: 'Urgent', label: t('fai.priority_urgent') },
+  { value: 'Normal', label: t('fai.priority_normal') }
+]);
+
+const openAssignPriorityModal = () => {
+  assignPriorityModalState.value.priority = request.value?.priority || 'Normal';
+  assignPriorityModalState.value.priorityReason = request.value?.priority_reason || '';
+  assignPriorityModalState.value.isOpen = true;
+};
+
+const isAssigningPriority = ref(false);
+const handleAssignPriority = async () => {
+  try {
+    const { priority, priorityReason } = assignPriorityModalState.value;
+    if (!priority) {
+      toast.error(t('form.required'));
+      return;
+    }
+    if (priority === 'Urgent' && (!priorityReason || priorityReason.trim() === '')) {
+      toast.error(t('form.required'));
+      return;
+    }
+    isAssigningPriority.value = true;
+    await api.post(`/lab/requests/${requestId}/assign`, { priority, priority_reason: priorityReason });
+    toast.success(t('lab.set_priority_success'));
+    assignPriorityModalState.value.isOpen = false;
+    fetchDetail();
+  } catch (e) {
+    console.error(e);
+    toast.error(t('lab.set_priority_failed'));
+  } finally {
+    isAssigningPriority.value = false;
+  }
+};
+
 const handleAdjustTime = async () => {
   const schema = getAdjustTimeSchema();
   if (!validateAdjustTime(schema, adjustTimeModalState.value)) {
@@ -249,6 +306,34 @@ const handleStartExecuteWO = () => {
 
 const isOwner = (item: any) => {
   return item.technician_id === authStore.user?.id;
+};
+
+const handleCompleteTestingClick = () => {
+  if (workOrders.value.length === 0) {
+    toast.error('Cannot complete testing because this request has no Work Orders.');
+    return;
+  }
+  const allClosedAndTested = workOrders.value.every(wo => wo.status === 'Closed' && wo.test_result);
+  if (!allClosedAndTested) {
+    toast.error(t('lab.complete_testing_error'));
+    return;
+  }
+  completeConfirmModalState.value.isOpen = true;
+};
+
+const isCompleting = ref(false);
+const handleConfirmCompleteTesting = async () => {
+  isCompleting.value = true;
+  try {
+    await api.post(`/lab/requests/${requestId}/complete-testing`);
+    toast.success('Testing completed successfully');
+    completeConfirmModalState.value.isOpen = false;
+    fetchDetail();
+  } catch (e: any) {
+    toast.error(e.response?.data?.error || e.message || 'Lỗi hệ thống');
+  } finally {
+    isCompleting.value = false;
+  }
 };
 
 const cancelConfirmModalState = ref({ isOpen: false });
@@ -351,6 +436,16 @@ const getStatusVariant = (status: string) => {
             
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <DetailCard title="General Information">
+                <template #action>
+                  <Button
+                    v-if="(isApproveMode || (canApproveLab && request?.complete_date)) && request?.result !== 'PASS' && request?.result !== 'FAIL'"
+                    variant="danger"
+                    class="h-8 text-xs font-semibold px-3"
+                    @click="isApprovalModalOpen = true"
+                  >
+                    {{ t('approval.lab.approve_request') }}
+                  </Button>
+                </template>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div class="flex flex-col gap-1.5">
                     <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Requestor Name</span>
@@ -376,20 +471,59 @@ const getStatusVariant = (status: string) => {
                     <span class="text-[0.8rem] font-semibold text-text-muted uppercase tracking-wider">Stage</span>
                     <span class="text-[0.95rem] text-text break-all">{{ request.stage || '-' }}</span>
                   </div>
+
+                  <!-- Approval Logs -->
+                  <div v-if="request.approvalLogs && request.approvalLogs.length > 0" class="col-span-1 sm:col-span-2 border-t border-border pt-4 mt-2 flex flex-col gap-3">
+                    <span class="text-[0.8rem] font-bold text-text uppercase tracking-wider">{{ t('approval.lab.approval_status', 'Approval Status') }}</span>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div v-for="log in request.approvalLogs" :key="log.id" class="p-3 rounded border border-border bg-bg/50">
+                        <div class="flex items-center justify-between gap-2 mb-1.5">
+                          <span class="text-xs font-semibold text-text">
+                            {{ log.role === 'APPROVE_LAB_ENGINEER' ? t('approval.lab.lab_engineer_approval') : t('approval.lab.quality_manager_approval') }}
+                          </span>
+                          <span :class="['px-2 py-0.5 rounded text-[10px] font-bold uppercase', log.action === 'Approved' ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger']">
+                            {{ log.action === 'Approved' ? t('approval.lab.approved') : t('approval.lab.rejected') }}
+                          </span>
+                        </div>
+                        <div class="text-xs text-text-muted">
+                          <div>{{ log.approver?.full_name || log.approver?.username }} - {{ formatDate(log.created_at) }}</div>
+                          <div v-if="log.comment" class="mt-1 italic text-text">"{{ log.comment }}"</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </DetailCard>
 
               <!-- Card 2: Sample & Schedule Info -->
               <DetailCard title="Sample & Schedule">
                 <template #action>
-                  <Button 
-                    v-if="canInspectLab && hasOwnedWorkOrders && isExecuteMode"
-                    variant="primary" 
-                    class="h-8 text-xs font-semibold px-3" 
-                    @click="openAdjustTimeModal"
-                  >
-                    {{ t('lab.adjust_time') }}
-                  </Button>
+                  <div class="flex gap-2">
+                    <Button 
+                      v-if="isAssignMode && canAssignLab"
+                      variant="primary" 
+                      class="h-8 text-xs font-semibold px-3" 
+                      @click="openAssignPriorityModal"
+                    >
+                      {{ t('lab.set_priority') }}
+                    </Button>
+                    <Button 
+                      v-if="canInspectLab && hasOwnedWorkOrders && isExecuteMode"
+                      variant="danger" 
+                      class="h-8 text-xs font-semibold px-3" 
+                      @click="handleCompleteTestingClick"
+                    >
+                      {{ t('lab.complete_testing') }}
+                    </Button>
+                    <Button 
+                      v-if="canInspectLab && hasOwnedWorkOrders && isExecuteMode"
+                      variant="primary" 
+                      class="h-8 text-xs font-semibold px-3" 
+                      @click="openAdjustTimeModal"
+                    >
+                      {{ t('lab.adjust_time') }}
+                    </Button>
+                  </div>
                 </template>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div class="flex flex-col gap-1.5">
@@ -440,14 +574,24 @@ const getStatusVariant = (status: string) => {
               <template #action>
                 <div v-if="(isAssignMode && canAssignLab) || (isExecuteMode && canInspectLab && hasOwnedWorkOrders)" class="flex gap-2">
                   <template v-if="!editingType">
-                    <Button 
-                      v-if="isAssignMode && canAssignLab" 
-                      variant="primary" 
-                      class="h-8 text-xs font-semibold px-3" 
-                      @click="handleStartAssignWO"
-                    >
-                      {{ t('lab.assign_technician') }}
-                    </Button>
+                    <template v-if="isAssignMode && canAssignLab">
+                      <div class="relative group inline-block">
+                        <Button 
+                          variant="primary" 
+                          class="h-8 text-xs font-semibold px-3" 
+                          @click="handleStartAssignWO"
+                          :disabled="!request?.priority"
+                        >
+                          {{ t('lab.assign_technician') }}
+                        </Button>
+                        <div 
+                          v-if="!request?.priority"
+                          class="absolute -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap bg-gray-800 text-white text-[0.7rem] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none"
+                        >
+                          {{ t('lab.set_priority_block') }}
+                        </div>
+                      </div>
+                    </template>
                     <Button 
                       v-if="isExecuteMode && canInspectLab && hasOwnedWorkOrders" 
                       variant="primary" 
@@ -487,7 +631,7 @@ const getStatusVariant = (status: string) => {
                 </template>
                 
                 <template #cell-product_sn="{ item }">
-                  <Input v-if="editingType === 'execute' && isOwner(item)" v-model="item.product_sn" class="w-32" />
+                  <Input v-if="editingType === 'execute' && isOwner(item)" v-model="item.product_sn" />
                   <template v-else>{{ item.product_sn || '-' }}</template>
                 </template>
                 
@@ -510,13 +654,13 @@ const getStatusVariant = (status: string) => {
 
                 <template #cell-test_result="{ item }">
                   <SingleSelectDropdown v-if="editingType === 'execute' && isOwner(item)" v-model="item.test_result" :options="resultOptions" class="w-32" />
-                  <span v-else :class="{'text-emerald-500 font-bold': item.test_result === 'PASS', 'text-red-500 font-bold': item.test_result === 'FAIL'}">{{ item.test_result || '-' }}</span>
+                  <ResultBadge v-else :result="item.test_result" />
                 </template>
 
                 <template #cell-failure_details="{ item }">
                   <div class="flex flex-col gap-2">
-                    <Textarea v-if="editingType === 'execute' && isOwner(item)" v-model="item.failure_details" class="w-full min-w-[200px] text-xs" rows="2" />
-                    <template v-else>{{ item.failure_details }}</template>
+                    <Textarea v-if="editingType === 'execute' && isOwner(item)" v-model="item.failure_details" class="w-full min-w-[320px] text-sm" rows="5" />
+                    <span v-else class="whitespace-pre-line text-sm text-text">{{ item.failure_details || '-' }}</span>
                     
                     <DirectUpload 
                       v-if="editingType === 'execute' && isOwner(item)"
@@ -533,8 +677,8 @@ const getStatusVariant = (status: string) => {
 
                 <template #cell-improvement_plan="{ item }">
                   <div class="flex flex-col gap-2">
-                    <Textarea v-if="editingType === 'execute' && isOwner(item)" v-model="item.improvement_plan" class="w-full min-w-[200px] text-xs" rows="2" />
-                    <template v-else>{{ item.improvement_plan }}</template>
+                    <Textarea v-if="editingType === 'execute' && isOwner(item)" v-model="item.improvement_plan" class="w-full min-w-[320px] text-sm" rows="5" />
+                    <span v-else class="whitespace-pre-line text-sm text-text">{{ item.improvement_plan || '-' }}</span>
                     
                     <DirectUpload 
                       v-if="editingType === 'execute' && isOwner(item)"
@@ -579,7 +723,7 @@ const getStatusVariant = (status: string) => {
           <!-- Section: PDF Viewer (Attachments) -->
           <div class="bg-bg-surface border border-border rounded-lg p-6 shadow-sm">
             <h3 class="mt-0 mb-5 text-[1.15rem] font-semibold text-primary border-b border-border pb-2">{{ t('fai.attachment') }}</h3>
-            <PdfViewer :files="attachments || []" :zipFilename="request ? `Attachments_${request.request_no}.zip` : 'attachments.zip'" />
+            <PdfViewer :files="attachments || []" :zipFilename="request ? `Attachments_${request.test_no}.zip` : 'attachments.zip'" />
           </div>
         </div>
       </div>
@@ -699,6 +843,77 @@ const getStatusVariant = (status: string) => {
       @cancel="cancelConfirmModalState.isOpen = false" 
     />
 
+    <!-- Confirm Complete Testing Modal -->
+    <ConfirmModal 
+      :isOpen="completeConfirmModalState.isOpen" 
+      :title="t('lab.complete_testing')" 
+      message="" 
+      :confirmText="t('common.confirm')" 
+      :cancelText="t('common.cancel')" 
+      :isDanger="true" 
+      @confirm="handleConfirmCompleteTesting" 
+      @cancel="completeConfirmModalState.isOpen = false" 
+    >
+      <template #default>
+        <div class="text-text flex flex-col gap-2 m-0 mb-6">
+          <span>{{ t('lab.confirm_complete_testing_message') }}</span>
+          <span class="text-[#ff5555] font-bold">{{ t('lab.confirm_complete_testing_warning') }}</span>
+        </div>
+      </template>
+    </ConfirmModal>
+
+    <!-- Approval Modal -->
+    <ApprovalModal
+      :isOpen="isApprovalModalOpen"
+      :requestId="request?.id"
+      :approvalLogs="request?.approvalLogs"
+      @close="isApprovalModalOpen = false"
+      @success="fetchDetail"
+    />
+
   </div>
+    <!-- Set Priority Modal -->
+    <BaseModal :isOpen="assignPriorityModalState.isOpen" :title="t('lab.set_priority_title')" maxWidth="690px" @close="assignPriorityModalState.isOpen = false">
+      <form id="assignPriorityForm" @submit.prevent="handleAssignPriority" class="flex flex-col gap-6">
+        <div class="grid grid-cols-[1fr_1.5fr] gap-8 items-center pb-2">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text m-0">{{ t('fai.priority') }}</label>
+              <span class="text-[0.7rem] px-1.5 py-0.5 bg-[rgba(99,224,121,0.15)] text-primary rounded font-semibold leading-none">{{ t('form.required') }}</span>
+            </div>
+            <p class="text-[0.8rem] text-text-muted m-0 leading-[1.4]">{{ t('lab.set_priority_desc') }}</p>
+          </div>
+          <div class="flex flex-col">
+            <SingleSelectDropdown 
+              v-model="assignPriorityModalState.priority" 
+              :options="priorityOptions" 
+              :placeholder="t('form.required')" 
+            />
+          </div>
+        </div>
+        
+        <div v-if="assignPriorityModalState.priority === 'Urgent'" class="grid grid-cols-[1fr_1.5fr] gap-8 items-start pb-2">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <label class="font-semibold text-text m-0">{{ t('fai.priority_reason') }}</label>
+              <span class="text-[0.7rem] px-1.5 py-0.5 bg-[rgba(99,224,121,0.15)] text-primary rounded font-semibold leading-none">{{ t('form.required') }}</span>
+            </div>
+          </div>
+          <div class="flex flex-col">
+            <Textarea 
+              v-model="assignPriorityModalState.priorityReason"
+              :placeholder="t('form.required')"
+              :rows="3"
+            />
+          </div>
+        </div>
+      </form>
+      <template #footer>
+        <Button type="button" variant="secondary" @click="assignPriorityModalState.isOpen = false">{{ t('action.cancel') }}</Button>
+        <Button type="submit" form="assignPriorityForm" :loading="isAssigningPriority">
+          {{ t('action.save') }}
+        </Button>
+      </template>
+    </BaseModal>
   </div>
 </template>

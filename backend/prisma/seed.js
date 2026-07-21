@@ -52,7 +52,9 @@ async function main() {
     { name: 'INSPECT_LAB', description: 'Create LAB Work Orders and make reports to each order' },
     { name: 'VIEW_DASHBOARD_FAI', description: 'View dashboard and aggregated statistics for FAI' },
     { name: 'VIEW_DASHBOARD_LAB', description: 'View dashboard and aggregated statistics for LAB' },
-    { name: 'VIEW_FIRST_PASS_YIELD', description: 'View First Pass Yield charts in dashboard' }
+    { name: 'VIEW_FIRST_PASS_YIELD', description: 'View First Pass Yield charts in dashboard' },
+    { name: 'APPROVE_LAB_ENGINEER', description: 'Perform Lab Engineer approval on LAB requests' },
+    { name: 'APPROVE_LAB_MANAGER', description: 'Perform Quality Manager approval on LAB requests' }
   ];
 
   const seededPermissions = {};
@@ -85,7 +87,9 @@ async function main() {
       seededPermissions['INSPECT_LAB'],
       seededPermissions['VIEW_DASHBOARD_FAI'],
       seededPermissions['VIEW_DASHBOARD_LAB'],
-      seededPermissions['VIEW_FIRST_PASS_YIELD']
+      seededPermissions['VIEW_FIRST_PASS_YIELD'],
+      seededPermissions['APPROVE_LAB_ENGINEER'],
+      seededPermissions['APPROVE_LAB_MANAGER']
     ];
 
     for (const perm of adminRolePermissions) {

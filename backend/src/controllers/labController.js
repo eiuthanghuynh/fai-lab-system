@@ -127,6 +127,30 @@ const getRequestById = async (req, res) => {
             }
           },
         },
+        approvalLogs: {
+          where: { is_active: true },
+          include: {
+            approver: {
+              select: {
+                id: true,
+                full_name: true,
+                roles: {
+                  include: {
+                    role: {
+                      include: {
+                        permissions: {
+                          include: {
+                            permission: true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       },
     });
 
@@ -138,7 +162,9 @@ const getRequestById = async (req, res) => {
       !req.user.permissions ||
       (!req.user.permissions.includes("INSPECT_LAB") &&
         !req.user.permissions.includes("ASSIGN_LAB") &&
-        !req.user.permissions.includes("MANAGE_REQUEST_LIST"))
+        !req.user.permissions.includes("MANAGE_REQUEST_LIST") &&
+        !req.user.permissions.includes("APPROVE_LAB_ENGINEER") &&
+        !req.user.permissions.includes("APPROVE_LAB_MANAGER"))
     ) {
       if (request.requestor_id !== req.user.id) {
         return res.status(403).json({ error: "Access denied." });
@@ -576,6 +602,18 @@ const assignRequest = async (req, res) => {
     const { id } = req.params;
     const { priority, priority_reason } = req.body;
 
+    const request = await prisma.labRequest.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!request) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+
+    if (request.complete_date) {
+      return res.status(400).json({ error: "Cannot modify a completed request." });
+    }
+
     if (!priority) {
       return res.status(400).json({
         error: "Priority is required",
@@ -733,6 +771,10 @@ const startInspection = async (req, res) => {
     return res.status(404).json({ success: false, error: "Request not found" });
   }
 
+  if (request.complete_date) {
+    return res.status(400).json({ success: false, error: "Cannot start inspection on a completed request." });
+  }
+
   if (request.status !== "Assigned") {
     return res.status(400).json({ success: false, error: "Only Assigned requests can start inspection" });
   }
@@ -782,6 +824,10 @@ const adjustSchedule = async (req, res) => {
     return res.status(404).json({ success: false, error: "Request not found" });
   }
 
+  if (request.complete_date) {
+    return res.status(400).json({ success: false, error: "Cannot modify a completed request." });
+  }
+
   const isAssignedTechnician = request.workOrders.some(wo => wo.technician_id === req.user.id);
   if (!isAssignedTechnician) {
     return res.status(403).json({ success: false, error: 'Forbidden. You are not an assigned technician for this request.' });
@@ -818,6 +864,206 @@ const adjustSchedule = async (req, res) => {
   res.json({ success: true, data: updatedRequest });
 };
 
+const completeTesting = async (req, res) => {
+  const { id } = req.params;
+
+  const request = await prisma.labRequest.findUnique({
+    where: { id: parseInt(id) },
+    include: {
+      workOrders: {
+        where: { is_active: true }
+      }
+    }
+  });
+
+  if (!request) {
+    return res.status(404).json({ success: false, error: "Request not found" });
+  }
+
+  if (request.complete_date) {
+    return res.status(400).json({ success: false, error: "Testing has already been completed." });
+  }
+
+  const isAssignedTechnician = request.workOrders.some(wo => wo.technician_id === req.user.id);
+  if (!isAssignedTechnician) {
+    return res.status(403).json({ success: false, error: 'Forbidden. You are not an assigned technician for this request.' });
+  }
+
+  if (request.workOrders.length === 0) {
+    return res.status(400).json({ success: false, error: "Cannot complete testing because this request has no Work Orders." });
+  }
+
+  const allClosedAndTested = request.workOrders.every(wo => wo.status === 'Closed' && wo.test_result);
+  if (!allClosedAndTested) {
+    return res.status(400).json({ 
+      success: false, 
+      error: "Không thể hoàn thành kiểm thử do tất cả Work Order chưa Closed và chưa có đủ kết quả kiểm thử, vui lòng kiểm tra lại" 
+    });
+  }
+
+  const updatedRequest = await prisma.labRequest.update({
+    where: { id: parseInt(id) },
+    data: {
+      complete_date: new Date()
+    }
+  });
+
+  if (req.app.get('io')) {
+    await clearDashboardCache('LAB');
+    req.app.get('io').emit("lab_dashboard_updated");
+  }
+
+  res.json({ success: true, data: updatedRequest });
+};
+
+const approveRequest = async (req, res) => {
+  const { id } = req.params;
+  const { action, comment, role } = req.body;
+
+  if (!action || !['Approved', 'Rejected'].includes(action)) {
+    return res.status(400).json({ success: false, error: 'Invalid action. Action must be Approved or Rejected.' });
+  }
+
+  if (action === 'Rejected' && (!comment || !comment.trim())) {
+    return res.status(400).json({ success: false, error: 'Explanation is required when rejecting.' });
+  }
+
+  const userPermissions = req.user.permissions || [];
+  const canApproveEngineer = userPermissions.includes('APPROVE_LAB_ENGINEER');
+  const canApproveManager = userPermissions.includes('APPROVE_LAB_MANAGER');
+
+  if (!canApproveEngineer && !canApproveManager) {
+    return res.status(403).json({ success: false, error: 'Forbidden. You do not have approval permissions.' });
+  }
+
+  const request = await prisma.labRequest.findUnique({
+    where: { id: parseInt(id) },
+    include: {
+      approvalLogs: {
+        where: { is_active: true },
+        include: {
+          approver: {
+            select: {
+              id: true,
+              roles: {
+                include: {
+                  role: {
+                    include: {
+                      permissions: {
+                        include: {
+                          permission: true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!request || !request.is_active) {
+    return res.status(404).json({ success: false, error: 'Request not found.' });
+  }
+
+  if (!request.complete_date) {
+    return res.status(400).json({ success: false, error: 'Cannot approve request before testing is completed.' });
+  }
+
+  if (request.result === 'PASS' || request.result === 'FAIL') {
+    return res.status(400).json({ success: false, error: 'Request has already been finalized.' });
+  }
+
+  // Helper to check if a specific permission was exercised in existing approval logs
+  const checkRoleApproved = (roleName) => {
+    return request.approvalLogs.some(log => log.role === roleName);
+  };
+
+  const engineerApproved = checkRoleApproved('APPROVE_LAB_ENGINEER');
+  const managerApproved = checkRoleApproved('APPROVE_LAB_MANAGER');
+
+  let targetRole = role;
+  if (!targetRole) {
+    if (canApproveEngineer && !engineerApproved) {
+      targetRole = 'APPROVE_LAB_ENGINEER';
+    } else if (canApproveManager && !managerApproved) {
+      targetRole = 'APPROVE_LAB_MANAGER';
+    }
+  }
+
+  if (!targetRole || !['APPROVE_LAB_ENGINEER', 'APPROVE_LAB_MANAGER'].includes(targetRole)) {
+    return res.status(400).json({ success: false, error: 'Invalid or missing approval role.' });
+  }
+
+  if (targetRole === 'APPROVE_LAB_ENGINEER' && !canApproveEngineer) {
+    return res.status(403).json({ success: false, error: 'Forbidden. You do not have Lab Engineer approval permission.' });
+  }
+  if (targetRole === 'APPROVE_LAB_MANAGER' && !canApproveManager) {
+    return res.status(403).json({ success: false, error: 'Forbidden. You do not have Quality Manager approval permission.' });
+  }
+
+  if ((targetRole === 'APPROVE_LAB_ENGINEER' && engineerApproved) || (targetRole === 'APPROVE_LAB_MANAGER' && managerApproved)) {
+    return res.status(400).json({ success: false, error: 'This role approval has already been submitted.' });
+  }
+
+  const newLog = await prisma.approvalLog.create({
+    data: {
+      lab_request_id: request.id,
+      approver_id: req.user.id,
+      role: targetRole,
+      action,
+      comment: comment ? comment.trim() : null
+    }
+  });
+
+  let finalResult = null;
+  if (action === 'Rejected') {
+    finalResult = 'FAIL';
+  } else {
+    const isOtherApproved = targetRole === 'APPROVE_LAB_ENGINEER' ? managerApproved : engineerApproved;
+    if (isOtherApproved) {
+      finalResult = 'PASS';
+    }
+  }
+
+  if (finalResult) {
+    await prisma.labRequest.update({
+      where: { id: request.id },
+      data: { 
+        result: finalResult,
+        status: 'Closed'
+      }
+    });
+
+    try {
+      await emailQueue.add('sendLabApprovalResult', {
+        requestId: request.id,
+        testNo: request.test_no,
+        requestorId: request.requestor_id,
+        result: finalResult
+      });
+    } catch (emailErr) {
+      console.error('Failed to enqueue lab approval email job:', emailErr);
+    }
+  }
+
+  if (req.app.get('io')) {
+    await clearDashboardCache('LAB');
+    req.app.get('io').emit("lab_dashboard_updated", { requestId: request.id, result: finalResult });
+  }
+
+  res.json({
+    success: true,
+    data: {
+      log: newLog,
+      requestResult: finalResult
+    }
+  });
+};
+
 module.exports = {
   getRequests,
   getRequestById,
@@ -829,4 +1075,6 @@ module.exports = {
   deleteDraft,
   startInspection,
   adjustSchedule,
+  completeTesting,
+  approveRequest,
 };
