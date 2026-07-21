@@ -90,4 +90,7 @@ button {
   h1 {
     @apply font-bold text-gray-800 dark:text-white;
   }
+  td {
+    white-space: pre-line;
+  }
 }

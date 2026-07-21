@@ -23,7 +23,7 @@ const onInput = () => {
 
 const textareaClasses = computed(() => {
   return [
-    'w-full px-3 py-2 rounded-md border text-text bg-bg-surface font-sans shadow-sm transition-colors focus:outline-none focus:ring-1 resize-none',
+    'w-full px-3 py-2 rounded-md border text-text bg-bg-surface font-sans shadow-sm transition-colors focus:outline-none focus:ring-1 resize-none text-sm',
     props.error
       ? 'border-danger focus:border-danger focus:ring-danger'
       : 'border-border focus:border-primary focus:ring-primary',
