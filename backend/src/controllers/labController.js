@@ -2,6 +2,7 @@ const prisma = require("../config/db");
 const { emailQueue, connection: redis } = require("../config/queue");
 const { getWeek } = require("date-fns");
 const { cleanupOrphanedAttachments, getAttachmentUrl, processUploads } = require("../utils/attachmentHelper");
+const { clearDashboardCache } = require("../utils/redisHelper");
 const {
   minioClient,
   minioClientPublic,
@@ -561,7 +562,9 @@ const submitRequest = async (req, res) => {
     }
 
     if (req.app.get('io')) {
+      await clearDashboardCache('LAB');
       req.app.get('io').emit("lab-request-created", request);
+      req.app.get('io').emit("lab_dashboard_updated");
     }
 
     res.json({ success: true, data: request });
@@ -596,6 +599,11 @@ const assignRequest = async (req, res) => {
       },
     });
 
+
+    if (req.app.get('io')) {
+      await clearDashboardCache('LAB');
+      req.app.get('io').emit("lab_dashboard_updated");
+    }
 
     res.json({ success: true, data: updatedRequest });
   }
@@ -668,7 +676,9 @@ const deleteDraft = async (req, res) => {
     ]);
 
     if (req.app.get('io') && request.status !== "Draft") {
+      await clearDashboardCache('LAB');
       req.app.get('io').emit("lab-request-deleted", parseInt(id));
+      req.app.get('io').emit("lab_dashboard_updated");
     }
 
     res.json({ success: true, message: "Draft deleted successfully." });
@@ -742,6 +752,11 @@ const startInspection = async (req, res) => {
   });
 
 
+  if (req.app.get('io')) {
+    await clearDashboardCache('LAB');
+    req.app.get('io').emit("lab_dashboard_updated");
+  }
+
   res.json({ success: true, data: updatedRequest });
 };
 
@@ -794,6 +809,11 @@ const adjustSchedule = async (req, res) => {
     where: { id: parseInt(id) },
     data: updateData
   });
+
+  if (req.app.get('io')) {
+    await clearDashboardCache('LAB');
+    req.app.get('io').emit("lab_dashboard_updated");
+  }
 
   res.json({ success: true, data: updatedRequest });
 };

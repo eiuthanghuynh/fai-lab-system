@@ -57,9 +57,27 @@ const clearAllUserPermissionsCache = async () => {
   }
 };
 
+const clearDashboardCache = async (system) => {
+  try {
+    let cursor = '0';
+    const matchPattern = `dashboard:stats:${system}:*`;
+    do {
+      const res = await redis.scan(cursor, 'MATCH', matchPattern, 'COUNT', 100);
+      cursor = res[0];
+      const keys = res[1];
+      if (keys && keys.length > 0) {
+        await redis.del(keys);
+      }
+    } while (cursor !== '0');
+  } catch (error) {
+    console.warn(`[Redis Helper] Clear Dashboard Cache Error for ${system}:`, error.message);
+  }
+};
+
 module.exports = {
   getCache,
   setCache,
   delCache,
-  clearAllUserPermissionsCache
+  clearAllUserPermissionsCache,
+  clearDashboardCache
 };

@@ -6,6 +6,7 @@ const { getWeek, startOfWeek, format } = require('date-fns');
 const { connection: redis } = require('../config/queue');
 const { minioClient, minioClientPublic, MINIO_BUCKET } = require('../config/minioClient');
 const { cleanupOrphanedAttachments, getAttachmentUrl, processUploads } = require('../utils/attachmentHelper');
+const { clearDashboardCache } = require('../utils/redisHelper');
 
 
 const generateTestNo = async () => {
@@ -446,6 +447,7 @@ const submitRequest = async (req, res) => {
     }
 
     if (req.app.get('io')) {
+      await clearDashboardCache('FAI');
       req.app.get('io').emit('fai-request-created', request);
       req.app.get('io').emit('fai_dashboard_updated');
     }
@@ -555,6 +557,7 @@ const deleteDraft = async (req, res) => {
     }
 
     if (req.app.get('io') && request.status !== 'Draft') {
+      await clearDashboardCache('FAI');
       req.app.get('io').emit('fai-request-deleted', parseInt(id));
       req.app.get('io').emit('fai_dashboard_updated');
     }
@@ -621,6 +624,7 @@ const assignRequest = async (req, res) => {
     });
 
     if (req.app.get('io')) {
+      await clearDashboardCache('FAI');
       req.app.get('io').emit('fai-request-updated', updatedRequest);
       req.app.get('io').emit('fai_dashboard_updated');
     }

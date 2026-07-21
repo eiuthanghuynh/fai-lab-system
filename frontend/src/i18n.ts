@@ -25,6 +25,7 @@ const messages = {
     },
     dashboard: {
       title: 'First Article Inspection (FAI) Dashboard',
+      title_lab: 'Laboratory Reliability Testing (LAB) Dashboard',
       total_fai: 'Total FAI',
       closed: 'Closed',
       ongoing: 'Ongoing',
@@ -45,6 +46,13 @@ const messages = {
       recent_requests: 'Recent FAI Requests',
       view_all: 'View All',
       no_recent_requests: 'No recent requests found.',
+      total_lab: 'Total LAB',
+      backlog_assigned: 'Backlog / Assigned',
+      test_type_dist: 'Test Type Distribution',
+      lab_status: 'LAB Status Overview',
+      lab_result: 'LAB Result',
+      item_test_by_date: 'Count of Item Test By Date',
+      recent_lab_requests: 'Recent LAB Requests',
     },
     fai: {
       form_title: 'FAI Request Form',
@@ -390,6 +398,7 @@ const messages = {
     },
     dashboard: {
       title: 'Tổng quan First Article Inspection (FAI)',
+      title_lab: 'Tổng quan Laboratory Reliability Testing (LAB)',
       total_fai: 'Tổng số FAI',
       closed: 'Đã đóng',
       ongoing: 'Đang xử lý',
@@ -410,6 +419,13 @@ const messages = {
       recent_requests: 'Yêu cầu FAI gần đây',
       view_all: 'Xem tất cả',
       no_recent_requests: 'Không tìm thấy yêu cầu nào gần đây.',
+      total_lab: 'Tổng số LAB',
+      backlog_assigned: 'Tồn đọng / Đã phân công',
+      test_type_dist: 'Phân phối theo loại kiểm thử',
+      lab_status: 'Tổng quan trạng thái LAB',
+      lab_result: 'Kết quả LAB',
+      item_test_by_date: 'Số lượng kiểm thử theo ngày',
+      recent_lab_requests: 'Yêu cầu LAB gần đây',
     },
     fai: {
       form_title: 'FAI Request',

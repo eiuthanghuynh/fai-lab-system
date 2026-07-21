@@ -5,6 +5,13 @@ const getDashboardStats = async (req, res) => {
   {
     const { system = 'FAI', year, week, refresh } = req.query;
 
+    if (system === 'FAI' && (!req.user.permissions || !req.user.permissions.includes('VIEW_DASHBOARD_FAI'))) {
+      return res.status(403).json({ error: 'Access denied. VIEW_DASHBOARD_FAI permission required.' });
+    }
+    if (system === 'LAB' && (!req.user.permissions || !req.user.permissions.includes('VIEW_DASHBOARD_LAB'))) {
+      return res.status(403).json({ error: 'Access denied. VIEW_DASHBOARD_LAB permission required.' });
+    }
+
     // Normalize and sort parameters for consistent cache keys
     const sortedYear = year ? year.split(',').map(y => y.trim()).sort().join(',') : 'all';
     const sortedWeek = week ? week.split(',').map(w => w.trim()).sort().join(',') : 'all';
@@ -111,8 +118,7 @@ const getDashboardStats = async (req, res) => {
         select: { id: true, name: true }
       });
       
-      const commMap = {};
-      commodities.forEach(c => { commMap[c.id] = c.name; });
+      const commMap = Object.fromEntries(commodities.map(c => [c.id, c.name]));
 
       const mappedCommodityCounts = commodityCounts.map(c => ({
         name: c.commodity_part ? commMap[c.commodity_part] : 'Unknown',
@@ -188,8 +194,130 @@ const getDashboardStats = async (req, res) => {
 
       return res.json(payload);
     } else if (system === 'LAB') {
-      // LAB implementation to be added later
-      return res.json({ message: 'LAB dashboard not yet implemented' });
+      const whereClause = {
+        is_active: true,
+        status: { not: 'Draft' }
+      };
+
+      if (year) {
+        const yearsArray = year.split(',').map(y => parseInt(y.trim())).filter(y => !isNaN(y));
+        if (yearsArray.length > 0) {
+          whereClause.OR = yearsArray.map(y => ({
+            created_at: {
+              gte: new Date(`${y}-01-01T00:00:00.000Z`),
+              lt: new Date(`${y + 1}-01-01T00:00:00.000Z`)
+            }
+          }));
+        }
+      }
+
+      if (week) {
+        const weeksArray = week.split(',').map(w => parseInt(w.trim())).filter(w => !isNaN(w));
+        if (weeksArray.length > 0) {
+          whereClause.week_no = { in: weeksArray };
+        }
+      }
+
+      const [totalRequests, statusGroups, workOrders] = await Promise.all([
+        prisma.labRequest.count({ where: whereClause }),
+        prisma.labRequest.groupBy({
+          by: ['status'],
+          where: whereClause,
+          _count: { status: true }
+        }),
+        prisma.labWorkOrder.findMany({
+          where: {
+            is_active: true,
+            labRequest: whereClause
+          },
+          include: {
+            itemTest: {
+              select: { name: true }
+            }
+          }
+        })
+      ]);
+
+      let closed = 0, ongoing = 0, backlogAssigned = 0;
+      statusGroups.forEach(g => {
+        if (g.status === 'Closed') closed += g._count.status;
+        else if (g.status === 'Ongoing') ongoing += g._count.status;
+        else if (g.status === 'Backlog' || g.status === 'Assigned') backlogAssigned += g._count.status;
+      });
+
+      let pass = 0, fail = 0, tbd = 0;
+      const testTypeCounts = {};
+      const dateMap = {}; // date -> { itemTestName -> count }
+      const itemTestNames = new Set();
+
+      workOrders.forEach(wo => {
+        const resVal = (wo.test_result || '').toUpperCase();
+        if (resVal === 'PASS') pass++;
+        else if (resVal === 'FAIL') fail++;
+        else tbd++;
+
+        const name = wo.itemTest?.name || 'Unknown';
+        testTypeCounts[name] = (testTypeCounts[name] || 0) + 1;
+
+        const dateStr = wo.created_at.toISOString().split('T')[0];
+        itemTestNames.add(name);
+        if (!dateMap[dateStr]) dateMap[dateStr] = {};
+        dateMap[dateStr][name] = (dateMap[dateStr][name] || 0) + 1;
+      });
+
+      const testType = Object.entries(testTypeCounts).map(([name, count]) => ({
+        name,
+        count
+      })).sort((a, b) => b.count - a.count);
+
+      const sortedDates = Object.keys(dateMap).sort();
+      const monthGroups = {};
+      sortedDates.forEach((dStr, index) => {
+        const date = new Date(dStr);
+        const yearMonth = `${date.getFullYear()}-${date.getMonth()}`;
+        if (!monthGroups[yearMonth]) {
+          monthGroups[yearMonth] = [];
+        }
+        monthGroups[yearMonth].push(index);
+      });
+
+      const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      const labels = sortedDates.map((dStr, index) => {
+        const date = new Date(dStr);
+        const day = date.getDate().toString();
+        const yearMonth = `${date.getFullYear()}-${date.getMonth()}`;
+        const indices = monthGroups[yearMonth];
+        const middleIndex = indices[Math.floor(indices.length / 2)];
+        return [day, ''];
+      });
+
+      const datasets = Array.from(itemTestNames).map(name => {
+        const data = sortedDates.map(dStr => dateMap[dStr][name] || 0);
+        return {
+          label: name,
+          data
+        };
+      });
+
+      const payload = {
+        kpi: {
+          total: totalRequests,
+          closed,
+          ongoing,
+          backlogAssigned,
+          passRate: (pass + fail) > 0 ? parseFloat(((pass / (pass + fail)) * 100).toFixed(1)) : 0
+        },
+        charts: {
+          status: { closed, ongoing, backlog: backlogAssigned },
+          result: { pass, fail, tbd },
+          testType,
+          itemTestByDate: { labels, datasets, rawDates: sortedDates }
+        }
+      };
+
+      await setCache(cacheKey, payload, 600);
+
+      return res.json(payload);
     }
 
     res.status(400).json({ error: 'Invalid system parameter' });

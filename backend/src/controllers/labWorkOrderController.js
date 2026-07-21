@@ -1,6 +1,7 @@
 const prisma = require('../config/db');
 const { minioClient, MINIO_BUCKET } = require('../config/minioClient');
 const { cleanupOrphanedAttachments, cleanupOrphanedReportAttachments, cleanupOrphanedWorkOrderImages, processUploads } = require('../utils/attachmentHelper');
+const { clearDashboardCache } = require('../utils/redisHelper');
 const fs = require('fs').promises;
 
 const getByRequestId = async (req, res) => {
@@ -258,6 +259,11 @@ const bulkSaveWorkOrders = async (req, res) => {
     if (allWoIds.length > 0) {
       await cleanupOrphanedWorkOrderImages(allWoIds, keptImageIds);
     }
+  }
+
+  if (req.app.get('io')) {
+    await clearDashboardCache('LAB');
+    req.app.get('io').emit("lab_dashboard_updated");
   }
 
   res.json({ success: true, message: 'Work orders saved successfully.' });
