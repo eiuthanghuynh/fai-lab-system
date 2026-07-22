@@ -403,11 +403,10 @@ const goBack = () => {
 </script>
 
 <template>
-  <div class="h-full overflow-y-auto p-6 box-border">
-    <div class="w-full max-w-[1550px] mx-auto flex flex-col gap-6">
-      
-      <!-- Header -->
-      <div class="flex justify-between items-center border-b border-border pb-4">
+  <div class="h-full overflow-y-auto box-border">
+    <!-- Sticky Full-Width Header -->
+    <div class="sticky top-0 z-40 bg-bg-surface/95 backdrop-blur border-b border-border py-4 px-6 shadow-sm transition-colors duration-300">
+      <div class="w-full max-w-[1550px] mx-auto flex justify-between items-center">
         <div class="flex items-center gap-6">
           <Button variant="secondary" class="gap-2" @click="goBack">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
@@ -441,6 +440,10 @@ const goBack = () => {
         </div>
         
       </div>
+    </div>
+
+    <!-- Main Content Container with Padding -->
+    <div class="p-6 w-full max-w-[1550px] mx-auto flex flex-col gap-6">
 
       <!-- Loading and Error States -->
       <div v-if="isLoading && !request" class="flex flex-col items-center justify-center p-20 bg-bg-surface border border-border rounded-lg text-text-muted">

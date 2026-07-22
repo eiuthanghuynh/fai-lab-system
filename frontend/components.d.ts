@@ -23,6 +23,7 @@ declare module 'vue' {
     DetailCard: typeof import('./src/components/common/DetailCard.vue')['default']
     DirectUpload: typeof import('./src/components/common/DirectUpload.vue')['default']
     FaiFirstPassYieldChart: typeof import('./src/components/common/FaiFirstPassYieldChart.vue')['default']
+    FaiReportFormModal: typeof import('./src/components/fai/FaiReportFormModal.vue')['default']
     FileInput: typeof import('./src/components/ui/FileInput.vue')['default']
     FilterDrawer: typeof import('./src/components/common/FilterDrawer.vue')['default']
     ForgotPasswordModal: typeof import('./src/components/ForgotPasswordModal.vue')['default']

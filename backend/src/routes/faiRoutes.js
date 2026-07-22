@@ -18,13 +18,19 @@ const upload = multer({
 
 router.use(authenticateToken);
 
+const faiReportController = require('../controllers/faiReportController');
+
 router.get('/', faiController.getRequests);
 router.get('/inspectors/list', faiController.getInspectors);
 router.get('/:id', faiController.getRequestById);
+router.get('/:id/report', faiReportController.getReport);
 router.delete('/:id', checkPermission('SUBMIT_FAI_REQUEST'), faiController.deleteDraft);
 router.post('/upload', upload.array('files'), faiController.uploadFiles);
 router.post('/draft', checkPermission('SUBMIT_FAI_REQUEST'), faiController.saveDraft);
 router.post('/', checkPermission('SUBMIT_FAI_REQUEST'), faiController.submitRequest);
 router.post('/:id/assign', checkPermission('ASSIGN_FAI'), faiController.assignRequest);
+router.post('/:id/report/draft', checkPermission('INSPECT_FAI'), faiReportController.saveDraftReport);
+router.post('/:id/report/submit', checkPermission('INSPECT_FAI'), faiReportController.submitReport);
+router.post('/:id/report/export-pdf', faiReportController.exportPdf);
 
 module.exports = router;

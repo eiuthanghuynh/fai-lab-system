@@ -42,7 +42,7 @@ model User {
   labRequestsAsRequestor  LabRequest[] @relation("LabRequestor")
   labWorkOrdersAsTechnician LabWorkOrder[] @relation("LabTechnician")
   labRequestsAsApprover   LabRequest[] @relation("LabApprover")
-  faiLabReports FaiLabReport[]
+  faiReports FaiReport[]
   approvalLogs  ApprovalLog[]
 
   @@map("users")
@@ -147,6 +147,7 @@ model FaiRequest {
   commodityPartRel  CommodityPart?  @relation(fields: [commodity_part], references: [id])
   supplier          Supplier?       @relation(fields: [supplier_id], references: [id])
   approvalLogs      ApprovalLog[]
+  faiReport         FaiReport?
 
   @@map("fai_requests")
 }
@@ -280,20 +281,19 @@ model ReportAttachment {
   @@map("report_attachments")
 }
 
-model FaiLabReport {
-  id           Int      @id @default(autoincrement())
-  request_id   Int
-  request_type String   @db.VarChar(20)
-  report_data  Json
-  pdf_url      String?  @db.Text
-  created_by   Int?
-  is_active    Boolean  @default(true)
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+model FaiReport {
+  id             Int        @id @default(autoincrement())
+  fai_request_id Int        @unique
+  report_data    Json
+  technician_id  Int?
+  is_active      Boolean    @default(true)
+  created_at     DateTime   @default(now())
+  updated_at     DateTime   @updatedAt
 
-  author       User?    @relation(fields: [created_by], references: [id])
+  faiRequest     FaiRequest @relation(fields: [fai_request_id], references: [id], onDelete: Cascade)
+  technician     User?      @relation(fields: [technician_id], references: [id])
 
-  @@map("fai_lab_reports")
+  @@map("fai_reports")
 }
 
 model ApprovalLog {

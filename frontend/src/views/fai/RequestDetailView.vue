@@ -5,19 +5,60 @@ import { useRoute, useRouter } from 'vue-router';
 import { formatDate } from '@/utils/dateFormatter';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
+import BaseModal from '@/components/common/BaseModal.vue';
 import PdfViewer from '@/components/common/PdfViewer.vue';
 import DetailCard from '@/components/common/DetailCard.vue';
 import StatusBadge from '@/components/common/StatusBadge.vue';
 import ResultBadge from '@/components/common/ResultBadge.vue';
 import Button from '@/components/ui/Button.vue';
+import FaiReportFormModal from '@/components/fai/FaiReportFormModal.vue';
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 
 const request = ref<any>(null);
-
 const errorMsg = ref('');
+
+const showReportModal = ref(false);
+const pdfReportUrl = ref<string | null>(null);
+const pdfReportFileName = ref<string | null>(null);
+
+const previewPdfModalState = ref({
+  isOpen: false,
+  files: [] as any[],
+  zipFilename: 'attachments.zip'
+});
+
+const openPdfReportModal = () => {
+  if (!pdfReportUrl.value) return;
+  const fileName = pdfReportFileName.value || `FAI_Report_${request.value?.test_no || request.value?.id}.pdf`;
+  previewPdfModalState.value.files = [{
+    id: 1,
+    file_name: fileName,
+    file_url: pdfReportUrl.value
+  }];
+  previewPdfModalState.value.zipFilename = fileName.replace(/\.pdf$/i, '.zip');
+  previewPdfModalState.value.isOpen = true;
+};
+
+const fetchPdfReportUrl = async () => {
+  if (!route.params.id) return;
+  try {
+    const res = await api.get(`/fai/${route.params.id}/report`);
+    if (res.data?.data?.pdf_url) {
+      pdfReportUrl.value = res.data.data.pdf_url;
+      pdfReportFileName.value = res.data.data.file_name || null;
+    }
+  } catch (err) {
+    console.error('Failed to fetch PDF report URL:', err);
+  }
+};
+
+const handleReportSubmitted = () => {
+  fetchRequestDetails();
+  fetchPdfReportUrl();
+};
 
 const checklistItems = [
   { key: 'psw', label: 'Part Submission Warrant (PSW)' },
@@ -67,7 +108,7 @@ const formatOrdinal = (n: number) => {
   if (!n) return '-';
   const s = ["th", "st", "nd", "rd"];
   const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  return n + (s[(v - 20) % 10] || s[v] || s[0] || 'th');
 };
 
 const { isLoading, execute: fetchRequestDetails } = useAsyncState(async () => {
@@ -76,6 +117,9 @@ const { isLoading, execute: fetchRequestDetails } = useAsyncState(async () => {
   const res = await api.get(`/fai/${id}`);
   if (res.data && res.data.success) {
     request.value = res.data.data;
+    if (route.query.mode === 'execute' && request.value?.status === 'Ongoing') {
+      showReportModal.value = true;
+    }
   } else {
     errorMsg.value = 'Failed to load request details.';
   }
@@ -96,6 +140,7 @@ const { isLoading, execute: fetchRequestDetails } = useAsyncState(async () => {
 
 onMounted(() => {
   fetchRequestDetails();
+  fetchPdfReportUrl();
 });
 
 const goBack = () => {
@@ -108,11 +153,10 @@ const goBack = () => {
 </script>
 
 <template>
-  <div class="h-full overflow-y-auto p-6 box-border">
-    <div class="w-full max-w-[1550px] mx-auto flex flex-col gap-6">
-      
-      <!-- Header -->
-      <div class="flex justify-between items-center border-b border-border pb-4">
+  <div class="h-full overflow-y-auto box-border">
+    <!-- Sticky Full-Width Header -->
+    <div class="sticky top-0 z-40 bg-bg-surface/95 backdrop-blur border-b border-border py-4 px-6 shadow-sm transition-colors duration-300">
+      <div class="w-full max-w-[1550px] mx-auto flex justify-between items-center">
         <div class="flex items-center gap-6">
           <Button variant="secondary" class="gap-2" @click="goBack">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
@@ -144,8 +188,43 @@ const goBack = () => {
             </div>
           </div>
         </div>
-        
+
+        <!-- Top-Right Action Buttons -->
+        <div v-if="request" class="flex items-center gap-3">
+          <Button
+            v-if="request.status === 'Ongoing' && route.query.mode === 'execute'"
+            variant="primary"
+            class="gap-2"
+            @click="showReportModal = true"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            {{ t('fai.report.fill_report') }}
+          </Button>
+
+          <Button
+            v-if="pdfReportUrl"
+            variant="secondary"
+            class="gap-2"
+            @click="openPdfReportModal"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-rose-500">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            {{ t('fai.report.view_pdf') }}
+          </Button>
+        </div>
       </div>
+    </div>
+
+    <!-- Main Content Container with Padding -->
+    <div class="p-6 w-full max-w-[1550px] mx-auto flex flex-col gap-6">
 
       <!-- Loading and Error States -->
       <div v-if="isLoading && !request" class="flex flex-col items-center justify-center p-20 bg-bg-surface border border-border rounded-lg text-text-muted">
@@ -339,6 +418,22 @@ const goBack = () => {
 
       </div>
     </div>
+
+    <!-- Modals -->
+    <FaiReportFormModal
+      :show="showReportModal"
+      :faiRequest="request"
+      @close="showReportModal = false"
+      @submitted="handleReportSubmitted"
+      @draft-saved="handleReportSubmitted"
+    />
+
+    <!-- Preview PDF Report Modal -->
+    <BaseModal :isOpen="previewPdfModalState.isOpen" title="Preview Report" maxWidth="1000px" @close="previewPdfModalState.isOpen = false">
+      <div class="-mx-8 -my-6 h-[80vh] flex flex-col">
+        <PdfViewer :files="previewPdfModalState.files" :zipFilename="previewPdfModalState.zipFilename" class="h-full border-none rounded-none w-full !max-h-full" />
+      </div>
+    </BaseModal>
   </div>
 </template>
 

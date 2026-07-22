@@ -25,12 +25,20 @@ services:
     volumes:
       - redis_data:/data
 
-  # 2. Backend (Node.js 22 LTS - Tương thích tốt với các thư viện cũ/mới)
+  # 2. Backend (Node.js 22 LTS với Chromium cho Puppeteer)
   backend:
-    image: node:22-alpine
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: fai_backend
     restart: unless-stopped
     working_dir: /app
+    shm_size: '1gb'
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
     volumes:
       - ./backend:/app 
     ports:
@@ -45,6 +53,8 @@ services:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=requests
+      - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
     command: npm run dev
     depends_on:
       - db

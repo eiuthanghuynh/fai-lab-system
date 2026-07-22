@@ -262,7 +262,11 @@ const handleAssign = async () => {
 };
 
 const handleMakeReport = (item: any) => {
-  toast.info('Make report action coming soon');
+  router.push({
+    name: 'fai-request-detail',
+    params: { id: item.id },
+    query: { mode: 'execute' }
+  });
 };
 
 const { isLoading, execute: fetchRequests } = useAsyncState(async () => {
